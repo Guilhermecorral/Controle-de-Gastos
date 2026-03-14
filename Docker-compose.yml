@@ -1,0 +1,56 @@
+#                 Docker-compose file for the backend service
+
+# Define the version of Docker Compose
+version: '3.9'
+
+# Define the volumes to persist data
+volumes:
+  # Define a volume for the PostgreSQL data
+  postgres_data:
+
+# Define the services that make up the application
+services:
+
+  # Define the PostgreSQL service to be used by the backend
+  postgres:
+    image: postgres:16-alpine # Use the official PostgreSQL image
+    container_name: controle-gastos-db # Name the container for easier reference
+    restart: unless-stopped # Restart the container unless it is explicitly stopped
+
+    environment: # Set environment variables for PostgreSQL
+      POSTGRES_USER: ${POSTGRES_USER} # Set the PostgreSQL user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Set the PostgreSQL password
+      POSTGRES_DB: controle_gastos # Set the PostgreSQL database name
+
+    ports:
+      - "5433:5432" # Map port 5433 on the host to port 5432 in the container
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Mount the volume to persist data
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d controle_gastos" ] # Check if PostgreSQL is ready
+      interval: 5s # Check every 5 seconds
+      timeout: 5s # Timeout after 5 seconds
+      retries: 5 # Retry up to 5 times
+
+  # Application service is Spring boot (Java 25)
+  backend:
+    build:
+      context: ./backend/back # Folder where the Dockerfile is located
+      dockerfile: Dockerfile # Name of the Dockerfile
+
+    container_name: controle-gastos-backend # Name the container for easier reference
+    restart: unless-stopped # Restart the container unless it is explicitly stopped
+
+    ports:
+      - "8080:8080" # Port is API -> accessible on port 8080 of the host machine
+
+    environment: # Set environment variables for the backend
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL} # Set the database connection URL for the backend to connect to PostgreSQL
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME} # Set the database connection details for the backend to connect to PostgreSQL
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+
+    depends_on:
+      postgres:
+        condition: service_healthy # Ensure the backend waits for PostgreSQL to be healthy before starting
