@@ -1,0 +1,37 @@
+# Spring Boot application configuration file
+
+# Define the port on which the server will run
+server:
+  # The port number can be changed as needed. Default is 8080.
+  port: 8080
+# Define the context path for the application. This is the base URL for all endpoints.
+spring:
+  # DataSource configuration for connecting to the database
+  datasource:
+    url: ${DATASOURCE_URL} # The URL for connecting to the PostgreSQL database. Change 'localhost' and 'controle-gastos' as needed.
+    username: ${DATASOURCE_USERNAME} # The username for the database connection.
+    password: ${DATASOURCE_PASSWORD} # The password for the database connection.
+    driver-class-name: org.postgresql.Driver # The driver class name for PostgreSQL.
+
+    # JPA (Java Persistence API) configuration
+    jpa:
+      hibernate:
+        ddl-auto: update # Create/Update the database schema automatically based on the entities.
+      show-sql: true # Show SQL statements in the console for debugging purposes.
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect # The Hibernate dialect for PostgreSQL.
+          format_sql: true # Format SQL statements for better readability in the console.
+
+    # JWT (JSON Web Token) configuration for security
+    jwt:
+      secret: ${JWT_SECRET}
+      # Never commit sensitive information like secret keys to version control. Use environment variables or a secure vault in production environments.
+
+      acess-token-expiration: ${JWT_ACCESS_EXPIRATION}
+      refresh-token-expiration: ${JWT_REFRESH_EXPIRATION}
+
+# Profile activation
+spring:
+  profiles:
+    active: dev # Set the active profile to 'dev' for development.
