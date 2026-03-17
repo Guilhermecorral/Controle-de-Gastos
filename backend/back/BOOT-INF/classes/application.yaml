@@ -3,11 +3,17 @@
 # Define the port on which the server will run
 server:
   # The port number can be changed as needed. Default is 8080.
-  port: 6969
+  port: 8080
 # Define the context path for the application. This is the base URL for all endpoints.
 spring:
-  config:
-    import: optional:file:.env.properties[.properties]
+  # DataSource configuration for connecting to the database
+  datasource:
+    url: ${SPRING_DATASOURCE_URL} # The URL for connecting to the PostgreSQL database. Change 'localhost' and 'controle-gastos' as needed.
+    username: ${SPRING_DATASOURCE_USERNAME} # The username for the database connection.
+    password: ${SPRING_DATASOURCE_PASSWORD} # The password for the database connection.
+    driver-class-name: org.postgresql.Driver # The driver class name for PostgreSQL.
+
+    # JPA (Java Persistence API) configuration
   jpa:
     hibernate:
       ddl-auto: update # Create/Update the database schema automatically based on the entities.

@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:55433/controle_gastos
+    username: jamelao
+    password: 1997
+    driver-class-name: org.postgresql.Driver

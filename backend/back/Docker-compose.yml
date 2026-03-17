@@ -23,13 +23,13 @@ services:
       POSTGRES_DB: controle_gastos # Set the PostgreSQL database name
 
     ports:
-      - "5433:5432" # Map port 5433 on the host to port 5432 in the container
+      - "55433:5432" # Map port 55433 on the host to port 5432 in the container
 
     volumes:
       - postgres_data:/var/lib/postgresql/data # Mount the volume to persist data
 
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d controle_gastos" ] # Check if PostgreSQL is ready
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d controle_gastos" ] # Check if PostgreSQL is ready
       interval: 5s # Check every 5 seconds
       timeout: 5s # Timeout after 5 seconds
       retries: 5 # Retry up to 5 times
@@ -37,17 +37,18 @@ services:
   # Application service is Spring boot (Java 25)
   backend:
     build:
-      context: ./backend/back # Folder where the Dockerfile is located
+      context: . # Folder where the Dockerfile is located
       dockerfile: Dockerfile # Name of the Dockerfile
 
     container_name: controle-gastos-backend # Name the container for easier reference
     restart: unless-stopped # Restart the container unless it is explicitly stopped
 
     ports:
-      - "8080:8080" # Port is API -> accessible on port 8080 of the host machine
+      - "8081:8080" # Port is API -> accessible on port 8081 of the host machine
 
     environment: # Set environment variables for the backend
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL} # Set the database connection URL for the backend to connect to PostgreSQL
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/controle_gastos
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME} # Set the database connection details for the backend to connect to PostgreSQL
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
 
