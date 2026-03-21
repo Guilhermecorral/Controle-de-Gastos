@@ -1,0 +1,80 @@
+package com.controledegastos.backend.Transactions;
+
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "transactions")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Transaction {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TransactionType type;
+
+    @Column(nullable = false, length = 255)
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TransactionCategory category;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentMethod paymentMethod;
+
+    @Column(nullable = false)
+    private LocalDate TransactionDate;
+
+    @Column(nullable = false)
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+
+    //Enums internos definidos
+
+    public enum TransactionType {
+        RECEITA,
+        DESPESA
+    }
+
+    public enum TransactionCategory {
+        ALIMENTACAO,
+        TRANSPORTE,
+        MORADIA,
+        SAUDE,
+        LAZER,
+        EDUCACAO,
+        COMRPAS,
+        OUTROS
+    }
+
+    public enum PaymentMethod {
+        PIX,
+        CARTAO_DEBITO,
+        CARTAO_CREDITO_AVISTA,
+        CARTAO_CREDITO_PARCELADO,
+        DINHEIRO
+    }
+}

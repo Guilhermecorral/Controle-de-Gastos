@@ -34,11 +34,11 @@ services:
       timeout: 5s # Timeout after 5 seconds
       retries: 5 # Retry up to 5 times
 
-  # Application service is Spring boot (Java 25)
+  # Application service is Spring boot (Java 21)
   backend:
     build:
-      context: . # Folder where the Dockerfile is located
-      dockerfile: Dockerfile # Name of the Dockerfile
+      context: backend/back # Folder where the Dockerfile is located
+      dockerfile: backend/back/Dockerfile # Name of the Dockerfile
 
     container_name: controle-gastos-backend # Name the container for easier reference
     restart: unless-stopped # Restart the container unless it is explicitly stopped
