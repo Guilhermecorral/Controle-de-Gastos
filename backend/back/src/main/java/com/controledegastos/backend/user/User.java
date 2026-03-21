@@ -1,6 +1,6 @@
 package com.controledegastos.backend.user;
 
-
+import com.controledegastos.backend.wishlist.Wishlist;
 import com.controledegastos.backend.Transactions.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
@@ -50,7 +50,7 @@ public class User {
 
     // Same relationship for the wishlist - a User has many WishlistItems
     @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
-    private List<WishlistItem> wishlistItems;
+    private List<Wishlist> wishlistItems;
 
     // Automatically set createdAt when the user is first saved to the database
     @PrePersist

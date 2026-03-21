@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class Wishlist {
+public class WishlistItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,7 +35,7 @@ public class Wishlist {
 
     //final price calculated: originalPrice * (1 - discountPercent / 100)
     //Calculated of service old of save - never through the front-end
-    @Column(nullable = false,precision = 19, scale = 2)
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal finalPrice;
 
     //item priority on the wishlist
@@ -118,6 +118,4 @@ public class Wishlist {
         COMPRAS, ALIMENTACAO, MORADIA, SAUDE,
         LAZER, EDUCACAO, TRANSPORTE, OUTROS
     }
-
-
 }
