@@ -10,9 +10,9 @@ import java.util.List;
 @Entity
 @Table(name = "users") // Create table users
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class User {
 
     // Key primary
@@ -35,7 +35,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private Transaction.TransactionType transactionType;
+    private Role role = Role.USER;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
