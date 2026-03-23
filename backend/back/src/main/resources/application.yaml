@@ -3,11 +3,14 @@
 # Define the port on which the server will run
 server:
   # The port number can be changed as needed. Default is 8080.
-  port: 6969
+  port: 8080
 # Define the context path for the application. This is the base URL for all endpoints.
 spring:
   config:
     import: optional:file:.env.properties[.properties]
+  # Profile activation
+  profiles:
+    active: dev # Set the active profile to 'dev' for development.
   jpa:
     hibernate:
       ddl-auto: update # Create/Update the database schema automatically based on the entities.
@@ -19,17 +22,14 @@ spring:
     open-in-view: false # Disable open session in view to present lazy loading issues in the service layer instead of the controller layes.
 
     # JWT (JSON Web Token) configuration for security
-  jwt:
-    secret: ${JWT_SECRET}
-    # Never commit sensitive information like secret keys to version control. Use environment variables or a secure vault in production environments.
-    acess-token-expiration: ${JWT_ACCESS_EXPIRATION}
-    refresh-token-expiration: ${JWT_REFRESH_EXPIRATION}
+jwt:
+  secret: ${JWT_SECRET}
+  # Never commit sensitive information like secret keys to version control. Use environment variables or a secure vault in production environments.
+  acess-token-expiration: ${JWT_ACCESS_EXPIRATION}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION}
 
-  # Profile activation
-  profiles:
-    active: dev # Set the active profile to 'dev' for development.
-  logging:
-    level:
-      org.hibernate: DEBUG
-      org.hibernate.tool.schema: DEBUG
-      org.hibernate.SQL: DEBUG
+logging:
+  level:
+    org.hibernate: DEBUG
+    org.hibernate.tool.schema: DEBUG
+    org.hibernate.SQL: DEBUG
