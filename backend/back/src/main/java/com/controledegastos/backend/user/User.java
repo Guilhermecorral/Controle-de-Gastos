@@ -1,7 +1,7 @@
 package com.controledegastos.backend.user;
 
 import com.controledegastos.backend.wishlist.WishlistItem;
-import com.controledegastos.backend.Transactions.Transaction;
+import com.controledegastos.backend.transactions.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;

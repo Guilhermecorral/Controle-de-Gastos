@@ -1,4 +1,4 @@
-package com.controledegastos.backend.Transactions;
+package com.controledegastos.backend.transactions;
 
 
 import jakarta.persistence.*;

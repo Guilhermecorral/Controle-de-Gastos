@@ -16,6 +16,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect # The Hibernate dialect for PostgreSQL.
         format_sql: true # Format SQL statements for better readability in the console.
+    open-in-view: false # Disable open session in view to present lazy loading issues in the service layer instead of the controller layes.
 
     # JWT (JSON Web Token) configuration for security
   jwt:
