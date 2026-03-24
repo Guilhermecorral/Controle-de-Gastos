@@ -14,25 +14,17 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
-*.iws
+.idea/
 *.iml
 *.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+*.iws
 
 ### VS Code ###
 .vscode/
 
-### ###
+# Environment files
 .env
-.env.properties
 *.env
+.env.properties
+.env.local
+.env.*.local
