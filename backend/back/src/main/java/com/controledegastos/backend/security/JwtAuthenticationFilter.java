@@ -51,7 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // If it managed to extract the email AND the user is not yet authenticated in this request
         // getAuthentication() == null means we haven't set the authentication yet
-        if (email == null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             // Searches for the user in the database by the email extracted from the token
             // If not found, the token is invalid — does not authenticate

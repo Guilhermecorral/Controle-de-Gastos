@@ -6,7 +6,7 @@ import java.util.Optional;
 
 //@Repository: access a data
 @Repository
-public interface UserRepository extends JpaRepository<User,String> {
+public interface UserRepository extends JpaRepository<User,Long> {
 
     //JPA generate SQL automatically by the name if method
     //"findBy" + "Email" -> SELECT * FROM users WHERE email = ?

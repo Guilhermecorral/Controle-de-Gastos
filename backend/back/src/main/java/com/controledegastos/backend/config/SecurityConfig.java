@@ -37,8 +37,11 @@ public class SecurityConfig {
                 //
                 .requestMatchers(
                         "/api/auth/**", // register and login
-                        "/swagger-ui/**",  // API documentation
-                        "/v3/api-docs/**" // schema OpenAPI
+                        "/swagger-ui/**", // API documentation
+                        "/swagger-ui.html", // HTML
+                        "/v3/api-docs/**", // schema OpenAPI
+                        "/swagger-resources/**", // Resources
+                        "/webjars/**" // Webjars
                 ).permitAll()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
