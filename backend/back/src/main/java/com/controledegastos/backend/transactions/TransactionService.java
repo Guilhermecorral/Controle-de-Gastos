@@ -20,11 +20,15 @@ public class TransactionService {
     // Centralized here to avoid repeating in each method (DRY principle)
     private User getAuthenticatedUser() {
         // getname() return email
-        String email = SecurityContextHolder.getContext()
+        Object principal = SecurityContextHolder.getContext()
                 .getAuthentication()
-                .getName();
+                .getPrincipal();
+        if (principal instanceof User user) {
+            return user;
+        }
         // If email in token, the user must exist in the database
         // orElseThrow: else to find, throw an exception (should never happen if token is valid)
+        String email = principal.toString();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
     }
@@ -55,7 +59,7 @@ public class TransactionService {
                 .category(dto.category())
                 .amount(dto.amount())
                 .paymentMethod(dto.paymentMethod())
-                .TransactionDate(dto.transactionDate())
+                .transactionDate(dto.transactionDate())
                 .build();
 
         //Save in database
@@ -75,19 +79,19 @@ public class TransactionService {
         if (type != null && category != null) {
             // Filter combined: type AND category
             transactions = transactionRepository
-                    .findAllByUserAndTypeAndCategoryOrderTransactionsDateDesc(user, type, category);
+                    .findAllByUserAndTypeAndCategoryOrderByTransactionDateDesc(user, type, category);
         } else if (type != null) {
             // Filter of the type
             transactions = transactionRepository
-                    .findAllByUserAndTypeOrderTransactionsDateDesc(user, type);
+                    .findAllByUserAndTypeOrderByTransactionDateDesc(user, type);
         } else if (category != null) {
             // Filter of the category
             transactions = transactionRepository
-                    .findAllByUserAndCategoryOrderTransactionsDateDesc(user, category);
+                    .findAllByUserAndCategoryOrderByTransactionDateDesc(user, category);
         } else {
             // No used filters, return all transactions of the user
             transactions = transactionRepository
-                .findAllByUserOrderByDateDesc(user);
+                .findAllByUserOrderByTransactionDateDesc(user);
         }
 
         return transactions.stream()

@@ -44,7 +44,7 @@ public class Transaction {
     private PaymentMethod paymentMethod;
 
     @Column(nullable = false)
-    private LocalDate TransactionDate;
+    private LocalDate transactionDate;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -68,7 +68,7 @@ public class Transaction {
         SAUDE,
         LAZER,
         EDUCACAO,
-        COMRPAS,
+        COMPRAS,
         OUTROS
     }
 

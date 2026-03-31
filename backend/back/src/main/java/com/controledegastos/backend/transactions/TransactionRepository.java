@@ -10,22 +10,22 @@ import java.util.Optional;
 public interface TransactionRepository extends  JpaRepository<Transaction, Long> {
 
     // Search for a transaction by its id and user
-    List<Transaction> findAllByUserOrderByDateDesc(User user);
+    List<Transaction> findAllByUserOrderByTransactionDateDesc(User user);
 
     // Search for user AND type (RECEITA or DESPESA)
-    List<Transaction> findAllByUserAndTypeOrderTransactionsDateDesc(
+    List<Transaction> findAllByUserAndTypeOrderByTransactionDateDesc(
             User user,
             Transaction.TransactionType type
     );
 
     // Search for a user AND category
-    List<Transaction> findAllByUserAndCategoryOrderTransactionsDateDesc(
+    List<Transaction> findAllByUserAndCategoryOrderByTransactionDateDesc(
             User user,
             Transaction.TransactionCategory category
     );
 
     // Search for user, type and category - filter combined
-    List<Transaction> findAllByUserAndTypeAndCategoryOrderTransactionsDateDesc(
+    List<Transaction> findAllByUserAndTypeAndCategoryOrderByTransactionDateDesc(
             User user,
             Transaction.TransactionType type,
             Transaction.TransactionCategory category
@@ -35,5 +35,5 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
     Optional<Transaction> findByIdAndUser(Long id, User user);
 
     //
-    List<Transaction> findTop5ByUserOrderByTransactionsDateDesc(User user);
+    List<Transaction> findTop5ByUserOrderByTransactionDateDesc(User user);
 }
