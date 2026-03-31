@@ -9,14 +9,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -63,13 +60,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // SimpleGrantedAuthority: converts the Role ("USER") to Spring's format ("ROLE_USER")
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
-                                user,               // main: the complete User object
-                                null,               // credentials: null since we have already validated via JWT
-                        List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                                user,
+                                null, // No password needed — we already trust the token
+                                user.getAuthorities()
                         );
 
                 //Add request details (IP, session) to the authentication token
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                authToken.setDetails(
+                        new WebAuthenticationDetailsSource().buildDetails(request));
 
                 // Registers the authentication in the current request context
                 // From this point, Spring knows who is making this request

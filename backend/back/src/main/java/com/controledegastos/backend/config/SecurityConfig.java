@@ -14,6 +14,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.Components;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import com.controledegastos.backend.user.UserRepository;
 
 // @Configuration : class configuration - Spring reads @Bean definite
 // @EnableWebSecurity : Active configuration customize Spring Security
@@ -26,7 +34,7 @@ public class SecurityConfig {
 
     // Define the HTTP security rules — the 'map' of who can access what
     @Bean
-    public SecurityFilterChain SecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             // Disables CSRF: REST APIs use token (JWT) for security, not session cookie
             // CSRF is only necessary for apps with traditional HTML forms
@@ -36,12 +44,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 //
                 .requestMatchers(
-                        "/api/auth/**", // register and login
-                        "/swagger-ui/**", // API documentation
-                        "/swagger-ui.html", // HTML
-                        "/v3/api-docs/**", // schema OpenAPI
-                        "/swagger-resources/**", // Resources
-                        "/webjars/**" // Webjars
+                        "/api/auth/**",   // register and login
+                        "/api/auth/login",         // login
+                        "/swagger-ui/**",          // API documentation
+                        "/swagger-ui.html",        // HTML
+                        "/v3/api-docs/**",         // schema OpenAPI
+                        "/swagger-resources/**",   // Resources
+                        "/webjars/**"              // Webjars
                 ).permitAll()
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
@@ -71,5 +80,37 @@ public class SecurityConfig {
             AuthenticationConfiguration config
     ) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    public OpenAPI customOpenAPI() {
+        // Definition the scheme security for JWT in OpenAPI documentation
+        SecurityScheme securityScheme = new SecurityScheme()
+                .name("bearerAuth")                // Name scheme
+                .type(SecurityScheme.Type.HTTP)    // Type HTTP
+                .scheme("bearer")                  // Scheme bearer
+                .bearerFormat("JWT");              // Format JWT
+
+        // Apply the security scheme globally on all endpoints
+        SecurityRequirement securityRequirement = new SecurityRequirement()
+                .addList("bearerAuth");
+
+        return new OpenAPI()
+                .info(new Info()
+                        .title("Controle de Gastos API")
+                        .version("1.0.0")
+                        .description("API REST para controle financeiro pessoal"))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth", securityScheme))
+                .addSecurityItem(securityRequirement);
+
+    }
+
+    private final UserRepository userRepository;
+
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return username -> userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + username));
     }
 }
