@@ -18,9 +18,9 @@
       open-in-view: false # Disable open session in view to present lazy loading issues in the service layer instead of the controller layes.
     config:
       # Profile activation
-      profiles:
-        active: dev # Set the active profile to 'dev' for development.
       import: optional:file:.env.properties[.properties]
+    profiles:
+      active: dev # Set the active profile to 'dev' for development.
 
   # JWT (JSON Web Token) configuration for security
   jwt:
@@ -32,6 +32,8 @@
     #Logs
     logging:
       level:
+        org.framework.security: TRACE
+        org.framework.security.web.filterChainProxy: TRACE
         org.hibernate: DEBUG
         org.hibernate.tool.schema: DEBUG
         org.hibernate.SQL: DEBUG

@@ -21,3 +21,9 @@
         # 'update' will update the database schema to match the entity definitions, but it won't drop existing tables or data.
         ddl-auto: update
       show-sql: false
+      open-in-view: false
+
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration: ${JWT_ACCESS_EXPIRATION}
+      refresh-expiration: ${JWT_REFRESH_EXPIRATION}
