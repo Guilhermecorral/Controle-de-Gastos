@@ -42,7 +42,7 @@ public class WishlistItem {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private Priority priority = Priority.MEDIUM;
+    private Priority priority = Priority.MEDIA;
 
     //Category - reutilization is same category's of the transaction
     @Enumerated(EnumType.STRING)
@@ -60,7 +60,7 @@ public class WishlistItem {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private WishlistStatus status = WishlistStatus.PENDING;
+    private WishlistStatus status = WishlistStatus.PENDENTE;
 
     //Date when the item was marked as purchased - null if still pending
     //Useful for history and future reports
@@ -104,14 +104,14 @@ public class WishlistItem {
 
     //Enums of module's Wishlist
     public enum WishlistStatus {
-        PENDING, //Item not yet purchased - appears in the main list
-        PURCHASED //Item purchased - appears in the "Already Purchased" section with Undo button
+        PENDENTE, //Item not yet purchased - appears in the main list
+        COMPRADO //Item purchased - appears in the "Already Purchased" section with Undo button
     }
 
     public enum Priority {
-        HIGH, //Displayed in red/highligh in the prototype
-        MEDIUM, //Displayed in yellow - default
-        LOW //Displayed in green/neutral
+        ALTO, //Displayed in red/highligh in the prototype
+        MEDIA, //Displayed in yellow - default
+        BAIXO //Displayed in green/neutral
     }
 
     public enum WishlistCategory {
