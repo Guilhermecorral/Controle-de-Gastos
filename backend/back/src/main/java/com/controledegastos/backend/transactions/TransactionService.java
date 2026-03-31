@@ -95,7 +95,7 @@ public class TransactionService {
     }
 
     // Update a transaction existing - verify if belong to the user
-    public TransactionResponseDTO findById(Long id, TransactionRequestDTO dto) {
+    public TransactionResponseDTO update(Long id, TransactionRequestDTO dto) {
         User user = getAuthenticatedUser();
         // findByIdANDUser: Ensure that the ID belong to this user
         // if not found, the user is trying to edit someone else's transaction
