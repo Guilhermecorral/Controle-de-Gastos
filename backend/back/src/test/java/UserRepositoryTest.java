@@ -1,3 +1,4 @@
+import com.controledegastos.backend.BackendApplication; // Imports the application class explicitly for Spring Boot test startup.
 import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -6,7 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest; // Alternativa infa
 import org.springframework.test.context.ActiveProfiles;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest // Carrega o contexto completo para garantir que tudo funcione
+@SpringBootTest(classes = BackendApplication.class) // Loads the exact Spring Boot application class even from the default package.
 @ActiveProfiles("dev") // Garante que ele use o H2 que configuramos no application-dev.yml
 class UserRepositoryTest {
 
@@ -15,13 +16,15 @@ class UserRepositoryTest {
 
     @Test
     void shouldSaveAndFindUser() {
+        String email = "test+" + System.nanoTime() + "@test.com"; // Generates a unique email so repeated in-memory runs do not collide.
         User user = User.builder()
                 .name("Test")
-                .email("test@test.com")
+                .email(email)
                 .password("123456")
+                .role(User.Role.USER) // Sets the role explicitly to avoid null values in the entity.
                 .build();
 
         userRepository.save(user);
-        assertTrue(userRepository.findByEmail("test@test.com").isPresent());
+        assertTrue(userRepository.findByEmail(email).isPresent());
     }
 }

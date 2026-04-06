@@ -2,7 +2,11 @@ package com.controledegastos.backend.transactions;
 
 import com.controledegastos.backend.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,4 +40,25 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
 
     //
     List<Transaction> findTop5ByUserOrderByTransactionDateDesc(User user);
+
+    // Returns the total amount of one transaction type for the authenticated user.
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.user = :user AND t.type = :type")
+    BigDecimal sumAmountByUserAndType(
+            @Param("user") User user,
+            @Param("type") Transaction.TransactionType type
+    );
+
+    // Returns the five most recent transactions using createdAt as a tie-breaker for same-day entries.
+    List<Transaction> findTop5ByUserOrderByTransactionDateDescCreatedAtDesc(User user);
+
+    // Groups only expenses by category, which is exactly what the dashboard needs for spending analysis.
+    @Query("""
+            SELECT t.category AS category, SUM(t.amount) AS totalAmount
+            FROM Transaction t
+            WHERE t.user = :user
+              AND t.type = com.controledegastos.backend.transactions.Transaction.TransactionType.DESPESA
+            GROUP BY t.category
+            ORDER BY SUM(t.amount) DESC
+            """)
+    List<TransactionCategorySummaryProjection> findExpenseSummaryByCategory(@Param("user") User user);
 }

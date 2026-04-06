@@ -64,7 +64,7 @@ public class TransactionService {
 
         //Save in database
         Transaction saved = transactionRepository.save(transaction);
-                return toResponseDTO(transaction);
+        return toResponseDTO(saved);
     }
 
     // List transaction with filters optional type and category
