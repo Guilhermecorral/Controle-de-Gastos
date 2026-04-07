@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service; // Marks the class as a Spring se
 import org.springframework.transaction.annotation.Transactional; // Marks the read operation as transactional and read-only.
 
 import java.math.BigDecimal; // Imports the precise type used for money calculations.
+import java.time.LocalDate; // Imports the date type used to define the current-month interval.
+import java.time.YearMonth; // Imports the type used to represent the current dashboard month.
 import java.util.List; // Imports the list type used in the response.
 
 @Service // Registers this class as a Spring-managed service bean.
@@ -53,22 +55,38 @@ public class DashboardService { // Declares the service responsible for assembli
     @Transactional(readOnly = true) // Keeps the operation optimized for reading and protects against accidental writes.
     public DashboardResponseDTO getDashboard() { // Starts the main use case of the dashboard module.
         User user = getAuthenticatedUser(); // Resolves which user owns the dashboard being requested.
-        BigDecimal totalReceitas = transactionRepository.sumAmountByUserAndType( // Loads the total income for the user.
+        YearMonth periodoAtual = YearMonth.now(); // Defines the current month used by the dashboard as the real-time reference period.
+        LocalDate inicioMesAtual = periodoAtual.atDay(1); // Calculates the first day of the current month.
+        LocalDate fimMesAtual = periodoAtual.atEndOfMonth(); // Calculates the last day of the current month.
+        BigDecimal totalReceitas = transactionRepository.sumAmountByUserAndType( // Loads the accumulated income for the user across the full history.
                 user, // Passes the authenticated user filter.
                 Transaction.TransactionType.RECEITA // Filters only income transactions.
         ); // Finishes the income aggregate query.
-        BigDecimal totalDespesas = transactionRepository.sumAmountByUserAndType( // Loads the total expenses for the user.
+        BigDecimal totalDespesas = transactionRepository.sumAmountByUserAndType( // Loads the accumulated expenses for the user across the full history.
                 user, // Passes the authenticated user filter.
                 Transaction.TransactionType.DESPESA // Filters only expense transactions.
         ); // Finishes the expense aggregate query.
-        BigDecimal saldo = totalReceitas.subtract(totalDespesas); // Calculates the remaining balance from income minus expenses.
+        BigDecimal saldo = totalReceitas.subtract(totalDespesas); // Calculates the accumulated balance carried from month to month.
+        BigDecimal receitasMesAtual = transactionRepository.sumAmountByUserAndTypeAndTransactionDateBetween( // Loads the income restricted to the current month.
+                user, // Passes the authenticated user filter.
+                Transaction.TransactionType.RECEITA, // Filters only income transactions of the current month.
+                inicioMesAtual, // Defines the first day of the current month interval.
+                fimMesAtual // Defines the last day of the current month interval.
+        ); // Finishes the current-month income aggregate query.
+        BigDecimal despesasMesAtual = transactionRepository.sumAmountByUserAndTypeAndTransactionDateBetween( // Loads the expenses restricted to the current month.
+                user, // Passes the authenticated user filter.
+                Transaction.TransactionType.DESPESA, // Filters only expense transactions of the current month.
+                inicioMesAtual, // Defines the first day of the current month interval.
+                fimMesAtual // Defines the last day of the current month interval.
+        ); // Finishes the current-month expense aggregate query.
+        BigDecimal resultadoMesAtual = receitasMesAtual.subtract(despesasMesAtual); // Calculates the pure result of the current month without historical carry-over.
         List<TransactionResponseDTO> ultimasTransacoes = transactionRepository // Starts loading the recent transactions list.
                 .findTop5ByUserOrderByTransactionDateDescCreatedAtDesc(user) // Queries the five most recent transactions for the user.
                 .stream() // Opens a stream for mapping entities to DTOs.
                 .map(this::toTransactionResponseDTO) // Converts each entity into the transaction response DTO.
                 .toList(); // Materializes the mapped list.
         List<DashboardCategorySummaryDTO> gastosPorCategoria = transactionRepository // Starts loading the expense totals grouped by category.
-                .findExpenseSummaryByCategory(user) // Executes the grouping query for the authenticated user.
+                .findExpenseSummaryByCategoryAndTransactionDateBetween(user, inicioMesAtual, fimMesAtual) // Executes the grouping query for the authenticated user restricted to the current month.
                 .stream() // Opens a stream for projection-to-DTO mapping.
                 .map(this::toCategorySummaryDTO) // Converts each projection into a frontend-friendly DTO.
                 .toList(); // Materializes the mapped list.
@@ -76,6 +94,14 @@ public class DashboardService { // Declares the service responsible for assembli
                 totalReceitas, // Includes the total income.
                 totalDespesas, // Includes the total expenses.
                 saldo, // Includes the calculated balance.
+                totalReceitas, // Includes the explicit accumulated income total.
+                totalDespesas, // Includes the explicit accumulated expense total.
+                saldo, // Includes the explicit accumulated balance.
+                receitasMesAtual, // Includes the income of the current month.
+                despesasMesAtual, // Includes the expenses of the current month.
+                resultadoMesAtual, // Includes the result of the current month.
+                periodoAtual.getYear(), // Includes the current reference year used by the dashboard.
+                periodoAtual.getMonthValue(), // Includes the current reference month used by the dashboard.
                 ultimasTransacoes, // Includes the recent transaction list.
                 gastosPorCategoria // Includes the grouped expense analysis.
         ); // Finishes the response creation.
