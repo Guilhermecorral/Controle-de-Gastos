@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,4 +62,43 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
             ORDER BY SUM(t.amount) DESC
             """)
     List<TransactionCategorySummaryProjection> findExpenseSummaryByCategory(@Param("user") User user);
+
+    // Returns the total amount of one transaction type limited to a date range.
+    @Query("""
+            SELECT COALESCE(SUM(t.amount), 0)
+            FROM Transaction t
+            WHERE t.user = :user
+              AND t.type = :type
+              AND t.transactionDate BETWEEN :startDate AND :endDate
+            """)
+    BigDecimal sumAmountByUserAndTypeAndTransactionDateBetween(
+            @Param("user") User user,
+            @Param("type") Transaction.TransactionType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    // Groups expenses by category limited to the informed date range.
+    @Query("""
+            SELECT t.category AS category, SUM(t.amount) AS totalAmount
+            FROM Transaction t
+            WHERE t.user = :user
+              AND t.type = com.controledegastos.backend.transactions.Transaction.TransactionType.DESPESA
+              AND t.transactionDate BETWEEN :startDate AND :endDate
+            GROUP BY t.category
+            ORDER BY SUM(t.amount) DESC
+            """)
+    List<TransactionCategorySummaryProjection> findExpenseSummaryByCategoryAndTransactionDateBetween(
+            @Param("user") User user,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    // Returns the biggest expense of the period, using date and creation time as tie-breakers.
+    Optional<Transaction> findTopByUserAndTypeAndTransactionDateBetweenOrderByAmountDescTransactionDateDescCreatedAtDesc(
+            User user,
+            Transaction.TransactionType type,
+            LocalDate startDate,
+            LocalDate endDate
+    );
 }
