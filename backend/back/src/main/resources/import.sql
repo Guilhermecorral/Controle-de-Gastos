@@ -1,2 +1,2 @@
-INSERT INTO users (email, password, role, name, created_at)
+-- Seed file intentionally left empty.
 VALUES ('admin@test.com', 'senha_hash_aqui', 'ADMIN', 'Jorge Sênior', CURRENT_TIMESTAMP);
