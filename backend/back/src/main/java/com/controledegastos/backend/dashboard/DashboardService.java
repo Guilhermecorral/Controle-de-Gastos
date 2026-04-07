@@ -2,14 +2,13 @@ package com.controledegastos.backend.dashboard; // Declares the package for the 
 
 import com.controledegastos.backend.dashboard.dto.DashboardCategorySummaryDTO; // Imports the DTO used for grouped category totals.
 import com.controledegastos.backend.dashboard.dto.DashboardResponseDTO; // Imports the DTO returned by the dashboard endpoint.
+import com.controledegastos.backend.security.AuthenticatedUserService; // Imports the shared helper that resolves the current authenticated user.
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO; // Imports the DTO reused for recent transactions.
 import com.controledegastos.backend.transactions.Transaction; // Imports the transaction entity and its enums.
 import com.controledegastos.backend.transactions.TransactionCategorySummaryProjection; // Imports the projection used for grouped expense queries.
 import com.controledegastos.backend.transactions.TransactionRepository; // Imports the repository that supplies the dashboard data.
 import com.controledegastos.backend.user.User; // Imports the authenticated user entity.
-import com.controledegastos.backend.user.UserRepository; // Imports the repository used to resolve the authenticated user from the token subject.
 import lombok.RequiredArgsConstructor; // Imports Lombok to generate the constructor for injected dependencies.
-import org.springframework.security.core.context.SecurityContextHolder; // Imports Spring Security access to the current authentication context.
 import org.springframework.stereotype.Service; // Marks the class as a Spring service.
 import org.springframework.transaction.annotation.Transactional; // Marks the read operation as transactional and read-only.
 
@@ -21,19 +20,11 @@ import java.util.List; // Imports the list type used in the response.
 public class DashboardService { // Declares the service responsible for assembling the dashboard.
 
     private final TransactionRepository transactionRepository; // Stores access to transaction data and aggregates.
-    private final UserRepository userRepository; // Stores access to user lookup for authenticated requests.
+    private final AuthenticatedUserService authenticatedUserService; // Stores the shared helper used to resolve the current user safely.
 
-    // Extracts the authenticated user from the current security context.
+    // Extracts the authenticated user from the shared helper service.
     private User getAuthenticatedUser() { // Starts the helper that resolves who is making the request.
-        Object principal = SecurityContextHolder.getContext() // Reads the current security context.
-                .getAuthentication() // Reads the current authentication object.
-                .getPrincipal(); // Reads the principal stored in the authentication.
-        if (principal instanceof User user) { // Uses the entity directly when the JWT filter already stored it.
-            return user; // Returns the authenticated entity immediately.
-        } // Closes the direct-user branch.
-        String email = principal.toString(); // Falls back to the email subject when the principal is not a User instance.
-        return userRepository.findByEmail(email) // Loads the user from the database using the authenticated email.
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found")); // Fails fast if the token points to a missing user.
+        return authenticatedUserService.getAuthenticatedUser(); // Delegates the responsibility to the shared authenticated user helper.
     } // Closes the authenticated-user helper.
 
     // Converts the transaction entity into the DTO already used by the transactions module.

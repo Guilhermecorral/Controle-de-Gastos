@@ -19,7 +19,7 @@ import java.time.LocalDate; // Imports the type used for transaction dates.
 import static org.junit.jupiter.api.Assertions.assertEquals; // Imports the equality assertion.
 
 @SpringBootTest // Boots the application so the service, repository and security stack work together.
-@ActiveProfiles("dev") // Forces the test to use the H2-backed dev profile.
+@ActiveProfiles("test") // Forces the test to use the isolated H2-backed test profile.
 class DashboardServiceTest { // Declares the dashboard integration test class.
 
     @Autowired // Injects the dashboard service from the application context.
