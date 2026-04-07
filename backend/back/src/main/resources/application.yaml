@@ -1,40 +1,26 @@
-  # Spring Boot application configuration file
+server:
+  port: 8080
 
-  # Define the port on which the server will run
-  server:
-    # The port number can be changed as needed. Default is 8080.
-    port: 8080
-
-  # Define the context path for the application. This is the base URL for all endpoints.
-  spring:
-    jpa:
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
       hibernate:
-        ddl-auto: update # Create/Update the database schema automatically based on the entities.
-      show-sql: true # Show SQL statements in the console for debugging purposes.
-      properties:
-        hibernate:
-          dialect: org.hibernate.dialect.PostgreSQLDialect # The Hibernate dialect for PostgreSQL.
-          format_sql: true # Format SQL statements for better readability in the console.
-      open-in-view: false # Disable open session in view to present lazy loading issues in the service layer instead of the controller layes.
-    config:
-      # Profile activation
-      import: optional:file:.env.properties[.properties]
-    profiles:
-      active: dev # Set the active profile to 'dev' for development.
+        format_sql: true
+    open-in-view: false
+  config:
+    import: optional:file:.env.properties[.properties]
+  profiles:
+    active: dev
 
-  # JWT (JSON Web Token) configuration for security
-  jwt:
-    secret: ${JWT_SECRET}
-    # Never commit sensitive information like secret keys to version control. Use environment variables or a secure vault in production environments.
-    expiration: ${JWT_ACCESS_EXPIRATION}
-    refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_ACCESS_EXPIRATION}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
 
-    #Logs
-    logging:
-      level:
-        org.framework.security: TRACE
-        org.framework.security.web.filterChainProxy: TRACE
-        org.hibernate: DEBUG
-        org.hibernate.tool.schema: DEBUG
-        org.hibernate.SQL: DEBUG
-        org.hibernate.type.descriptor.sql: TRACE
+logging:
+  level:
+    org.springframework.security: INFO
+    org.springframework.security.web.FilterChainProxy: INFO

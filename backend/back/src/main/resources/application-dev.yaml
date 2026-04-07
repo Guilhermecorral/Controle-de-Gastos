@@ -1,29 +1,28 @@
-  # Spring Boot application configuration for the test's
-  # Datasource configuration for the test's utilizes an in-memory H2 database, which is suitable for testing purposes.
-  spring:
-    h2:
-      console:
-        enabled: true
-        path: /h2-console
-
-    datasource:
-        # O mem:testdb creating an database in RAM
-        # DB_CLOSE_DELAY=-1 keeps the database alive until the JVM shuts down, even if all connections are closed.
-        url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;CASE_INSENSITIVE_IDENTIFIERS=TRUE
-        driver-class-name: org.h2.Driver
-        username: sa
-        password:
-
-    jpa:
-      database-platform: org.hibernate.dialect.H2Dialect
-      defer-datasource-initialization: true
+spring:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  datasource:
+    # The in-memory database keeps local development simple and fast.
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
+    hibernate:
+      # create-drop avoids leftover constraints between repeated local boots.
+      ddl-auto: create-drop
+    properties:
       hibernate:
-        # 'update' will update the database schema to match the entity definitions, but it won't drop existing tables or data.
-        ddl-auto: update
-      show-sql: false
-      open-in-view: false
+        hbm2ddl:
+          import_files: ""
+    show-sql: false
+    open-in-view: false
 
-    jwt:
-      secret: ${JWT_SECRET}
-      expiration: ${JWT_ACCESS_EXPIRATION}
-      refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_ACCESS_EXPIRATION}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
