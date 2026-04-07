@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles; // Activates the in-memo
 
 import java.math.BigDecimal; // Imports the exact type used for money assertions.
 import java.time.LocalDate; // Imports the type used for transaction dates.
+import java.time.YearMonth; // Imports the type used to build current and previous month dates dynamically.
 
 import static org.junit.jupiter.api.Assertions.assertEquals; // Imports the equality assertion.
 
@@ -40,6 +41,8 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
 
     @Test // Marks the method as a test case.
     void shouldBuildDashboardSummaryForAuthenticatedUser() { // Starts the dashboard use case test.
+        YearMonth mesAtual = YearMonth.now(); // Defines the current month used by the dashboard in production.
+        YearMonth mesAnterior = mesAtual.minusMonths(1); // Defines the previous month used to validate accumulated carry-over.
         User authenticatedUser = userRepository.save(User.builder() // Creates and persists the authenticated user.
                 .name("Jorge") // Sets the display name used in the test data.
                 .email("jorge@test.com") // Sets the unique email of the authenticated user.
@@ -60,7 +63,7 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
                 .category(Transaction.TransactionCategory.OUTROS) // Uses a category even for income because the entity requires it.
                 .amount(new BigDecimal("3000.00")) // Sets the amount received.
                 .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
-                .transactionDate(LocalDate.of(2026, 4, 1)) // Sets the business date for ordering.
+                .transactionDate(mesAtual.atDay(1)) // Sets the business date inside the current month.
                 .build()); // Finishes the transaction creation.
         transactionRepository.save(Transaction.builder() // Persists the first expense transaction.
                 .user(authenticatedUser) // Associates the transaction with the authenticated user.
@@ -69,7 +72,7 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
                 .category(Transaction.TransactionCategory.ALIMENTACAO) // Sets the expense category.
                 .amount(new BigDecimal("250.00")) // Sets the amount spent.
                 .paymentMethod(Transaction.PaymentMethod.CARTAO_DEBITO) // Sets the payment method.
-                .transactionDate(LocalDate.of(2026, 4, 5)) // Sets the business date for ordering.
+                .transactionDate(mesAtual.atDay(5)) // Sets the business date inside the current month.
                 .build()); // Finishes the transaction creation.
         transactionRepository.save(Transaction.builder() // Persists the second expense transaction.
                 .user(authenticatedUser) // Associates the transaction with the authenticated user.
@@ -78,7 +81,7 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
                 .category(Transaction.TransactionCategory.TRANSPORTE) // Sets the expense category.
                 .amount(new BigDecimal("80.00")) // Sets the amount spent.
                 .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
-                .transactionDate(LocalDate.of(2026, 4, 4)) // Sets the business date for ordering.
+                .transactionDate(mesAtual.atDay(4)) // Sets the business date inside the current month.
                 .build()); // Finishes the transaction creation.
         transactionRepository.save(Transaction.builder() // Persists another expense in the same category to validate grouping.
                 .user(authenticatedUser) // Associates the transaction with the authenticated user.
@@ -87,7 +90,16 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
                 .category(Transaction.TransactionCategory.ALIMENTACAO) // Reuses the category to validate the sum by category.
                 .amount(new BigDecimal("50.00")) // Sets the additional amount spent.
                 .paymentMethod(Transaction.PaymentMethod.DINHEIRO) // Sets the payment method.
-                .transactionDate(LocalDate.of(2026, 4, 3)) // Sets the business date for ordering.
+                .transactionDate(mesAtual.atDay(3)) // Sets the business date inside the current month.
+                .build()); // Finishes the transaction creation.
+        transactionRepository.save(Transaction.builder() // Persists an older expense to validate accumulated carry-over.
+                .user(authenticatedUser) // Associates the transaction with the authenticated user.
+                .type(Transaction.TransactionType.DESPESA) // Marks the transaction as an expense.
+                .description("Parcela Antiga") // Sets the description of the previous-month expense.
+                .category(Transaction.TransactionCategory.COMPRAS) // Uses another category so the current-month grouping does not include it.
+                .amount(new BigDecimal("100.00")) // Sets the previous-month expense amount.
+                .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
+                .transactionDate(mesAnterior.atDay(10)) // Sets the business date inside the previous month.
                 .build()); // Finishes the transaction creation.
         transactionRepository.save(Transaction.builder() // Persists a transaction from another user to ensure isolation.
                 .user(otherUser) // Associates the transaction with the second user.
@@ -96,7 +108,7 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
                 .category(Transaction.TransactionCategory.LAZER) // Sets a different category for isolation validation.
                 .amount(new BigDecimal("999.00")) // Sets an amount that would distort the totals if filtering failed.
                 .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
-                .transactionDate(LocalDate.of(2026, 4, 6)) // Sets a very recent date to catch ordering/filter bugs.
+                .transactionDate(mesAtual.atDay(6)) // Sets a very recent date to catch ordering/filter bugs.
                 .build()); // Finishes the transaction creation.
 
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken( // Seeds the security context like the JWT filter would do.
@@ -107,13 +119,21 @@ class DashboardServiceTest { // Declares the dashboard integration test class.
 
         DashboardResponseDTO response = dashboardService.getDashboard(); // Executes the dashboard use case for the authenticated user.
 
-        assertEquals(new BigDecimal("3000.00"), response.totalReceitas()); // Confirms the total income was summed correctly.
-        assertEquals(new BigDecimal("380.00"), response.totalDespesas()); // Confirms the total expenses were summed correctly.
-        assertEquals(new BigDecimal("2620.00"), response.saldo()); // Confirms the balance calculation is correct.
-        assertEquals(4, response.ultimasTransacoes().size()); // Confirms only the authenticated user's transactions are returned.
+        assertEquals(new BigDecimal("3000.00"), response.totalReceitas()); // Confirms the backward-compatible total income now mirrors the accumulated income.
+        assertEquals(new BigDecimal("480.00"), response.totalDespesas()); // Confirms the backward-compatible total expenses now mirror the accumulated expenses, including previous months.
+        assertEquals(new BigDecimal("2520.00"), response.saldo()); // Confirms the backward-compatible balance now mirrors the accumulated balance.
+        assertEquals(new BigDecimal("3000.00"), response.totalReceitasAcumuladas()); // Confirms the explicit accumulated income total is correct.
+        assertEquals(new BigDecimal("480.00"), response.totalDespesasAcumuladas()); // Confirms the explicit accumulated expense total is correct.
+        assertEquals(new BigDecimal("2520.00"), response.saldoAcumulado()); // Confirms the explicit accumulated balance is correct.
+        assertEquals(new BigDecimal("3000.00"), response.receitasMesAtual()); // Confirms the current-month income total is correct.
+        assertEquals(new BigDecimal("380.00"), response.despesasMesAtual()); // Confirms the current-month expense total ignores previous-month carry-over.
+        assertEquals(new BigDecimal("2620.00"), response.resultadoMesAtual()); // Confirms the pure current-month result is correct.
+        assertEquals(mesAtual.getYear(), response.anoReferencia()); // Confirms the dashboard exposes the current reference year.
+        assertEquals(mesAtual.getMonthValue(), response.mesReferencia()); // Confirms the dashboard exposes the current reference month.
+        assertEquals(5, response.ultimasTransacoes().size()); // Confirms only the authenticated user's transactions are returned, including the previous-month one.
         assertEquals("Mercado", response.ultimasTransacoes().get(0).description()); // Confirms the most recent transaction comes first.
         assertEquals(2, response.gastosPorCategoria().size()); // Confirms only categories with expenses are grouped.
         assertEquals(Transaction.TransactionCategory.ALIMENTACAO, response.gastosPorCategoria().get(0).category()); // Confirms the highest-spend category comes first.
-        assertEquals(new BigDecimal("300.00"), response.gastosPorCategoria().get(0).totalAmount()); // Confirms expense values are grouped and summed correctly.
+        assertEquals(new BigDecimal("300.00"), response.gastosPorCategoria().get(0).totalAmount()); // Confirms current-month expense values are grouped and summed correctly.
     } // Closes the test method.
 } // Closes the test class.
