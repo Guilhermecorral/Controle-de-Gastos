@@ -8,7 +8,7 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(classes = BackendApplication.class) // Loads the exact Spring Boot application class even from the default package.
-@ActiveProfiles("dev") // Garante que ele use o H2 que configuramos no application-dev.yml
+@ActiveProfiles("test") // Forces the test to use the isolated test profile instead of the development profile.
 class UserRepositoryTest {
 
     @Autowired
