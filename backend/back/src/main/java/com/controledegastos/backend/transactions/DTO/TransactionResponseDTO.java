@@ -16,7 +16,7 @@ public record TransactionResponseDTO (
    TransactionCategory category,
    BigDecimal amount,
    PaymentMethod paymentMethod,
-   LocalDate TransactionDate,
+   LocalDate transactionDate,
    LocalDateTime createdAt
 
 ) {}

@@ -1,11 +1,10 @@
 package com.controledegastos.backend.transactions;
 
+import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
 import com.controledegastos.backend.user.User;
-import com.controledegastos.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -14,23 +13,12 @@ import java.util.List;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
-    private final UserRepository userRepository;
+    private final AuthenticatedUserService authenticatedUserService;
 
     // Helper method — extracts the authenticated user from the SecurityContext
     // Centralized here to avoid repeating in each method (DRY principle)
     private User getAuthenticatedUser() {
-        // getname() return email
-        Object principal = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getPrincipal();
-        if (principal instanceof User user) {
-            return user;
-        }
-        // If email in token, the user must exist in the database
-        // orElseThrow: else to find, throw an exception (should never happen if token is valid)
-        String email = principal.toString();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+        return authenticatedUserService.getAuthenticatedUser();
     }
 
     // Convert entity Transaction -> DTO answer
