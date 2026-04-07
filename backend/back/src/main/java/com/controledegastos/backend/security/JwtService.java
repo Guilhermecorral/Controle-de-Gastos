@@ -18,13 +18,13 @@ public class JwtService {
 
     //@Value: inject value of application.yaml automatically
     //Spring reads jwt.secret and puts it in this variable at initialization
-    @Value("${JWT_SECRET}")
+    @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${JWT_ACCESS_EXPIRATION}")
+    @Value("${jwt.expiration}")
     private long expiration;
 
-    @Value("${JWT_REFRESH_EXPIRATION}")
+    @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
 
     //Convert the .env string into a secure cryptographic key
