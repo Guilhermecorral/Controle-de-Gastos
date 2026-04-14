@@ -12,6 +12,9 @@ public record DashboardResponseDTO( // Defines the immutable payload returned by
         BigDecimal totalReceitasAcumuladas, // Represents all income accumulated up to the current moment.
         BigDecimal totalDespesasAcumuladas, // Represents all expenses accumulated up to the current moment.
         BigDecimal saldoAcumulado, // Represents the historical balance carried from month to month.
+        BigDecimal receitasAnoReferencia, // Represents the income accumulated from January up to the selected reference month.
+        BigDecimal despesasAnoReferencia, // Represents the expenses accumulated from January up to the selected reference month.
+        BigDecimal resultadoAnoReferencia, // Represents the year-to-date result up to the selected reference month.
         BigDecimal receitasMesAtual, // Represents the income that belongs only to the current month.
         BigDecimal despesasMesAtual, // Represents the expenses that belong only to the current month.
         BigDecimal resultadoMesAtual, // Represents the result of the current month without mixing previous months.

@@ -78,6 +78,20 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
             @Param("endDate") LocalDate endDate
     );
 
+    // Returns the total amount of one transaction type considering all records up to the informed end date.
+    @Query("""
+            SELECT COALESCE(SUM(t.amount), 0)
+            FROM Transaction t
+            WHERE t.user = :user
+              AND t.type = :type
+              AND t.transactionDate <= :endDate
+            """)
+    BigDecimal sumAmountByUserAndTypeUpToDate(
+            @Param("user") User user,
+            @Param("type") Transaction.TransactionType type,
+            @Param("endDate") LocalDate endDate
+    );
+
     // Groups expenses by category limited to the informed date range.
     @Query("""
             SELECT t.category AS category, SUM(t.amount) AS totalAmount
@@ -92,6 +106,13 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
             @Param("user") User user,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
+    );
+
+    // Returns the five most recent transactions restricted to the informed date range.
+    List<Transaction> findTop5ByUserAndTransactionDateBetweenOrderByTransactionDateDescCreatedAtDesc(
+            User user,
+            LocalDate startDate,
+            LocalDate endDate
     );
 
     // Returns the biggest expense of the period, using date and creation time as tie-breakers.

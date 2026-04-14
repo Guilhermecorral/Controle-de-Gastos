@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor; // Imports Lombok to generate the constru
 import org.springframework.http.ResponseEntity; // Imports the HTTP response wrapper used by Spring MVC.
 import org.springframework.web.bind.annotation.GetMapping; // Imports the GET mapping annotation.
 import org.springframework.web.bind.annotation.RequestMapping; // Imports the base route mapping annotation.
+import org.springframework.web.bind.annotation.RequestParam; // Imports the query-parameter binding annotation used for the optional dashboard period.
 import org.springframework.web.bind.annotation.RestController; // Marks the class as a REST controller.
 
 @RestController // Registers the class as a JSON REST controller.
@@ -16,7 +17,10 @@ public class DashboardController { // Declares the controller that exposes the d
 
     // GET /api/dashboard returns the minimal financial overview for the authenticated user.
     @GetMapping // Maps this method to HTTP GET on the controller route.
-    public ResponseEntity<DashboardResponseDTO> getDashboard() { // Starts the endpoint method.
-        return ResponseEntity.ok(dashboardService.getDashboard()); // Returns status 200 with the assembled dashboard payload.
+    public ResponseEntity<DashboardResponseDTO> getDashboard( // Starts the endpoint method.
+            @RequestParam(required = false) Integer year, // Accepts an optional reference year so the dashboard can be viewed historically.
+            @RequestParam(required = false) Integer month // Accepts an optional reference month so the dashboard can ignore future data.
+    ) { // Closes the method signature.
+        return ResponseEntity.ok(dashboardService.getDashboard(year, month)); // Returns status 200 with the assembled dashboard payload.
     } // Closes the endpoint method.
 } // Closes the controller class.
