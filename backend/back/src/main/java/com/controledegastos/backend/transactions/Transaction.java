@@ -1,6 +1,7 @@
 package com.controledegastos.backend.transactions;
 
 
+import com.controledegastos.backend.wishlist.WishlistItem;
 import jakarta.persistence.*;
 import lombok.*;
 import com.controledegastos.backend.user.User;
@@ -24,6 +25,10 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wishlist_item_id")
+    private WishlistItem wishlistItem;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

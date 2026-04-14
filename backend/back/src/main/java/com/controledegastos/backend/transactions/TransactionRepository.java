@@ -1,6 +1,7 @@
 package com.controledegastos.backend.transactions;
 
 import com.controledegastos.backend.user.User;
+import com.controledegastos.backend.wishlist.WishlistItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -38,6 +39,12 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
 
     // Search for a specific transaction ensuring that it belongs to the user
     Optional<Transaction> findByIdAndUser(Long id, User user);
+
+    // Returns all transactions generated from a specific wishlist item.
+    List<Transaction> findAllByWishlistItemOrderByTransactionDateAscCreatedAtAsc(WishlistItem wishlistItem);
+
+    // Deletes every transaction linked to a specific wishlist item.
+    void deleteAllByWishlistItem(WishlistItem wishlistItem);
 
     //
     List<Transaction> findTop5ByUserOrderByTransactionDateDesc(User user);

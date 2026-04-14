@@ -4,6 +4,7 @@ import com.controledegastos.backend.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -65,7 +66,25 @@ public class WishlistItem {
     //Date when the item was marked as purchased - null if still pending
     //Useful for history and future reports
     @Column
-    private LocalDateTime boughtAT;
+    private LocalDate purchaseDate;
+
+    //Stores the payment method chosen when the item is purchased
+    //Null while the item is still pending
+    @Enumerated(EnumType.STRING)
+    @Column
+    private PurchasePaymentMethod paymentMethod;
+
+    //Stores how many installments were chosen by the user
+    //Defaults to 1 because one-time purchases are the default case
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer installments = 1;
+
+    //Stores whether the first installment starts only in the next month
+    //Useful when the credit-card bill closes before the purchase date
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean firstInstallmentNextMonth = false;
 
     // Relationship: this item belongs to ONE user
     // @ManyToOne: many items → one user
@@ -80,25 +99,36 @@ public class WishlistItem {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    //Automatically updated every time the item changes
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
         //Ensures that the finalPrice is calculated even if the Service forgets
         if (this.finalPrice == null) {
             this.calculateFinalPrice();
         }
     }
 
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+        this.calculateFinalPrice();
+    }
+
     //Business method within the entity - calculates the discounted price
     //Rule: finalPrice = originalPrice - (originalPrice * discountPercent / 100)
     public void calculateFinalPrice() {
         if (this.discountPercent == null || this.discountPercent.compareTo(BigDecimal.ZERO) == 0) {
-            this.finalPrice = this.originalPrice; //No discount
+            this.finalPrice = this.originalPrice.setScale(2, java.math.RoundingMode.HALF_UP); //No discount
         } else {
             BigDecimal discount = this.originalPrice
                     .multiply(this.discountPercent)
-                    .divide(BigDecimal.valueOf(100));
-            this.finalPrice = this.originalPrice.subtract(discount);
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            this.finalPrice = this.originalPrice.subtract(discount).setScale(2, java.math.RoundingMode.HALF_UP);
         }
     }
 
@@ -106,6 +136,14 @@ public class WishlistItem {
     public enum WishlistStatus {
         PENDENTE, //Item not yet purchased - appears in the main list
         COMPRADO //Item purchased - appears in the "Already Purchased" section with Undo button
+    }
+
+    public enum PurchasePaymentMethod {
+        PIX,
+        CARTAO_DEBITO,
+        CARTAO_CREDITO_AVISTA,
+        CARTAO_CREDITO_PARCELADO,
+        DINHEIRO
     }
 
     public enum Priority {
