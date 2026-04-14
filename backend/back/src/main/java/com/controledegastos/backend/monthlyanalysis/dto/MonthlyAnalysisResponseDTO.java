@@ -13,6 +13,9 @@ public record MonthlyAnalysisResponseDTO( // Declares the immutable payload retu
         BigDecimal saldo, // Stores the balance calculated from income minus expenses.
         MonthlyHighestExpenseDTO maiorGasto, // Stores the biggest expense of the selected month, or null when there is none.
         List<DashboardCategorySummaryDTO> gastosPorCategoria, // Stores the grouped expenses by category for the selected month.
-        MonthlyComparisonDTO comparativoMesAnterior // Stores the comparison snapshot of the previous month.
+        MonthlyComparisonDTO comparativoMesAnterior, // Stores the comparison snapshot of the previous month.
+        MonthlyComparisonDTO comparativoMesmoMesAnoAnterior, // Stores the comparison snapshot of the same month in the previous year.
+        YearToDateSummaryDTO acumuladoAnoAtual, // Stores the selected year accumulated from January up to the selected month.
+        YearToDateComparisonDTO comparativoAcumuladoAnoAnterior // Stores the comparison between the selected year-to-date and the previous year-to-date.
 ) { // Closes the record declaration.
 } // Closes the DTO type.

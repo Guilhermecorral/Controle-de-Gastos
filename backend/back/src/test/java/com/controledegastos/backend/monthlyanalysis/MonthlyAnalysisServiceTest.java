@@ -1,5 +1,6 @@
 package com.controledegastos.backend.monthlyanalysis; // Declares the package for the monthly analysis integration tests.
 
+import com.controledegastos.backend.monthlyanalysis.dto.AnalysisTrend; // Imports the trend enum used in the new comparison assertions.
 import com.controledegastos.backend.monthlyanalysis.dto.MonthlyAnalysisResponseDTO; // Imports the response DTO asserted by the tests.
 import com.controledegastos.backend.transactions.Transaction; // Imports the entity used to seed test data.
 import com.controledegastos.backend.transactions.TransactionRepository; // Imports the repository used to persist test transactions.
@@ -100,6 +101,42 @@ class MonthlyAnalysisServiceTest { // Declares the integration test for the mont
                 .paymentMethod(Transaction.PaymentMethod.DINHEIRO) // Sets the payment method.
                 .transactionDate(LocalDate.of(2026, 3, 18)) // Sets the transaction inside the previous month.
                 .build()); // Finishes the transaction creation.
+        transactionRepository.save(Transaction.builder() // Persists an income in the same month of the previous year for historical comparison.
+                .user(authenticatedUser) // Associates the transaction with the authenticated user.
+                .type(Transaction.TransactionType.RECEITA) // Marks the transaction as income.
+                .description("Salario Abril Ano Passado") // Sets the description used in the historical comparison.
+                .category(Transaction.TransactionCategory.OUTROS) // Uses the required category field of the entity.
+                .amount(new BigDecimal("3800.00")) // Sets the income amount of April in the previous year.
+                .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
+                .transactionDate(LocalDate.of(2025, 4, 5)) // Places the transaction in the same month of the previous year.
+                .build()); // Finishes the transaction creation.
+        transactionRepository.save(Transaction.builder() // Persists an expense in the same month of the previous year for historical comparison.
+                .user(authenticatedUser) // Associates the transaction with the authenticated user.
+                .type(Transaction.TransactionType.DESPESA) // Marks the transaction as expense.
+                .description("Aluguel Ano Passado") // Sets the description used in the historical comparison.
+                .category(Transaction.TransactionCategory.MORADIA) // Uses the same category to keep the comparison realistic.
+                .amount(new BigDecimal("1600.00")) // Sets the expense amount of April in the previous year.
+                .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
+                .transactionDate(LocalDate.of(2025, 4, 10)) // Places the transaction in the same month of the previous year.
+                .build()); // Finishes the transaction creation.
+        transactionRepository.save(Transaction.builder() // Persists an earlier income of the previous year to validate the previous year year-to-date accumulation.
+                .user(authenticatedUser) // Associates the transaction with the authenticated user.
+                .type(Transaction.TransactionType.RECEITA) // Marks the transaction as income.
+                .description("Salario Janeiro Ano Passado") // Sets the description used in the year-to-date comparison.
+                .category(Transaction.TransactionCategory.OUTROS) // Uses the required category field of the entity.
+                .amount(new BigDecimal("2000.00")) // Sets the earlier income amount.
+                .paymentMethod(Transaction.PaymentMethod.PIX) // Sets the payment method.
+                .transactionDate(LocalDate.of(2025, 1, 7)) // Places the transaction in January of the previous year.
+                .build()); // Finishes the transaction creation.
+        transactionRepository.save(Transaction.builder() // Persists an earlier expense of the previous year to validate the previous year year-to-date accumulation.
+                .user(authenticatedUser) // Associates the transaction with the authenticated user.
+                .type(Transaction.TransactionType.DESPESA) // Marks the transaction as expense.
+                .description("Conta Janeiro Ano Passado") // Sets the description used in the year-to-date comparison.
+                .category(Transaction.TransactionCategory.COMPRAS) // Uses another category to diversify the previous-year data.
+                .amount(new BigDecimal("1000.00")) // Sets the earlier expense amount.
+                .paymentMethod(Transaction.PaymentMethod.DINHEIRO) // Sets the payment method.
+                .transactionDate(LocalDate.of(2025, 1, 20)) // Places the transaction in January of the previous year.
+                .build()); // Finishes the transaction creation.
         transactionRepository.save(Transaction.builder() // Persists a very large expense for another user to prove isolation.
                 .user(otherUser) // Associates the transaction with the second user.
                 .type(Transaction.TransactionType.DESPESA) // Marks the transaction as expense.
@@ -129,9 +166,47 @@ class MonthlyAnalysisServiceTest { // Declares the integration test for the mont
         assertEquals(2, response.gastosPorCategoria().size()); // Confirms only the authenticated user's expense categories are returned.
         assertEquals(Transaction.TransactionCategory.MORADIA, response.gastosPorCategoria().get(0).category()); // Confirms the highest-spend category comes first.
         assertEquals(new BigDecimal("1200.00"), response.gastosPorCategoria().get(0).totalAmount()); // Confirms the category total is correct.
+        assertEquals(2026, response.comparativoMesAnterior().year()); // Confirms the previous-month comparison exposes the compared year.
+        assertEquals(3, response.comparativoMesAnterior().month()); // Confirms the previous-month comparison exposes the compared month.
         assertEquals(new BigDecimal("3500.00"), response.comparativoMesAnterior().totalReceitas()); // Confirms the previous-month income total is correct.
         assertEquals(new BigDecimal("500.00"), response.comparativoMesAnterior().totalDespesas()); // Confirms the previous-month expense total is correct.
         assertEquals(new BigDecimal("3000.00"), response.comparativoMesAnterior().saldo()); // Confirms the previous-month balance is correct.
+        assertEquals(new BigDecimal("500.00"), response.comparativoMesAnterior().diferencaReceitas()); // Confirms the income difference against the previous month is correct.
+        assertEquals(new BigDecimal("1000.00"), response.comparativoMesAnterior().diferencaDespesas()); // Confirms the expense difference against the previous month is correct.
+        assertEquals(new BigDecimal("-500.00"), response.comparativoMesAnterior().diferencaSaldo()); // Confirms the balance difference against the previous month is correct.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoMesAnterior().tendenciaReceitas()); // Confirms higher revenue is interpreted as better.
+        assertEquals(AnalysisTrend.PIOR, response.comparativoMesAnterior().tendenciaDespesas()); // Confirms higher expenses are interpreted as worse.
+        assertEquals(AnalysisTrend.PIOR, response.comparativoMesAnterior().tendenciaSaldo()); // Confirms a lower balance is interpreted as worse.
+        assertEquals(AnalysisTrend.PIOR, response.comparativoMesAnterior().tendenciaGeral()); // Confirms the overall previous-month comparison follows the balance trend.
+        assertEquals(2025, response.comparativoMesmoMesAnoAnterior().year()); // Confirms the historical comparison exposes the previous year.
+        assertEquals(4, response.comparativoMesmoMesAnoAnterior().month()); // Confirms the historical comparison keeps the same month number.
+        assertEquals(new BigDecimal("3800.00"), response.comparativoMesmoMesAnoAnterior().totalReceitas()); // Confirms the same-month-last-year income total is correct.
+        assertEquals(new BigDecimal("1600.00"), response.comparativoMesmoMesAnoAnterior().totalDespesas()); // Confirms the same-month-last-year expense total is correct.
+        assertEquals(new BigDecimal("2200.00"), response.comparativoMesmoMesAnoAnterior().saldo()); // Confirms the same-month-last-year balance is correct.
+        assertEquals(new BigDecimal("200.00"), response.comparativoMesmoMesAnoAnterior().diferencaReceitas()); // Confirms the income difference against last year's same month is correct.
+        assertEquals(new BigDecimal("-100.00"), response.comparativoMesmoMesAnoAnterior().diferencaDespesas()); // Confirms the expense difference against last year's same month is correct.
+        assertEquals(new BigDecimal("300.00"), response.comparativoMesmoMesAnoAnterior().diferencaSaldo()); // Confirms the balance difference against last year's same month is correct.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoMesmoMesAnoAnterior().tendenciaReceitas()); // Confirms higher revenue than last year is interpreted as better.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoMesmoMesAnoAnterior().tendenciaDespesas()); // Confirms lower expenses than last year are interpreted as better.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoMesmoMesAnoAnterior().tendenciaSaldo()); // Confirms a stronger balance than last year is interpreted as better.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoMesmoMesAnoAnterior().tendenciaGeral()); // Confirms a stronger balance than last year is interpreted as better overall.
+        assertEquals(2026, response.acumuladoAnoAtual().year()); // Confirms the selected year-to-date summary exposes the selected year.
+        assertEquals(4, response.acumuladoAnoAtual().monthLimit()); // Confirms the selected year-to-date summary uses the selected month as its limit.
+        assertEquals(new BigDecimal("7500.00"), response.acumuladoAnoAtual().totalReceitas()); // Confirms the selected year-to-date income total sums March and April.
+        assertEquals(new BigDecimal("2000.00"), response.acumuladoAnoAtual().totalDespesas()); // Confirms the selected year-to-date expense total sums March and April.
+        assertEquals(new BigDecimal("5500.00"), response.acumuladoAnoAtual().saldo()); // Confirms the selected year-to-date balance is correct.
+        assertEquals(2026, response.comparativoAcumuladoAnoAnterior().anoAtual().year()); // Confirms the selected year snapshot is exposed inside the year-to-date comparison.
+        assertEquals(2025, response.comparativoAcumuladoAnoAnterior().anoAnterior().year()); // Confirms the previous-year snapshot is exposed inside the year-to-date comparison.
+        assertEquals(new BigDecimal("5800.00"), response.comparativoAcumuladoAnoAnterior().anoAnterior().totalReceitas()); // Confirms the previous-year year-to-date income total is correct.
+        assertEquals(new BigDecimal("2600.00"), response.comparativoAcumuladoAnoAnterior().anoAnterior().totalDespesas()); // Confirms the previous-year year-to-date expense total is correct.
+        assertEquals(new BigDecimal("3200.00"), response.comparativoAcumuladoAnoAnterior().anoAnterior().saldo()); // Confirms the previous-year year-to-date balance is correct.
+        assertEquals(new BigDecimal("1700.00"), response.comparativoAcumuladoAnoAnterior().diferencaReceitas()); // Confirms the year-to-date income difference is correct.
+        assertEquals(new BigDecimal("-600.00"), response.comparativoAcumuladoAnoAnterior().diferencaDespesas()); // Confirms the year-to-date expense difference is correct.
+        assertEquals(new BigDecimal("2300.00"), response.comparativoAcumuladoAnoAnterior().diferencaSaldo()); // Confirms the year-to-date balance difference is correct.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaReceitas()); // Confirms higher year-to-date revenue is interpreted as better.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaDespesas()); // Confirms lower year-to-date expenses are interpreted as better.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaSaldo()); // Confirms a stronger year-to-date balance is interpreted as better.
+        assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaGeral()); // Confirms a stronger year-to-date balance is interpreted as better overall.
     } // Closes the main monthly analysis scenario.
 
     @Test // Marks the method as another test case.
@@ -159,5 +234,17 @@ class MonthlyAnalysisServiceTest { // Declares the integration test for the mont
         assertEquals(new BigDecimal("0"), response.comparativoMesAnterior().totalReceitas()); // Confirms the previous-month income total is also zero when there is no data.
         assertEquals(new BigDecimal("0"), response.comparativoMesAnterior().totalDespesas()); // Confirms the previous-month expense total is also zero when there is no data.
         assertEquals(new BigDecimal("0"), response.comparativoMesAnterior().saldo()); // Confirms the previous-month balance is also zero when there is no data.
+        assertEquals(AnalysisTrend.IGUAL, response.comparativoMesAnterior().tendenciaGeral()); // Confirms an empty comparison is interpreted as equal.
+        assertEquals(new BigDecimal("0"), response.comparativoMesmoMesAnoAnterior().totalReceitas()); // Confirms the same-month-last-year income total is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.comparativoMesmoMesAnoAnterior().totalDespesas()); // Confirms the same-month-last-year expense total is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.comparativoMesmoMesAnoAnterior().saldo()); // Confirms the same-month-last-year balance is zero when there is no data.
+        assertEquals(AnalysisTrend.IGUAL, response.comparativoMesmoMesAnoAnterior().tendenciaGeral()); // Confirms an empty same-month-last-year comparison is interpreted as equal.
+        assertEquals(new BigDecimal("0"), response.acumuladoAnoAtual().totalReceitas()); // Confirms the current year-to-date income total is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.acumuladoAnoAtual().totalDespesas()); // Confirms the current year-to-date expense total is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.acumuladoAnoAtual().saldo()); // Confirms the current year-to-date balance is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.comparativoAcumuladoAnoAnterior().anoAnterior().totalReceitas()); // Confirms the previous-year year-to-date income total is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.comparativoAcumuladoAnoAnterior().anoAnterior().totalDespesas()); // Confirms the previous-year year-to-date expense total is zero when there is no data.
+        assertEquals(new BigDecimal("0"), response.comparativoAcumuladoAnoAnterior().anoAnterior().saldo()); // Confirms the previous-year year-to-date balance is zero when there is no data.
+        assertEquals(AnalysisTrend.IGUAL, response.comparativoAcumuladoAnoAnterior().tendenciaGeral()); // Confirms an empty year-to-date comparison is interpreted as equal.
     } // Closes the empty-month scenario.
 } // Closes the test class.
