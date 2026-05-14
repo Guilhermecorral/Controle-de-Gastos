@@ -3,9 +3,9 @@ package com.controledegastos.backend.monthlyanalysis; // Declares the package fo
 import com.controledegastos.backend.monthlyanalysis.dto.AnalysisTrend; // Imports the trend enum used in the new comparison assertions.
 import com.controledegastos.backend.monthlyanalysis.dto.MonthlyAnalysisResponseDTO; // Imports the response DTO asserted by the tests.
 import com.controledegastos.backend.transactions.Transaction; // Imports the entity used to seed test data.
-import com.controledegastos.backend.transactions.TransactionRepository; // Imports the repository used to persist test transactions.
+import com.controledegastos.backend.transactions.Repository.TransactionRepository; // Imports the repository used to persist test transactions.
 import com.controledegastos.backend.user.User; // Imports the user entity used in the authenticated test context.
-import com.controledegastos.backend.user.UserRepository; // Imports the repository used to persist the test users.
+import com.controledegastos.backend.user.Repository.UserRepository; // Imports the repository used to persist the test users.
 import org.junit.jupiter.api.AfterEach; // Imports the cleanup hook annotation.
 import org.junit.jupiter.api.Test; // Imports the JUnit test annotation.
 import org.springframework.beans.factory.annotation.Autowired; // Imports dependency injection for test beans.

@@ -2,9 +2,9 @@ package com.controledegastos.backend.dashboard; // Declares the package for dash
 
 import com.controledegastos.backend.dashboard.dto.DashboardResponseDTO; // Imports the dashboard response DTO for assertions.
 import com.controledegastos.backend.transactions.Transaction; // Imports the entity used to seed the test data.
-import com.controledegastos.backend.transactions.TransactionRepository; // Imports the repository used to persist test transactions.
+import com.controledegastos.backend.transactions.Repository.TransactionRepository; // Imports the repository used to persist test transactions.
 import com.controledegastos.backend.user.User; // Imports the user entity used in the authenticated context.
-import com.controledegastos.backend.user.UserRepository; // Imports the repository used to persist the test users.
+import com.controledegastos.backend.user.Repository.UserRepository; // Imports the repository used to persist the test users.
 import org.junit.jupiter.api.AfterEach; // Imports the cleanup hook annotation.
 import org.junit.jupiter.api.Test; // Imports the JUnit test annotation.
 import org.springframework.beans.factory.annotation.Autowired; // Imports dependency injection for test beans.
@@ -14,7 +14,6 @@ import org.springframework.security.core.context.SecurityContextHolder; // Impor
 import org.springframework.test.context.ActiveProfiles; // Activates the in-memory dev profile.
 
 import java.math.BigDecimal; // Imports the exact type used for money assertions.
-import java.time.LocalDate; // Imports the type used for transaction dates.
 import java.time.YearMonth; // Imports the type used to build current and previous month dates dynamically.
 
 import static org.junit.jupiter.api.Assertions.assertEquals; // Imports the equality assertion.

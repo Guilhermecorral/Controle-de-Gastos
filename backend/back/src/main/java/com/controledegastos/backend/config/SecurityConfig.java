@@ -1,7 +1,7 @@
 package com.controledegastos.backend.config;
 
 import com.controledegastos.backend.security.JwtAuthenticationFilter;
-import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.user.Repository.UserRepository;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;

@@ -3,6 +3,7 @@ package com.controledegastos.backend.transactions;
 import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
+import com.controledegastos.backend.transactions.Repository.TransactionRepository;
 import com.controledegastos.backend.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

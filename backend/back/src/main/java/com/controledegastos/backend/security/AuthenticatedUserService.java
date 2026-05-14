@@ -1,7 +1,7 @@
 package com.controledegastos.backend.security;
 
 import com.controledegastos.backend.user.User;
-import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;

@@ -1,4 +1,6 @@
-package com.controledegastos.backend.transactions;
+package com.controledegastos.backend.transactions.Repository;
+
+import com.controledegastos.backend.transactions.Transaction;
 
 public interface TransactionCategorySummaryProjection {
 

@@ -1,9 +1,12 @@
 package com.controledegastos.backend.wishlist;
 
 import com.controledegastos.backend.transactions.Transaction;
-import com.controledegastos.backend.transactions.TransactionRepository;
+import com.controledegastos.backend.transactions.Repository.TransactionRepository;
 import com.controledegastos.backend.user.User;
-import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.user.Repository.UserRepository;
+import com.controledegastos.backend.wishlist.Repository.WishlistHistoryEntryRepository;
+import com.controledegastos.backend.wishlist.Repository.WishlistListRepository;
+import com.controledegastos.backend.wishlist.Repository.WishlistRepository;
 import com.controledegastos.backend.wishlist.dto.WishlistHistoryResponseDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistListRequestDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistListResponseDTO;

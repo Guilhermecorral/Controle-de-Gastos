@@ -1,5 +1,6 @@
-package com.controledegastos.backend.transactions;
+package com.controledegastos.backend.transactions.Repository;
 
+import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.wishlist.WishlistItem;
 import org.springframework.data.jpa.repository.JpaRepository;

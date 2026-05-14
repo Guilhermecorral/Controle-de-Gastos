@@ -1,6 +1,6 @@
 import com.controledegastos.backend.BackendApplication; // Imports the application class explicitly for Spring Boot test startup.
 import com.controledegastos.backend.user.User;
-import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.user.Repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest; // Alternativa infalível

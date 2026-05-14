@@ -1,7 +1,7 @@
 package com.controledegastos.backend.security;
 
 import com.controledegastos.backend.user.User;
-import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.user.Repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

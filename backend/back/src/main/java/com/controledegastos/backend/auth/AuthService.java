@@ -5,7 +5,7 @@ import com.controledegastos.backend.auth.dto.LoginRequestDTO;
 import com.controledegastos.backend.auth.dto.RegisterRequestDTO;
 import com.controledegastos.backend.security.JwtService;
 import com.controledegastos.backend.user.User;
-import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
