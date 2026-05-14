@@ -1,6 +1,7 @@
 package com.controledegastos.backend.user;
 
 import com.controledegastos.backend.wishlist.WishlistItem;
+import com.controledegastos.backend.wishlist.WishlistList;
 import com.controledegastos.backend.transactions.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,6 +47,9 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
     private List<WishlistItem> wishlistItems;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    private List<WishlistList> wishlistLists;
 
     @PrePersist
     protected void onCreate() {

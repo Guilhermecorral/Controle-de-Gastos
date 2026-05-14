@@ -1,130 +1,198 @@
-package com.controledegastos.backend.wishlist; // Declares the package for wishlist integration tests.
+package com.controledegastos.backend.wishlist;
 
-import com.controledegastos.backend.transactions.Transaction; // Imports the transaction entity used to verify generated purchase entries.
-import com.controledegastos.backend.transactions.TransactionRepository; // Imports the repository used to inspect generated transactions.
-import com.controledegastos.backend.user.User; // Imports the user entity used in the authenticated context.
-import com.controledegastos.backend.user.UserRepository; // Imports the repository used to create test users.
-import com.controledegastos.backend.wishlist.dto.WishlistPurchaseRequestDTO; // Imports the DTO used to mark an item as purchased.
-import com.controledegastos.backend.wishlist.dto.WishlistRequestDTO; // Imports the DTO used to create wishlist items.
-import com.controledegastos.backend.wishlist.dto.WishlistResponseDTO; // Imports the response DTO asserted by the tests.
-import com.controledegastos.backend.wishlist.dto.WishlistSortBy; // Imports the sorting enum used by the list endpoint.
-import com.controledegastos.backend.wishlist.dto.WishlistStatusFilter; // Imports the filter enum used by the list endpoint.
-import com.controledegastos.backend.wishlist.dto.WishlistSummaryDTO; // Imports the summary DTO asserted by the tests.
-import org.junit.jupiter.api.AfterEach; // Imports the cleanup hook annotation.
-import org.junit.jupiter.api.Test; // Imports the JUnit test annotation.
-import org.springframework.beans.factory.annotation.Autowired; // Imports dependency injection for test beans.
-import org.springframework.boot.test.context.SpringBootTest; // Boots the full Spring Boot application context.
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken; // Imports the authentication token used to seed the security context.
-import org.springframework.security.core.context.SecurityContextHolder; // Imports access to the current security context.
-import org.springframework.test.context.ActiveProfiles; // Activates the isolated test profile.
+import com.controledegastos.backend.transactions.Transaction;
+import com.controledegastos.backend.transactions.TransactionRepository;
+import com.controledegastos.backend.user.User;
+import com.controledegastos.backend.user.UserRepository;
+import com.controledegastos.backend.wishlist.dto.WishlistHistoryResponseDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistListRequestDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistListResponseDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistPurchaseRequestDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistRequestDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistResponseDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistSortBy;
+import com.controledegastos.backend.wishlist.dto.WishlistStatusFilter;
+import com.controledegastos.backend.wishlist.dto.WishlistSummaryDTO;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
 
-import java.math.BigDecimal; // Imports the exact numeric type used for money assertions.
-import java.time.LocalDate; // Imports the date type used by the purchase flow.
-import java.util.List; // Imports the list abstraction used by assertions.
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals; // Imports the equality assertion.
-import static org.junit.jupiter.api.Assertions.assertFalse; // Imports the boolean-false assertion.
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest // Boots the full application so the wishlist module runs with real wiring.
-@ActiveProfiles("test") // Forces the test to use the isolated test profile.
-class WishlistServiceTest { // Declares the integration test for the wishlist v1 use cases.
+@SpringBootTest
+@ActiveProfiles("test")
+class WishlistServiceTest {
 
-    @Autowired // Injects the wishlist service from the application context.
-    private WishlistService wishlistService; // Stores the service under test.
+    @Autowired
+    private WishlistService wishlistService;
 
-    @Autowired // Injects the user repository used to create the authenticated user.
-    private UserRepository userRepository; // Stores the user repository used by the test setup.
+    @Autowired
+    private UserRepository userRepository;
 
-    @Autowired // Injects the transaction repository used to inspect generated purchase entries.
-    private TransactionRepository transactionRepository; // Stores the transaction repository used by the assertions.
+    @Autowired
+    private TransactionRepository transactionRepository;
 
-    @Autowired // Injects the wishlist repository used for cleanup and direct verification.
-    private WishlistRepository wishlistRepository; // Stores the wishlist repository used by the test setup.
+    @Autowired
+    private WishlistRepository wishlistRepository;
 
-    @AfterEach // Runs after each test so state does not leak between executions.
-    void tearDown() { // Starts the cleanup hook.
-        SecurityContextHolder.clearContext(); // Clears the authentication created during the test.
-        transactionRepository.deleteAll(); // Deletes transactions first to respect foreign key relationships.
-        wishlistRepository.deleteAll(); // Deletes wishlist items after dependent transactions are gone.
-        userRepository.deleteAll(); // Deletes users after the dependent data is gone.
-    } // Closes the cleanup hook.
+    @Autowired
+    private WishlistListRepository wishlistListRepository;
 
-    @Test // Marks the method as a test case.
-    void shouldCreatePurchaseUndoAndSummarizeWishlistItem() { // Starts the main wishlist v1 scenario.
-        User authenticatedUser = userRepository.save(User.builder() // Creates and persists the authenticated user.
-                .name("Jorge") // Sets the display name used in the test data.
-                .email("jorge-wishlist@test.com") // Sets the unique email of the authenticated user.
-                .password("123456") // Sets a simple password because hashing is not relevant in this integration test.
-                .role(User.Role.USER) // Sets the role required by the entity.
-                .build()); // Finishes and saves the user.
+    @Autowired
+    private WishlistHistoryEntryRepository wishlistHistoryEntryRepository;
 
-        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken( // Seeds the security context like the JWT filter would do in production.
-                authenticatedUser, // Stores the authenticated user as the principal.
-                null, // Omits credentials because authentication already happened.
-                authenticatedUser.getAuthorities() // Reuses the authorities exposed by the user entity.
-        )); // Finishes the authentication setup.
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+        transactionRepository.deleteAll();
+        wishlistHistoryEntryRepository.deleteAll();
+        wishlistRepository.deleteAll();
+        wishlistListRepository.deleteAll();
+        userRepository.deleteAll();
+    }
 
-        WishlistResponseDTO created = wishlistService.create(new WishlistRequestDTO( // Creates a pending wishlist item through the service.
-                "Notebook Gamer", // Sets the visible description of the wishlist item.
-                new BigDecimal("5000.00"), // Sets the original price informed by the user.
-                new BigDecimal("10.00"), // Sets the discount percentage applied to the wishlist item.
-                WishlistItem.Priority.ALTO, // Sets the item as high priority.
-                WishlistItem.WishlistCategory.COMPRAS, // Sets the category that matches the financial domain.
-                "Comprar quando entrar uma promocao" // Sets an optional note for the wishlist item.
-        )); // Finishes the create request.
+    @Test
+    void shouldCreatePurchaseUndoAndSummarizeWishlistItemInsideNamedList() {
+        User authenticatedUser = authenticateDefaultUser();
 
-        assertEquals(WishlistItem.WishlistStatus.PENDENTE, created.status()); // Confirms the item starts in the pending list.
-        assertEquals(new BigDecimal("4500.00"), created.finalPrice()); // Confirms the final price is calculated from the discount.
+        WishlistListResponseDTO technologyList = wishlistService.createList(
+                new WishlistListRequestDTO("Tecnologia", "Itens de tecnologia")
+        );
 
-        WishlistSummaryDTO summaryBeforePurchase = wishlistService.getSummary(); // Loads the wishlist summary before the purchase happens.
+        WishlistResponseDTO created = wishlistService.create(new WishlistRequestDTO(
+                "Notebook Gamer",
+                new BigDecimal("5000.00"),
+                new BigDecimal("10.00"),
+                WishlistItem.Priority.ALTO,
+                WishlistItem.WishlistCategory.COMPRAS,
+                "Comprar quando entrar uma promocao",
+                technologyList.id()
+        ));
 
-        assertEquals(1L, summaryBeforePurchase.quantidadeItensDesejados()); // Confirms the pending-item count is correct before purchase.
-        assertEquals(0L, summaryBeforePurchase.quantidadeItensComprados()); // Confirms the purchased-item count is zero before purchase.
-        assertEquals(new BigDecimal("4500.00"), summaryBeforePurchase.valorTotalDesejados()); // Confirms the pending total uses the final price.
-        assertEquals(new BigDecimal("0"), summaryBeforePurchase.valorTotalComprados()); // Confirms the purchased total is zero before purchase.
+        assertEquals(WishlistItem.WishlistStatus.PENDENTE, created.status());
+        assertEquals(new BigDecimal("4500.00"), created.finalPrice());
+        assertEquals("Tecnologia", created.listName());
 
-        WishlistResponseDTO purchased = wishlistService.markAsPurchased(created.id(), new WishlistPurchaseRequestDTO( // Marks the wishlist item as purchased and generates parcelled transactions.
-                LocalDate.of(2026, 7, 19), // Sets the purchase date used as the basis of the installment schedule.
-                WishlistItem.PurchasePaymentMethod.CARTAO_CREDITO_PARCELADO, // Chooses the parcelled credit-card method.
-                3, // Splits the purchase into three installments.
-                false // Keeps the first installment in the same month of the purchase.
-        )); // Finishes the purchase request.
+        WishlistSummaryDTO summaryBeforePurchase = wishlistService.getSummary();
 
-        assertEquals(WishlistItem.WishlistStatus.COMPRADO, purchased.status()); // Confirms the item moved to the purchased list.
-        assertEquals(LocalDate.of(2026, 7, 19), purchased.purchaseDate()); // Confirms the purchase date is stored correctly.
-        assertEquals(3, purchased.installments()); // Confirms the installment count is stored correctly.
+        assertEquals(1L, summaryBeforePurchase.quantidadeItensDesejados());
+        assertEquals(0L, summaryBeforePurchase.quantidadeItensComprados());
+        assertEquals(new BigDecimal("4500.00"), summaryBeforePurchase.valorTotalDesejados());
+        assertEquals(new BigDecimal("0"), summaryBeforePurchase.valorTotalComprados());
 
-        List<Transaction> generatedTransactions = transactionRepository.findAllByWishlistItemOrderByTransactionDateAscCreatedAtAsc( // Loads the financial entries created from the wishlist purchase.
-                wishlistRepository.findById(created.id()).orElseThrow() // Loads the persisted wishlist entity referenced by the generated transactions.
-        ); // Finishes the generated-transaction lookup.
+        WishlistResponseDTO purchased = wishlistService.markAsPurchased(created.id(), new WishlistPurchaseRequestDTO(
+                LocalDate.of(2026, 7, 19),
+                WishlistItem.PurchasePaymentMethod.CARTAO_CREDITO_PARCELADO,
+                3,
+                false
+        ));
 
-        assertEquals(3, generatedTransactions.size()); // Confirms one transaction was created for each installment.
-        assertEquals(new BigDecimal("1500.00"), generatedTransactions.get(0).getAmount()); // Confirms the first installment amount is correct.
-        assertEquals(LocalDate.of(2026, 7, 19), generatedTransactions.get(0).getTransactionDate()); // Confirms the first installment stays in the purchase month.
-        assertEquals(LocalDate.of(2026, 8, 19), generatedTransactions.get(1).getTransactionDate()); // Confirms the second installment moves to the next month.
-        assertEquals(LocalDate.of(2026, 9, 19), generatedTransactions.get(2).getTransactionDate()); // Confirms the third installment moves to the month after that.
+        assertEquals(WishlistItem.WishlistStatus.COMPRADO, purchased.status());
+        assertEquals(LocalDate.of(2026, 7, 19), purchased.purchaseDate());
+        assertEquals(3, purchased.installments());
+        assertTrue(purchased.archivedAfterPurchase());
 
-        WishlistSummaryDTO summaryAfterPurchase = wishlistService.getSummary(); // Loads the wishlist summary after the purchase happens.
+        WishlistItem persistedItem = wishlistRepository.findById(created.id()).orElseThrow();
+        List<Transaction> generatedTransactions = transactionRepository.findAllByWishlistItemOrderByTransactionDateAscCreatedAtAsc(persistedItem);
 
-        assertEquals(0L, summaryAfterPurchase.quantidadeItensDesejados()); // Confirms the item no longer appears in the desired-items count.
-        assertEquals(1L, summaryAfterPurchase.quantidadeItensComprados()); // Confirms the purchased-item count increased after the purchase.
-        assertEquals(new BigDecimal("0"), summaryAfterPurchase.valorTotalDesejados()); // Confirms the pending total becomes zero after the purchase.
-        assertEquals(new BigDecimal("4500.00"), summaryAfterPurchase.valorTotalComprados()); // Confirms the purchased total uses the final price of the item.
+        assertEquals(3, generatedTransactions.size());
+        assertEquals(new BigDecimal("1500.00"), generatedTransactions.get(0).getAmount());
+        assertEquals(LocalDate.of(2026, 7, 19), generatedTransactions.get(0).getTransactionDate());
+        assertEquals(LocalDate.of(2026, 8, 19), generatedTransactions.get(1).getTransactionDate());
+        assertEquals(LocalDate.of(2026, 9, 19), generatedTransactions.get(2).getTransactionDate());
 
-        List<WishlistResponseDTO> purchasedItems = wishlistService.findAll(WishlistStatusFilter.COMPRADO, WishlistSortBy.ADICIONADOS_RECENTEMENTE); // Loads only purchased items through the filter endpoint logic.
+        List<WishlistHistoryResponseDTO> historyAfterPurchase = wishlistService.getHistory(created.id());
+        assertEquals(2, historyAfterPurchase.size());
+        assertEquals(WishlistHistoryEntry.ActionType.PURCHASED, historyAfterPurchase.get(0).actionType());
+        assertEquals(WishlistHistoryEntry.ActionType.CREATED, historyAfterPurchase.get(1).actionType());
 
-        assertEquals(1, purchasedItems.size()); // Confirms the purchased filter returns the bought item.
-        assertEquals("Notebook Gamer", purchasedItems.get(0).description()); // Confirms the purchased item is the same one created earlier.
+        List<WishlistResponseDTO> purchasedItems = wishlistService.findAll(
+                WishlistStatusFilter.COMPRADO,
+                WishlistSortBy.ADICIONADOS_RECENTEMENTE,
+                technologyList.id()
+        );
 
-        WishlistResponseDTO undone = wishlistService.undoPurchase(created.id()); // Reverts the purchase and deletes the generated transactions.
+        assertEquals(1, purchasedItems.size());
+        assertEquals("Notebook Gamer", purchasedItems.get(0).description());
 
-        assertEquals(WishlistItem.WishlistStatus.PENDENTE, undone.status()); // Confirms the item returns to the pending list after undoing the purchase.
-        assertEquals(1, undone.installments()); // Confirms the installment count resets to the default pending-item value.
-        assertEquals(0, transactionRepository.findAll().size()); // Confirms every generated purchase transaction is removed by the undo flow.
+        WishlistResponseDTO undone = wishlistService.undoPurchase(created.id());
 
-        List<WishlistResponseDTO> pendingItems = wishlistService.findAll(WishlistStatusFilter.PENDENTE, WishlistSortBy.PERSONALIZADO); // Loads only pending items through the filter endpoint logic.
+        assertEquals(WishlistItem.WishlistStatus.PENDENTE, undone.status());
+        assertEquals(1, undone.installments());
+        assertFalse(undone.archivedAfterPurchase());
+        assertEquals(0, transactionRepository.findAll().size());
 
-        assertEquals(1, pendingItems.size()); // Confirms the item appears again in the pending list after undo purchase.
-        assertFalse(pendingItems.get(0).firstInstallmentNextMonth()); // Confirms the next-month flag resets to false after undo purchase.
-    } // Closes the main wishlist v1 scenario.
-} // Closes the test class.
+        List<WishlistHistoryResponseDTO> historyAfterUndo = wishlistService.getHistory(created.id());
+        assertEquals(3, historyAfterUndo.size());
+        assertEquals(WishlistHistoryEntry.ActionType.PURCHASE_UNDONE, historyAfterUndo.get(0).actionType());
+
+        List<WishlistResponseDTO> pendingItems = wishlistService.findAll(
+                WishlistStatusFilter.PENDENTE,
+                WishlistSortBy.PERSONALIZADO,
+                technologyList.id()
+        );
+
+        assertEquals(1, pendingItems.size());
+        assertFalse(pendingItems.get(0).firstInstallmentNextMonth());
+        assertEquals(authenticatedUser.getId(), persistedItem.getUser().getId());
+    }
+
+    @Test
+    void shouldMoveItemsToDefaultListWhenDeletingCustomList() {
+        authenticateDefaultUser();
+
+        WishlistListResponseDTO gamesList = wishlistService.createList(
+                new WishlistListRequestDTO("Jogos", "Lista de desejos para games")
+        );
+
+        WishlistResponseDTO created = wishlistService.create(new WishlistRequestDTO(
+                "Console",
+                new BigDecimal("3000.00"),
+                BigDecimal.ZERO,
+                WishlistItem.Priority.MEDIA,
+                WishlistItem.WishlistCategory.LAZER,
+                "Comprar no fim do ano",
+                gamesList.id()
+        ));
+
+        wishlistService.deleteList(gamesList.id());
+
+        List<WishlistListResponseDTO> lists = wishlistService.findAllLists();
+        assertEquals(1, lists.size());
+        assertTrue(lists.get(0).isDefault());
+
+        List<WishlistResponseDTO> items = wishlistService.findAll(WishlistStatusFilter.TODOS, WishlistSortBy.PERSONALIZADO, null);
+        assertEquals(1, items.size());
+        assertEquals("Lista Principal", items.get(0).listName());
+
+        List<WishlistHistoryResponseDTO> history = wishlistService.getHistory(created.id());
+        assertEquals(WishlistHistoryEntry.ActionType.MOVED, history.get(0).actionType());
+    }
+
+    private User authenticateDefaultUser() {
+        User authenticatedUser = userRepository.save(User.builder()
+                .name("Jorge")
+                .email("jorge-wishlist@test.com")
+                .password("123456")
+                .role(User.Role.USER)
+                .build());
+
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                authenticatedUser,
+                null,
+                authenticatedUser.getAuthorities()
+        ));
+
+        return authenticatedUser;
+    }
+}

@@ -23,6 +23,9 @@ public record WishlistResponseDTO(
         WishlistItem.PurchasePaymentMethod paymentMethod,
         Integer installments,
         Boolean firstInstallmentNextMonth,
+        Boolean archivedAfterPurchase,
+        Long listId,
+        String listName,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

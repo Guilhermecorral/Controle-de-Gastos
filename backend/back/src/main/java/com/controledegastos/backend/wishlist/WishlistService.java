@@ -4,6 +4,9 @@ import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.transactions.TransactionRepository;
 import com.controledegastos.backend.user.User;
+import com.controledegastos.backend.wishlist.dto.WishlistHistoryResponseDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistListRequestDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistListResponseDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistPurchaseRequestDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistRequestDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistResponseDTO;
@@ -21,23 +24,71 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Orquestra as regras de negocio da wishlist e sua integracao com transacoes.
+ */
 @Service
 @RequiredArgsConstructor
 public class WishlistService {
 
     private final WishlistRepository wishlistRepository;
+    private final WishlistListRepository wishlistListRepository;
+    private final WishlistHistoryEntryRepository wishlistHistoryEntryRepository;
     private final TransactionRepository transactionRepository;
     private final AuthenticatedUserService authenticatedUserService;
 
+    /**
+     * Centraliza a leitura do usuario autenticado para todos os fluxos da wishlist.
+     */
     private User getAuthenticatedUser() {
         return authenticatedUserService.getAuthenticatedUser();
     }
 
+    /**
+     * Garante que o item consultado existe e pertence ao usuario autenticado.
+     */
     private WishlistItem getOwnedWishlistItem(Long id, User user) {
         return wishlistRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Wishlist item not found"));
     }
 
+    /**
+     * Garante que a lista consultada existe e pertence ao usuario autenticado.
+     */
+    private WishlistList getOwnedWishlistList(Long id, User user) {
+        return wishlistListRepository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new RuntimeException("Wishlist list not found"));
+    }
+
+    /**
+     * Cria ou recupera a lista padrao do usuario, usada como fallback seguro da 6.1.
+     */
+    private WishlistList getOrCreateDefaultList(User user) {
+        return wishlistListRepository.findByUserAndIsDefaultTrue(user)
+                .orElseGet(() -> wishlistListRepository.save(
+                        WishlistList.builder()
+                                .name("Lista Principal")
+                                .description("Lista padrao criada automaticamente pelo sistema")
+                                .isDefault(true)
+                                .user(user)
+                                .build()
+                ));
+    }
+
+    /**
+     * Resolve a lista de destino recebida pela API ou usa a lista padrao quando nada foi informado.
+     */
+    private WishlistList resolveTargetList(Long listId, User user) {
+        if (listId == null) {
+            return getOrCreateDefaultList(user);
+        }
+
+        return getOwnedWishlistList(listId, user);
+    }
+
+    /**
+     * Valida os campos minimos de criacao e edicao de um item da wishlist.
+     */
     private void validateWishlistRequest(WishlistRequestDTO dto) {
         if (dto.description() == null || dto.description().isBlank()) {
             throw new IllegalArgumentException("Wishlist item description is required");
@@ -56,6 +107,9 @@ public class WishlistService {
         }
     }
 
+    /**
+     * Valida os dados exigidos ao concluir uma compra, especialmente no caso de parcelamento.
+     */
     private void validatePurchaseRequest(WishlistPurchaseRequestDTO dto) {
         if (dto.purchaseDate() == null) {
             throw new IllegalArgumentException("Purchase date is required");
@@ -77,6 +131,18 @@ public class WishlistService {
         }
     }
 
+    /**
+     * Valida o nome usado para criar ou editar uma lista nomeada da wishlist.
+     */
+    private void validateWishlistListRequest(WishlistListRequestDTO dto) {
+        if (dto.name() == null || dto.name().isBlank()) {
+            throw new IllegalArgumentException("Wishlist list name is required");
+        }
+    }
+
+    /**
+     * Converte a entidade persistida no DTO devolvido pelos endpoints da wishlist.
+     */
     private WishlistResponseDTO toResponseDTO(WishlistItem item) {
         return new WishlistResponseDTO(
                 item.getId(),
@@ -92,11 +158,62 @@ public class WishlistService {
                 item.getPaymentMethod(),
                 item.getInstallments(),
                 item.getFirstInstallmentNextMonth(),
+                item.getArchivedAfterPurchase(),
+                item.getWishlistList().getId(),
+                item.getWishlistList().getName(),
                 item.getCreatedAt(),
                 item.getUpdatedAt()
         );
     }
 
+    /**
+     * Converte a entidade de lista no DTO usado pelo frontend da wishlist.
+     */
+    private WishlistListResponseDTO toListResponseDTO(WishlistList list) {
+        return new WishlistListResponseDTO(
+                list.getId(),
+                list.getName(),
+                list.getDescription(),
+                list.getIsDefault(),
+                wishlistRepository.countByWishlistList(list),
+                list.getCreatedAt(),
+                list.getUpdatedAt()
+        );
+    }
+
+    /**
+     * Converte um evento do historico no DTO devolvido ao cliente.
+     */
+    private WishlistHistoryResponseDTO toHistoryResponseDTO(WishlistHistoryEntry entry) {
+        return new WishlistHistoryResponseDTO(
+                entry.getId(),
+                entry.getActionType(),
+                entry.getDescription(),
+                entry.getFinalPriceSnapshot(),
+                entry.getListNameSnapshot(),
+                entry.getCreatedAt()
+        );
+    }
+
+    /**
+     * Registra eventos importantes do ciclo de vida do item para auditoria funcional da wishlist.
+     */
+    private void registerHistory(WishlistItem item, WishlistHistoryEntry.ActionType actionType, String description) {
+        wishlistHistoryEntryRepository.save(
+                WishlistHistoryEntry.builder()
+                        .wishlistItem(item)
+                        .user(item.getUser())
+                        .actionType(actionType)
+                        .description(description)
+                        .finalPriceSnapshot(item.getFinalPrice())
+                        .listNameSnapshot(item.getWishlistList().getName())
+                        .build()
+        );
+    }
+
+    /**
+     * Traduz a opcao de ordenacao da API no objeto Sort usado pelo repositorio.
+     */
     private Sort buildSort(WishlistSortBy sortBy) {
         WishlistSortBy effectiveSort = sortBy == null ? WishlistSortBy.PERSONALIZADO : sortBy;
 
@@ -114,20 +231,23 @@ public class WishlistService {
         };
     }
 
-    private List<WishlistResponseDTO> mapList(List<WishlistItem> items) {
-        return items.stream()
-                .map(this::toResponseDTO)
-                .toList();
-    }
-
+    /**
+     * Reaproveita as categorias da transacao para espelhar compras no modulo financeiro.
+     */
     private Transaction.TransactionCategory mapCategory(WishlistItem.WishlistCategory category) {
         return Transaction.TransactionCategory.valueOf(category.name());
     }
 
+    /**
+     * Reaproveita as formas de pagamento da transacao para a integracao financeira.
+     */
     private Transaction.PaymentMethod mapPaymentMethod(WishlistItem.PurchasePaymentMethod paymentMethod) {
         return Transaction.PaymentMethod.valueOf(paymentMethod.name());
     }
 
+    /**
+     * Gera as transacoes que devem nascer quando um item e marcado como comprado.
+     */
     private List<Transaction> buildPurchaseTransactions(WishlistItem item) {
         List<Transaction> generatedTransactions = new ArrayList<>();
         int installments = item.getInstallments() == null ? 1 : item.getInstallments();
@@ -177,11 +297,99 @@ public class WishlistService {
         return generatedTransactions;
     }
 
+    /**
+     * Cria uma nova lista nomeada da wishlist.
+     */
+    @Transactional
+    public WishlistListResponseDTO createList(WishlistListRequestDTO dto) {
+        validateWishlistListRequest(dto);
+
+        User user = getAuthenticatedUser();
+        if (wishlistListRepository.existsByUserAndNameIgnoreCase(user, dto.name())) {
+            throw new IllegalArgumentException("Wishlist list name already exists");
+        }
+
+        WishlistList createdList = wishlistListRepository.save(
+                WishlistList.builder()
+                        .name(dto.name())
+                        .description(dto.description())
+                        .user(user)
+                        .build()
+        );
+
+        getOrCreateDefaultList(user);
+        return toListResponseDTO(createdList);
+    }
+
+    /**
+     * Lista todas as listas da wishlist do usuario, sempre incluindo a lista padrao.
+     */
+    @Transactional(readOnly = true)
+    public List<WishlistListResponseDTO> findAllLists() {
+        User user = getAuthenticatedUser();
+        getOrCreateDefaultList(user);
+
+        return wishlistListRepository.findAllByUserOrderByIsDefaultDescCreatedAtAsc(user).stream()
+                .map(this::toListResponseDTO)
+                .toList();
+    }
+
+    /**
+     * Atualiza nome e descricao de uma lista nao padrao.
+     */
+    @Transactional
+    public WishlistListResponseDTO updateList(Long id, WishlistListRequestDTO dto) {
+        validateWishlistListRequest(dto);
+
+        User user = getAuthenticatedUser();
+        WishlistList list = getOwnedWishlistList(id, user);
+
+        if (Boolean.TRUE.equals(list.getIsDefault())) {
+            throw new IllegalArgumentException("The default wishlist list cannot be renamed");
+        }
+
+        if (!list.getName().equalsIgnoreCase(dto.name()) && wishlistListRepository.existsByUserAndNameIgnoreCase(user, dto.name())) {
+            throw new IllegalArgumentException("Wishlist list name already exists");
+        }
+
+        list.setName(dto.name());
+        list.setDescription(dto.description());
+        return toListResponseDTO(wishlistListRepository.save(list));
+    }
+
+    /**
+     * Remove uma lista personalizada e move seus itens para a lista padrao para evitar perda de dados.
+     */
+    @Transactional
+    public void deleteList(Long id) {
+        User user = getAuthenticatedUser();
+        WishlistList list = getOwnedWishlistList(id, user);
+
+        if (Boolean.TRUE.equals(list.getIsDefault())) {
+            throw new IllegalArgumentException("The default wishlist list cannot be deleted");
+        }
+
+        WishlistList defaultList = getOrCreateDefaultList(user);
+        List<WishlistItem> items = wishlistRepository.findAllByUserAndWishlistList(user, list, Sort.unsorted());
+
+        for (WishlistItem item : items) {
+            item.setWishlistList(defaultList);
+            registerHistory(item, WishlistHistoryEntry.ActionType.MOVED, "Item moved to the default list after deleting its original list");
+        }
+
+        wishlistRepository.saveAll(items);
+        wishlistListRepository.delete(list);
+    }
+
+    /**
+     * Cria um item pendente na wishlist do usuario autenticado.
+     */
     @Transactional
     public WishlistResponseDTO create(WishlistRequestDTO dto) {
         validateWishlistRequest(dto);
 
         User user = getAuthenticatedUser();
+        WishlistList targetList = resolveTargetList(dto.listId(), user);
 
         WishlistItem item = WishlistItem.builder()
                 .description(dto.description())
@@ -193,32 +401,55 @@ public class WishlistService {
                 .status(WishlistItem.WishlistStatus.PENDENTE)
                 .installments(1)
                 .firstInstallmentNextMonth(false)
+                .archivedAfterPurchase(false)
                 .user(user)
+                .wishlistList(targetList)
                 .build();
 
         item.calculateFinalPrice();
 
-        return toResponseDTO(wishlistRepository.save(item));
+        WishlistItem savedItem = wishlistRepository.save(item);
+        registerHistory(savedItem, WishlistHistoryEntry.ActionType.CREATED, "Item added to wishlist");
+        return toResponseDTO(savedItem);
     }
 
+    /**
+     * Lista os itens da wishlist com filtro de status, ordenacao e filtro opcional por lista.
+     */
     @Transactional(readOnly = true)
-    public List<WishlistResponseDTO> findAll(WishlistStatusFilter statusFilter, WishlistSortBy sortBy) {
+    public List<WishlistResponseDTO> findAll(WishlistStatusFilter statusFilter, WishlistSortBy sortBy, Long listId) {
         User user = getAuthenticatedUser();
         Sort sort = buildSort(sortBy);
         WishlistStatusFilter effectiveFilter = statusFilter == null ? WishlistStatusFilter.TODOS : statusFilter;
+        WishlistList targetList = listId == null ? null : getOwnedWishlistList(listId, user);
 
-        List<WishlistItem> items = switch (effectiveFilter) {
-            case PENDENTE -> wishlistRepository.findAllByUserAndStatus(user, WishlistItem.WishlistStatus.PENDENTE, sort);
-            case COMPRADO -> wishlistRepository.findAllByUserAndStatus(user, WishlistItem.WishlistStatus.COMPRADO, sort);
-            case TODOS -> wishlistRepository.findAllByUser(user, sort);
-        };
+        List<WishlistItem> items;
+        if (targetList != null) {
+            items = switch (effectiveFilter) {
+                case PENDENTE -> wishlistRepository.findAllByUserAndWishlistListAndStatus(user, targetList, WishlistItem.WishlistStatus.PENDENTE, sort);
+                case COMPRADO -> wishlistRepository.findAllByUserAndWishlistListAndStatus(user, targetList, WishlistItem.WishlistStatus.COMPRADO, sort);
+                case TODOS -> wishlistRepository.findAllByUserAndWishlistList(user, targetList, sort);
+            };
+        } else {
+            items = switch (effectiveFilter) {
+                case PENDENTE -> wishlistRepository.findAllByUserAndStatus(user, WishlistItem.WishlistStatus.PENDENTE, sort);
+                case COMPRADO -> wishlistRepository.findAllByUserAndStatus(user, WishlistItem.WishlistStatus.COMPRADO, sort);
+                case TODOS -> wishlistRepository.findAllByUser(user, sort);
+            };
+        }
 
-        return mapList(items);
+        return items.stream()
+                .map(this::toResponseDTO)
+                .toList();
     }
 
+    /**
+     * Calcula o resumo principal exibido na visao agregada da wishlist.
+     */
     @Transactional(readOnly = true)
     public WishlistSummaryDTO getSummary() {
         User user = getAuthenticatedUser();
+        getOrCreateDefaultList(user);
 
         long quantidadeItensDesejados = wishlistRepository.countByUserAndStatus(user, WishlistItem.WishlistStatus.PENDENTE);
         long quantidadeItensComprados = wishlistRepository.countByUserAndStatus(user, WishlistItem.WishlistStatus.COMPRADO);
@@ -233,12 +464,17 @@ public class WishlistService {
         );
     }
 
+    /**
+     * Atualiza um item ainda pendente sem permitir edicao generica de compras ja concluidas.
+     */
     @Transactional
     public WishlistResponseDTO update(Long id, WishlistRequestDTO dto) {
         validateWishlistRequest(dto);
 
         User user = getAuthenticatedUser();
         WishlistItem item = getOwnedWishlistItem(id, user);
+        WishlistList previousList = item.getWishlistList();
+        WishlistList targetList = resolveTargetList(dto.listId(), user);
 
         if (item.getStatus() == WishlistItem.WishlistStatus.COMPRADO) {
             throw new IllegalArgumentException("Purchased wishlist items cannot be edited through the generic update flow");
@@ -250,11 +486,22 @@ public class WishlistService {
         item.setPriority(dto.priority() == null ? WishlistItem.Priority.MEDIA : dto.priority());
         item.setCategory(dto.category() == null ? WishlistItem.WishlistCategory.COMPRAS : dto.category());
         item.setNotes(dto.notes());
+        item.setWishlistList(targetList);
         item.calculateFinalPrice();
 
-        return toResponseDTO(wishlistRepository.save(item));
+        WishlistItem savedItem = wishlistRepository.save(item);
+        registerHistory(savedItem, WishlistHistoryEntry.ActionType.UPDATED, "Item details updated");
+
+        if (!previousList.getId().equals(targetList.getId())) {
+            registerHistory(savedItem, WishlistHistoryEntry.ActionType.MOVED, "Item moved between wishlist lists");
+        }
+
+        return toResponseDTO(savedItem);
     }
 
+    /**
+     * Marca um item como comprado e cria as transacoes correspondentes.
+     */
     @Transactional
     public WishlistResponseDTO markAsPurchased(Long id, WishlistPurchaseRequestDTO dto) {
         validatePurchaseRequest(dto);
@@ -271,13 +518,18 @@ public class WishlistService {
         item.setPaymentMethod(dto.paymentMethod());
         item.setInstallments(dto.installments() == null ? 1 : dto.installments());
         item.setFirstInstallmentNextMonth(Boolean.TRUE.equals(dto.firstInstallmentNextMonth()));
+        item.setArchivedAfterPurchase(true);
 
         WishlistItem savedItem = wishlistRepository.save(item);
         transactionRepository.saveAll(buildPurchaseTransactions(savedItem));
+        registerHistory(savedItem, WishlistHistoryEntry.ActionType.PURCHASED, "Item marked as purchased");
 
         return toResponseDTO(savedItem);
     }
 
+    /**
+     * Reverte uma compra e apaga as transacoes geradas a partir dela.
+     */
     @Transactional
     public WishlistResponseDTO undoPurchase(Long id) {
         User user = getAuthenticatedUser();
@@ -294,10 +546,29 @@ public class WishlistService {
         item.setPaymentMethod(null);
         item.setInstallments(1);
         item.setFirstInstallmentNextMonth(false);
+        item.setArchivedAfterPurchase(false);
 
-        return toResponseDTO(wishlistRepository.save(item));
+        WishlistItem savedItem = wishlistRepository.save(item);
+        registerHistory(savedItem, WishlistHistoryEntry.ActionType.PURCHASE_UNDONE, "Purchase undone and financial entries removed");
+        return toResponseDTO(savedItem);
     }
 
+    /**
+     * Devolve o historico de alteracoes de um item da wishlist.
+     */
+    @Transactional(readOnly = true)
+    public List<WishlistHistoryResponseDTO> getHistory(Long id) {
+        User user = getAuthenticatedUser();
+        WishlistItem item = getOwnedWishlistItem(id, user);
+
+        return wishlistHistoryEntryRepository.findAllByWishlistItemAndUserOrderByCreatedAtDesc(item, user).stream()
+                .map(this::toHistoryResponseDTO)
+                .toList();
+    }
+
+    /**
+     * Remove o item da wishlist e qualquer transacao vinculada a ele.
+     */
     @Transactional
     public void delete(Long id) {
         User user = getAuthenticatedUser();

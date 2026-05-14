@@ -3,9 +3,11 @@ package com.controledegastos.backend.wishlist;
 import com.controledegastos.backend.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "wishlist_items")
@@ -65,9 +67,20 @@ public class WishlistItem {
     @Builder.Default
     private Boolean firstInstallmentNextMonth = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean archivedAfterPurchase = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wishlist_list_id", nullable = false)
+    private WishlistList wishlistList;
+
+    @OneToMany(mappedBy = "wishlistItem", cascade = CascadeType.REMOVE, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<WishlistHistoryEntry> historyEntries;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

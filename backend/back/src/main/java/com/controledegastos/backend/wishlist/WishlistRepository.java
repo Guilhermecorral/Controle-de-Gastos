@@ -23,7 +23,18 @@ public interface WishlistRepository extends JpaRepository<WishlistItem, Long> {
 
     List<WishlistItem> findAllByUserAndStatus(User user, WishlistItem.WishlistStatus status, Sort sort);
 
+    List<WishlistItem> findAllByUserAndWishlistList(User user, WishlistList wishlistList, Sort sort);
+
+    List<WishlistItem> findAllByUserAndWishlistListAndStatus(
+            User user,
+            WishlistList wishlistList,
+            WishlistItem.WishlistStatus status,
+            Sort sort
+    );
+
     long countByUserAndStatus(User user, WishlistItem.WishlistStatus status);
+
+    long countByWishlistList(WishlistList wishlistList);
 
     /**
      * Soma o valor final dos itens de um status especifico para montar o resumo da wishlist.

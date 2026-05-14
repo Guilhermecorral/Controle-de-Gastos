@@ -13,6 +13,7 @@ public record WishlistRequestDTO(
         BigDecimal discountPercent,
         WishlistItem.Priority priority,
         WishlistItem.WishlistCategory category,
-        String notes
+        String notes,
+        Long listId
 ) {
 }
