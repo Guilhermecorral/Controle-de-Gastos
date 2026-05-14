@@ -9,8 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-// @RestController: combines @Controller + @ResponseBody — every response goes as JSON
-// @RequestMapping: prefix for all routes of this controller
+/**
+ * Expoe os endpoints publicos de registro e login.
+ */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -18,26 +19,21 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // POST /api/auth/register — new user registration
-    // @Valid: triggers the validations of the @NotBlank, @Email in RegisterRequestDTO
-    // @RequestBody: reads the JSON from the request body and converts it to the DTO
-    // ResponseEntity: allows controlling the HTTP status of the response
+    /**
+     * Registra um novo usuario e devolve os tokens iniciais de acesso.
+     */
     @PostMapping("/register")
-    public ResponseEntity<AuthResponseDTO> register(
-            @Valid @RequestBody RegisterRequestDTO dto
-    ){
+    public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO dto) {
         AuthResponseDTO response = authService.register(dto);
-        return ResponseEntity
-            .status(HttpStatus.CREATED) // 201 Created;
-            .body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    //POST /api/auth/login - user authentication existing
+    /**
+     * Autentica um usuario existente a partir de email e senha.
+     */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(
-            @Valid @RequestBody LoginRequestDTO dto
-    ) {
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto) {
         AuthResponseDTO response = authService.login(dto);
-        return ResponseEntity.ok(response); // 200 OK
+        return ResponseEntity.ok(response);
     }
 }

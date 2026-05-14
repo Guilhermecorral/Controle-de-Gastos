@@ -1,15 +1,18 @@
-package com.controledegastos.backend.wishlist.dto; // Declares the package for wishlist write DTOs.
+package com.controledegastos.backend.wishlist.dto;
 
-import com.controledegastos.backend.wishlist.WishlistItem; // Imports the enums reused by the request DTO.
+import com.controledegastos.backend.wishlist.WishlistItem;
 
-import java.math.BigDecimal; // Imports the money type used by price fields.
+import java.math.BigDecimal;
 
-public record WishlistRequestDTO( // Declares the immutable DTO used to create or update wishlist items.
-        String description, // Stores the visible name/description of the item.
-        BigDecimal originalPrice, // Stores the original price informed by the user.
-        BigDecimal discountPercent, // Stores the optional discount percentage informed by the user.
-        WishlistItem.Priority priority, // Stores the desired priority of the item.
-        WishlistItem.WishlistCategory category, // Stores the category chosen by the user.
-        String notes // Stores the optional notes written by the user.
-) { // Closes the record declaration.
-} // Closes the DTO type.
+/**
+ * Representa os dados usados para criar ou editar um item da wishlist.
+ */
+public record WishlistRequestDTO(
+        String description,
+        BigDecimal originalPrice,
+        BigDecimal discountPercent,
+        WishlistItem.Priority priority,
+        WishlistItem.WishlistCategory category,
+        String notes
+) {
+}

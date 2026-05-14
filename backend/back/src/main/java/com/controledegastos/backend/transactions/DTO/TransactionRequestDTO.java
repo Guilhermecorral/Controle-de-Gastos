@@ -1,39 +1,38 @@
 package com.controledegastos.backend.transactions.DTO;
 
+import com.controledegastos.backend.transactions.Transaction.PaymentMethod;
 import com.controledegastos.backend.transactions.Transaction.TransactionCategory;
 import com.controledegastos.backend.transactions.Transaction.TransactionType;
-import com.controledegastos.backend.transactions.Transaction.PaymentMethod;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-
+/**
+ * Representa os dados enviados para criar ou editar uma transacao.
+ */
 public record TransactionRequestDTO(
-
-        // Mandatory type - RECEITA ou DESPESA
-        @NotNull(message = "Tipo é obrigatório")
+        @NotNull(message = "Tipo e obrigatorio")
         TransactionType type,
 
-        // Mandatory description - ex.: Burger King
-        @NotBlank(message = "Descrição é obrigatória")
-        @Size(max = 255, message = "Descrição deve ter no máximo 255 caracteres")
+        @NotBlank(message = "Descricao e obrigatoria")
+        @Size(max = 255, message = "Descricao deve ter no maximo 255 caracteres")
         String description,
 
-        // Mandatory category
-        @NotNull(message = "Categoria é obrigatória")
+        @NotNull(message = "Categoria e obrigatoria")
         TransactionCategory category,
 
-        // Value - today positive never negative
-        @NotNull(message = "Valor é obrigatório")
+        @NotNull(message = "Valor e obrigatorio")
         @DecimalMin(value = "0.01", message = "Valor deve ser maior que zero")
         BigDecimal amount,
 
-        // Mandatory payment method
-        @NotNull(message = "Forma de pagamento é obrigatória")
+        @NotNull(message = "Forma de pagamento e obrigatoria")
         PaymentMethod paymentMethod,
 
-        // Transaction date - cannot be future
-        @NotNull(message = "Data é obrigatória")
+        @NotNull(message = "Data e obrigatoria")
         LocalDate transactionDate
-
-) {}
+) {
+}

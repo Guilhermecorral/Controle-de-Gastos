@@ -7,8 +7,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
+/**
+ * Expoe os endpoints de criacao, consulta, edicao e exclusao de transacoes.
+ */
 @RestController
 @RequestMapping("/api/transactions")
 @RequiredArgsConstructor
@@ -16,20 +20,17 @@ public class TransactionController {
 
     private final TransactionService transactionService;
 
-    // POST /api/transactions - create a new transaction
-    // @Valid: Validation DTO (@NotNull, @DecimalMIn, etc.)
+    /**
+     * Cria uma nova transacao para o usuario autenticado.
+     */
     @PostMapping
-    public ResponseEntity<TransactionResponseDTO> create(
-            @Valid @RequestBody TransactionRequestDTO dto
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(transactionService.create(dto));
+    public ResponseEntity<TransactionResponseDTO> create(@Valid @RequestBody TransactionRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.create(dto));
     }
 
-    // GET /api/transactions - List optional filter
-    // @ResquestParam required=false: Optional parameters in URL
-    // Ex.: GET /api/transactions?type=DESPESA&category=ALIMENTACAO
+    /**
+     * Lista as transacoes do usuario com filtros opcionais de tipo e categoria.
+     */
     @GetMapping
     public ResponseEntity<List<TransactionResponseDTO>> findAll(
             @RequestParam(required = false) Transaction.TransactionType type,
@@ -38,8 +39,9 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.findAll(type, category));
     }
 
-    // PUT /api/transactions/{id} - Update a transaction by ID
-    // @PathVariable: Extract the ID from the URL path
+    /**
+     * Atualiza uma transacao existente que pertence ao usuario autenticado.
+     */
     @PutMapping("/{id}")
     public ResponseEntity<TransactionResponseDTO> update(
             @PathVariable Long id,
@@ -48,12 +50,12 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.update(id, dto));
     }
 
-    // DELETE /api/transactions/{id} - Delete a transaction
-    // 204 No Content: Operation successfully, but no body answer
+    /**
+     * Remove uma transacao existente do usuario autenticado.
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         transactionService.delete(id);
         return ResponseEntity.noContent().build();
     }
-
 }

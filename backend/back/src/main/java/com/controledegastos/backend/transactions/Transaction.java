@@ -59,7 +59,6 @@ public class Transaction {
         this.createdAt = LocalDateTime.now();
     }
 
-    //Enums internos definidos
 
     public enum TransactionType {
         RECEITA,

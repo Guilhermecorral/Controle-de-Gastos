@@ -1,26 +1,31 @@
-package com.controledegastos.backend.dashboard; // Declares the package for dashboard web endpoints.
+package com.controledegastos.backend.dashboard;
 
-import com.controledegastos.backend.dashboard.dto.DashboardResponseDTO; // Imports the DTO returned to the API client.
-import lombok.RequiredArgsConstructor; // Imports Lombok to generate the constructor for dependency injection.
-import org.springframework.http.ResponseEntity; // Imports the HTTP response wrapper used by Spring MVC.
-import org.springframework.web.bind.annotation.GetMapping; // Imports the GET mapping annotation.
-import org.springframework.web.bind.annotation.RequestMapping; // Imports the base route mapping annotation.
-import org.springframework.web.bind.annotation.RequestParam; // Imports the query-parameter binding annotation used for the optional dashboard period.
-import org.springframework.web.bind.annotation.RestController; // Marks the class as a REST controller.
+import com.controledegastos.backend.dashboard.dto.DashboardResponseDTO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-@RestController // Registers the class as a JSON REST controller.
-@RequestMapping("/api/dashboard") // Defines the base route for dashboard requests.
-@RequiredArgsConstructor // Generates the constructor for the injected service.
-public class DashboardController { // Declares the controller that exposes the dashboard endpoint.
+/**
+ * Expoe o endpoint que monta a visao resumida do dashboard.
+ */
+@RestController
+@RequestMapping("/api/dashboard")
+@RequiredArgsConstructor
+public class DashboardController {
 
-    private final DashboardService dashboardService; // Stores the service that assembles the dashboard data.
+    private final DashboardService dashboardService;
 
-    // GET /api/dashboard returns the minimal financial overview for the authenticated user.
-    @GetMapping // Maps this method to HTTP GET on the controller route.
-    public ResponseEntity<DashboardResponseDTO> getDashboard( // Starts the endpoint method.
-            @RequestParam(required = false) Integer year, // Accepts an optional reference year so the dashboard can be viewed historically.
-            @RequestParam(required = false) Integer month // Accepts an optional reference month so the dashboard can ignore future data.
-    ) { // Closes the method signature.
-        return ResponseEntity.ok(dashboardService.getDashboard(year, month)); // Returns status 200 with the assembled dashboard payload.
-    } // Closes the endpoint method.
-} // Closes the controller class.
+    /**
+     * Devolve o dashboard do usuario autenticado para o mes atual ou para um mes de referencia.
+     */
+    @GetMapping
+    public ResponseEntity<DashboardResponseDTO> getDashboard(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month
+    ) {
+        return ResponseEntity.ok(dashboardService.getDashboard(year, month));
+    }
+}
