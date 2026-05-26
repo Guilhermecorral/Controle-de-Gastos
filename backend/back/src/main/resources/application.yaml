@@ -1,24 +1,33 @@
 server:
   port: 8080
+  forward-headers-strategy: framework
 
 spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
     open-in-view: false
   config:
-    import: optional:file:.env.properties[.properties]
+    import: optional:file:.env[.properties],optional:file:.env.properties[.properties]
   profiles:
-    active: dev
+    active: ${SPRING_PROFILES_ACTIVE:dev}
 
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_ACCESS_EXPIRATION}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+
+app:
+  security:
+    cors:
+      allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+    auth-rate-limit:
+      window-seconds: ${APP_AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
+      max-attempts: ${APP_AUTH_RATE_LIMIT_MAX_ATTEMPTS:12}
 
 logging:
   level:

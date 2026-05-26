@@ -1,34 +1,24 @@
-#                Stage 1: Build the application (Compile Maven project)
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS build
 
-# Use a maven image with java 25 to build the application
-FROM maven:3.9.14-eclipse-temurin-25-alpine AS build
-
-# Set the working directory
 WORKDIR /app
 
-# Copy the pom.xml
-COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw mvnw
+COPY pom.xml pom.xml
+COPY src src
 
-# Copy the source code
-COPY src ./src
+RUN chmod +x mvnw && ./mvnw -q -DskipTests package
 
-# Build the application
-RUN mvn clean package -DskipTests
+FROM eclipse-temurin:21-jre-alpine
 
-#                Stage 2: Final image to run the application
-
-# Usage Java 25 slim
-FROM eclipse-temurin:25-jdk-alpine
-
-# Set final working directory
 WORKDIR /app
 
-# Copy .jar file from the build stage
-# The * to catch the generated jar file
+RUN addgroup -S spring && adduser -S spring -G spring
+
 COPY --from=build /app/target/*.jar app.jar
 
-# Expose the port the application runs on
 EXPOSE 8080
 
-# Command to run the application
+USER spring
+
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -27,7 +27,7 @@ public class AuthService {
      */
     public AuthResponseDTO register(RegisterRequestDTO dto) {
         if (userRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("Email ja cadastrado" + dto.email());
+            throw new IllegalArgumentException("Email ja cadastrado");
         }
 
         User user = User.builder()

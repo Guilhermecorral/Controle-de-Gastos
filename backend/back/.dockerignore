@@ -1,0 +1,6 @@
+target
+.idea
+.env
+.env.properties
+*.log
+qa-backend.log

@@ -1,57 +1,46 @@
-#                 Docker-compose file for the backend service
-
-# Define the version of Docker Compose
-version: '3.9'
-
-# Define the volumes to persist data
-volumes:
-  # Define a volume for the PostgreSQL data
-  postgres_data:
-
-# Define the services that make up the application
 services:
-
-  # Define the PostgreSQL service to be used by the backend
   postgres:
-    image: postgres:16-alpine # Use the official PostgreSQL image
-    container_name: controle-gastos-db # Name the container for easier reference
-    restart: unless-stopped # Restart the container unless it is explicitly stopped
-
-    environment: # Set environment variables for PostgreSQL
-      POSTGRES_USER: ${POSTGRES_USER} # Set the PostgreSQL user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # Set the PostgreSQL password
-      POSTGRES_DB: controle_gastos # Set the PostgreSQL database name
-
+    image: postgres:16-alpine
+    container_name: controle-gastos-db
+    restart: unless-stopped
+    env_file:
+      - ./backend/back/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: controle_gastos
     ports:
-      - "55433:5432" # Map port 55433 on the host to port 5432 in the container
-
+      - "55433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # Mount the volume to persist data
-
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d controle_gastos" ] # Check if PostgreSQL is ready
-      interval: 5s # Check every 5 seconds
-      timeout: 5s # Timeout after 5 seconds
-      retries: 5 # Retry up to 5 times
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d controle_gastos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # Application service is Spring boot (Java 21)
   backend:
     build:
-      context: backend/back # Folder where the Dockerfile is located
-      dockerfile: backend/back/Dockerfile # Name of the Dockerfile
-
-    container_name: controle-gastos-backend # Name the container for easier reference
-    restart: unless-stopped # Restart the container unless it is explicitly stopped
-
-    ports:
-      - "8081:8080" # Port is API -> accessible on port 8081 of the host machine
-
-    environment: # Set environment variables for the backend
+      context: ./backend/back
+      dockerfile: Dockerfile
+    container_name: controle-gastos-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/back/.env
+    environment:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/controle_gastos
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME} # Set the database connection details for the backend to connect to PostgreSQL
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
+      APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS}
+    ports:
+      - "8081:8080"
     depends_on:
       postgres:
-        condition: service_healthy # Ensure the backend waits for PostgreSQL to be healthy before starting
+        condition: service_healthy
+
+volumes:
+  postgres_data:

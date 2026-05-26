@@ -4,6 +4,7 @@ import com.controledegastos.backend.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +28,20 @@ public class JwtService {
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
+
+    /**
+     * Garante que o segredo e os tempos de expiracao estejam aceitaveis antes de subir a aplicacao.
+     */
+    @PostConstruct
+    void validateConfiguration() {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException("JWT_SECRET precisa ter pelo menos 32 caracteres");
+        }
+
+        if (expiration <= 0 || refreshExpiration <= 0) {
+            throw new IllegalStateException("As expiracoes do JWT precisam ser maiores que zero");
+        }
+    }
 
     /**
      * Converte o segredo configurado em chave criptografica para assinatura dos tokens.
