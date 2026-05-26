@@ -1,10 +1,42 @@
-// Define tipos baseados nos DTOs do backend para type safety
+// Alinha os tipos do frontend com os contratos reais expostos pelo backend.
+export type Role = 'USER' | 'ADMIN' | string;
+
+export type TransactionType = 'RECEITA' | 'DESPESA';
+
+export type Category =
+  | 'ALIMENTACAO'
+  | 'TRANSPORTE'
+  | 'MORADIA'
+  | 'SAUDE'
+  | 'LAZER'
+  | 'EDUCACAO'
+  | 'COMPRAS'
+  | 'OUTROS';
+
+export type PaymentMethod =
+  | 'PIX'
+  | 'DINHEIRO'
+  | 'CARTAO_DEBITO'
+  | 'CARTAO_CREDITO_AVISTA'
+  | 'CARTAO_CREDITO_PARCELADO';
+
+export type WishlistPriority = 'BAIXA' | 'MEDIA' | 'ALTA';
+export type WishlistStatus = 'PENDENTE' | 'COMPRADO';
+export type WishlistSortBy =
+  | 'MENOR_PRECO'
+  | 'MAIOR_PRECO'
+  | 'PRIORIDADE'
+  | 'ADICIONADOS_RECENTEMENTE'
+  | 'PERSONALIZADO';
+
+export type Trend = 'MELHOR' | 'PIOR' | 'IGUAL';
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   name: string;
   email: string;
-  role: string;
+  role: Role;
 }
 
 export interface LoginRequest {
@@ -16,6 +48,37 @@ export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+}
+
+export interface AuthUser {
+  name: string;
+  email: string;
+  role: Role;
+}
+
+export interface TransactionRequest {
+  type: TransactionType;
+  description: string;
+  category: Category;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  transactionDate: string;
+}
+
+export interface TransactionResponse {
+  id: number;
+  type: TransactionType;
+  description: string;
+  category: Category;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  transactionDate: string;
+  createdAt: string;
+}
+
+export interface DashboardCategorySummary {
+  category: Category;
+  totalAmount: number;
 }
 
 export interface DashboardResponse {
@@ -33,98 +96,18 @@ export interface DashboardResponse {
   resultadoMesAtual: number;
   anoReferencia: number;
   mesReferencia: number;
-  ultimasTransacoes: Transaction[];
-  gastosPorCategoria: CategorySummary[];
+  ultimasTransacoes: TransactionResponse[];
+  gastosPorCategoria: DashboardCategorySummary[];
 }
 
-export interface Transaction {
-  id: number;
-  type: 'RECEITA' | 'DESPESA';
+export interface MonthlyExpenseSummary {
   description: string;
-  category: string;
   amount: number;
-  paymentMethod: string;
-  transactionDate: string;
-  createdAt: string;
-}
-
-export interface CategorySummary {
-  category: string;
-  totalAmount: number;
-}
-
-export interface TransactionRequest {
-  type: 'RECEITA' | 'DESPESA';
-  description: string;
-  category: string;
-  amount: number;
-  paymentMethod: string;
+  category: Category;
   transactionDate: string;
 }
 
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
-export interface WishlistItem {
-  id: number;
-  name: string;
-  targetAmount: number;
-  currentAmount: number;
-  description?: string;
-}
-
-export interface MonthlyAnalysisResponse {
-  year: number;
-  month: number;
-  totalReceitas: number;
-  totalDespesas: number;
-  saldo: number;
-  maiorGasto: {
-    description: string;
-    amount: number;
-    category: string;
-    transactionDate: string;
-  };
-  gastosPorCategoria: CategorySummary[];
-  comparativoMesAnterior: Comparison;
-  comparativoMesmoMesAnoAnterior: Comparison;
-  acumuladoAnoAtual: {
-    year: number;
-    monthLimit: number;
-    totalReceitas: number;
-    totalDespesas: number;
-    saldo: number;
-  };
-  comparativoAcumuladoAnoAnterior: {
-    anoAtual: {
-      year: number;
-      monthLimit: number;
-      totalReceitas: number;
-      totalDespesas: number;
-      saldo: number;
-    };
-    anoAnterior: {
-      year: number;
-      monthLimit: number;
-      totalReceitas: number;
-      totalDespesas: number;
-      saldo: number;
-    };
-    diferencaReceitas: number;
-    diferencaDespesas: number;
-    diferencaSaldo: number;
-    tendenciaReceitas: 'MELHOR' | 'PIOR' | 'IGUAL';
-    tendenciaDespesas: 'MELHOR' | 'PIOR' | 'IGUAL';
-    tendenciaSaldo: 'MELHOR' | 'PIOR' | 'IGUAL';
-    tendenciaGeral: 'MELHOR' | 'PIOR' | 'IGUAL';
-  };
-}
-
-export interface Comparison {
+export interface ComparisonSnapshot {
   year: number;
   month: number;
   totalReceitas: number;
@@ -133,8 +116,111 @@ export interface Comparison {
   diferencaReceitas: number;
   diferencaDespesas: number;
   diferencaSaldo: number;
-  tendenciaReceitas: 'MELHOR' | 'PIOR' | 'IGUAL';
-  tendenciaDespesas: 'MELHOR' | 'PIOR' | 'IGUAL';
-  tendenciaSaldo: 'MELHOR' | 'PIOR' | 'IGUAL';
-  tendenciaGeral: 'MELHOR' | 'PIOR' | 'IGUAL';
+  tendenciaReceitas: Trend;
+  tendenciaDespesas: Trend;
+  tendenciaSaldo: Trend;
+  tendenciaGeral: Trend;
+}
+
+export interface YearToDateSummary {
+  year: number;
+  monthLimit: number;
+  totalReceitas: number;
+  totalDespesas: number;
+  saldo: number;
+}
+
+export interface YearToDateComparison {
+  anoAtual: YearToDateSummary;
+  anoAnterior: YearToDateSummary;
+  diferencaReceitas: number;
+  diferencaDespesas: number;
+  diferencaSaldo: number;
+  tendenciaReceitas: Trend;
+  tendenciaDespesas: Trend;
+  tendenciaSaldo: Trend;
+  tendenciaGeral: Trend;
+}
+
+export interface MonthlyAnalysisResponse {
+  year: number;
+  month: number;
+  totalReceitas: number;
+  totalDespesas: number;
+  saldo: number;
+  maiorGasto: MonthlyExpenseSummary | null;
+  gastosPorCategoria: DashboardCategorySummary[];
+  comparativoMesAnterior: ComparisonSnapshot;
+  comparativoMesmoMesAnoAnterior: ComparisonSnapshot;
+  acumuladoAnoAtual: YearToDateSummary;
+  comparativoAcumuladoAnoAnterior: YearToDateComparison;
+}
+
+export interface WishlistListResponse {
+  id: number;
+  name: string;
+  description: string;
+  isDefault: boolean;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WishlistListRequest {
+  name: string;
+  description: string;
+}
+
+export interface WishlistItemRequest {
+  description: string;
+  originalPrice: number;
+  discountPercent: number;
+  priority: WishlistPriority;
+  category: Category;
+  notes: string;
+  listId: number;
+}
+
+export interface WishlistPurchaseRequest {
+  purchaseDate: string;
+  paymentMethod: PaymentMethod;
+  installments: number;
+  firstInstallmentNextMonth: boolean;
+}
+
+export interface WishlistItemResponse {
+  id: number;
+  description: string;
+  originalPrice: number;
+  discountPercent: number;
+  finalPrice: number;
+  priority: WishlistPriority;
+  category: Category;
+  notes: string;
+  status: WishlistStatus;
+  purchaseDate: string | null;
+  paymentMethod: PaymentMethod | null;
+  installments: number | null;
+  firstInstallmentNextMonth: boolean | null;
+  archivedAfterPurchase: boolean | null;
+  listId: number;
+  listName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WishlistSummaryResponse {
+  quantidadeItensDesejados: number;
+  quantidadeItensComprados: number;
+  valorTotalDesejados: number;
+  valorTotalComprados: number;
+}
+
+export interface WishlistHistoryResponse {
+  id: number;
+  actionType: 'CRIADO' | 'ATUALIZADO' | 'COMPRADO' | 'COMPRA_DESFEITA';
+  description: string;
+  finalPriceSnapshot: number;
+  listNameSnapshot: string;
+  createdAt: string;
 }
