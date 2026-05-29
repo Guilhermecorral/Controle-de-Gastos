@@ -1,5 +1,6 @@
 import { Dispatch, ReactNode, SetStateAction, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import CaptchaField from './components/CaptchaField';
 import CookieConsent from './components/CookieConsent';
 import {
@@ -327,6 +328,54 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
             </div>
           </div>
         </section>
+
+        <footer className="bg-slate-900 text-slate-200">
+          <div className="mx-auto max-w-7xl px-4 py-14 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-4">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-300">Sua conta</p>
+                <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-300">
+                  <li>Entrar e criar conta</li>
+                  <li>Alterar nome, e-mail e senha</li>
+                  <li>Recuperar acesso com segurança</li>
+                  <li>Excluir conta quando quiser</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-300">Privacidade</p>
+                <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-300">
+                  <li>Cookies essenciais para a sessão</li>
+                  <li>Cookies opcionais com consentimento</li>
+                  <li>Registros de proteção contra abuso</li>
+                  <li>Transparência sobre dados tratados</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-300">Produto</p>
+                <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-300">
+                  <li>Painel com visão do mês</li>
+                  <li>Análise mensal comparativa</li>
+                  <li>Lista de desejos com impacto financeiro</li>
+                  <li>Categorias e histórico organizados</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-300">Ajuda</p>
+                <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-300">
+                  <li>Recuperação de senha</li>
+                  <li>Dúvidas sobre privacidade</li>
+                  <li>Configuração de cookies</li>
+                  <li>Suporte para acesso e conta</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-12 border-t border-white/10 pt-6 text-sm leading-7 text-slate-400">
+              <p>Este produto trata dados necessários para autenticação, proteção da conta, organização financeira e preferências de uso.</p>
+              <p className="mt-2">Cookies opcionais e medições de uso só devem ser ativados com o seu consentimento.</p>
+            </div>
+          </div>
+        </footer>
       </main>
     </div>
   );
@@ -334,6 +383,7 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, login, logout, user } = useAuthStore();
   const [email, setEmail] = useState('jorge@email.com');
   const [password, setPassword] = useState('Senha@123');
@@ -341,6 +391,7 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const loginMutation = useLoginMutation();
+  const logoutMutation = useLogoutMutation();
 
   return (
     <AuthLayout
@@ -353,7 +404,14 @@ function LoginPage() {
         <AuthSessionNotice
           email={user?.email ?? ''}
           onContinue={() => navigate('/app')}
-          onSwitchAccount={() => logout()}
+          onSwitchAccount={() => {
+            logoutMutation.mutate(undefined, {
+              onSettled: () => {
+                queryClient.clear();
+                logout();
+              },
+            });
+          }}
         />
       )}
 
@@ -403,8 +461,9 @@ function LoginPage() {
             { email, password, captchaToken: captchaToken || undefined },
             {
               onSuccess: (response) => {
+                queryClient.clear();
                 login(response);
-                navigate('/app');
+                navigate('/app', { replace: true });
               },
               onError: (error) => {
                 setErrorMessage(getApiErrorMessage(error, 'Não foi possível entrar. Confira seu e-mail e sua senha.'));
@@ -431,6 +490,7 @@ function LoginPage() {
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, login, logout, user } = useAuthStore();
   const [name, setName] = useState('Jorge Corral');
   const [email, setEmail] = useState('jorge@email.com');
@@ -440,6 +500,7 @@ function RegisterPage() {
   const [captchaToken, setCaptchaToken] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const registerMutation = useRegisterMutation();
+  const logoutMutation = useLogoutMutation();
 
   const passwordChecks = [
     { label: 'Pelo menos 8 caracteres', valid: password.length >= 8 },
@@ -465,7 +526,14 @@ function RegisterPage() {
         <AuthSessionNotice
           email={user?.email ?? ''}
           onContinue={() => navigate('/app')}
-          onSwitchAccount={() => logout()}
+          onSwitchAccount={() => {
+            logoutMutation.mutate(undefined, {
+              onSettled: () => {
+                queryClient.clear();
+                logout();
+              },
+            });
+          }}
         />
       )}
 
@@ -558,8 +626,9 @@ function RegisterPage() {
             { name, email, password, captchaToken: captchaToken || undefined },
             {
               onSuccess: (response) => {
+                queryClient.clear();
                 login(response);
-                navigate('/app');
+                navigate('/app', { replace: true });
               },
               onError: () => {
                 setErrorMessage('Não foi possível concluir o cadastro agora. Revise os dados ou tente novamente.');
@@ -584,12 +653,15 @@ function RegisterPage() {
 
 function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, logout, user } = useAuthStore();
   const [email, setEmail] = useState('jorge@email.com');
   const [captchaToken, setCaptchaToken] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [debugResetLink, setDebugResetLink] = useState('');
   const forgotPasswordMutation = useForgotPasswordMutation();
+  const logoutMutation = useLogoutMutation();
   const localResetLink = useMemo(() => {
     if (!debugResetLink) {
       return '';
@@ -620,7 +692,14 @@ function ForgotPasswordPage() {
         <AuthSessionNotice
           email={user?.email ?? ''}
           onContinue={() => navigate('/app')}
-          onSwitchAccount={() => logout()}
+          onSwitchAccount={() => {
+            logoutMutation.mutate(undefined, {
+              onSettled: () => {
+                queryClient.clear();
+                logout();
+              },
+            });
+          }}
         />
       )}
 
@@ -637,6 +716,12 @@ function ForgotPasswordPage() {
       {feedbackMessage && (
         <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-700">
           {feedbackMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
+          {errorMessage}
         </div>
       )}
 
@@ -660,6 +745,7 @@ function ForgotPasswordPage() {
         disabled={forgotPasswordMutation.isPending || !email}
         onClick={() => {
           setFeedbackMessage('');
+          setErrorMessage('');
           setDebugResetLink('');
           forgotPasswordMutation.mutate(
             { email, captchaToken: captchaToken || undefined },
@@ -669,7 +755,7 @@ function ForgotPasswordPage() {
                 setDebugResetLink(response.debugResetLink ?? '');
               },
               onError: (error) => {
-                setFeedbackMessage(getApiErrorMessage(error, 'Não foi possível iniciar a recuperação agora. Tente novamente em instantes.'));
+                setErrorMessage(getApiErrorMessage(error, 'Não foi possível iniciar a recuperação agora. Tente novamente em instantes.'));
               },
             },
           );
@@ -693,6 +779,7 @@ function ForgotPasswordPage() {
 
 function ResetPasswordPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated, logout, user } = useAuthStore();
   const searchParams = new URLSearchParams(window.location.search);
   const [token] = useState(searchParams.get('token') ?? '');
@@ -702,6 +789,7 @@ function ResetPasswordPage() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const resetPasswordMutation = useResetPasswordMutation();
+  const logoutMutation = useLogoutMutation();
   const passwordChecks = [
     { label: 'Pelo menos 8 caracteres', valid: password.length >= 8 },
     { label: 'Pelo menos 1 número', valid: /\d/.test(password) },
@@ -722,7 +810,14 @@ function ResetPasswordPage() {
         <AuthSessionNotice
           email={user?.email ?? ''}
           onContinue={() => navigate('/app')}
-          onSwitchAccount={() => logout()}
+          onSwitchAccount={() => {
+            logoutMutation.mutate(undefined, {
+              onSettled: () => {
+                queryClient.clear();
+                logout();
+              },
+            });
+          }}
         />
       )}
 
@@ -943,6 +1038,7 @@ function AuthLayout({
 function Workspace({ onLogout }: { onLogout: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [currentView, setCurrentView] = useState<ViewId>('painel');
   const [dashboardYear, setDashboardYear] = useState(currentYear);
@@ -1189,8 +1285,8 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
           setWishlistCategoryTouched(false);
           pushToast('Item adicionado à lista de desejos.');
         },
-        onError: () => {
-          pushToast('Não foi possível criar o item agora.', 'info');
+        onError: (error) => {
+          pushToast(getApiErrorMessage(error, 'Não foi possível criar o item agora.'), 'info');
         },
       },
     );
@@ -1223,8 +1319,8 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
           setPurchaseModalItemId(null);
           pushToast('Compra concluída e lançamentos gerados.');
         },
-        onError: () => {
-          pushToast('Não foi possível concluir a compra agora.', 'info');
+        onError: (error) => {
+          pushToast(getApiErrorMessage(error, 'Não foi possível concluir a compra agora.'), 'info');
         },
       },
     );
@@ -1236,8 +1332,8 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
         setHistoryItemId(itemId);
         pushToast('Compra desfeita e lançamentos removidos.', 'info');
       },
-      onError: () => {
-        pushToast('Não foi possível desfazer a compra agora.', 'info');
+      onError: (error) => {
+        pushToast(getApiErrorMessage(error, 'Não foi possível desfazer a compra agora.'), 'info');
       },
     });
   };
@@ -1247,6 +1343,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   const handleWorkspaceLogout = () => {
     logoutMutation.mutate(undefined, {
       onSettled: () => {
+        queryClient.clear();
         setUserMenuOpen(false);
         onLogout();
       },
@@ -1302,7 +1399,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
               {userMenuOpen && (
                 <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-72 rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_18px_60px_rgba(15,23,42,0.14)]">
                   <div className="rounded-[18px] bg-slate-50 px-4 py-3">
-                    <p className="text-sm font-semibold text-slate-900">{user?.name ?? 'UsuÃ¡rio'}</p>
+                    <p className="text-sm font-semibold text-slate-900">{user?.name ?? 'Usuário'}</p>
                     <p className="mt-1 text-xs leading-6 text-slate-500">{user?.email ?? 'sem e-mail carregado'}</p>
                   </div>
                   <div className="mt-3 grid gap-2">
@@ -1314,7 +1411,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
                       }}
                       type="button"
                     >
-                      ConfiguraÃ§Ãµes
+                      Configurações
                     </button>
                     <button
                       className="rounded-[18px] bg-rose-50 px-4 py-3 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
@@ -2305,6 +2402,7 @@ function WishlistView({
 
 function SettingsView({ onLogout, user }: { onLogout: () => void; user: AuthUser | null }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { updateUser } = useAuthStore();
   const logoutMutation = useLogoutMutation();
   const updateProfileMutation = useUpdateProfileMutation();
@@ -2315,6 +2413,7 @@ function SettingsView({ onLogout, user }: { onLogout: () => void; user: AuthUser
   const [profileError, setProfileError] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -2386,45 +2485,69 @@ function SettingsView({ onLogout, user }: { onLogout: () => void; user: AuthUser
             <p className="mt-2 text-sm leading-7 text-slate-600">
               Esta ação apaga seu acesso e os dados ligados à conta. Para confirmar, informe sua senha atual.
             </p>
-            <div className="mt-4 grid gap-3">
-              <Field label="Senha atual">
-                <input
-                  className="h-12 w-full rounded-2xl border border-rose-100 bg-white px-4 outline-none transition focus:border-rose-300"
-                  type="password"
-                  value={deletePassword}
-                  onChange={(event) => setDeletePassword(event.target.value)}
-                />
-              </Field>
-
-              {deleteError && (
-                <div className="rounded-[18px] border border-rose-200 bg-white px-4 py-3 text-sm leading-7 text-rose-700">
-                  {deleteError}
-                </div>
-              )}
-
+            {!showDeleteAccountForm ? (
               <button
-                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
-                disabled={deleteAccountMutation.isPending || !deletePassword}
-                onClick={() => {
-                  setDeleteError('');
-                  deleteAccountMutation.mutate(
-                    { password: deletePassword },
-                    {
-                      onSuccess: () => {
-                        onLogout();
-                        navigate('/');
-                      },
-                      onError: (error) => {
-                        setDeleteError(getApiErrorMessage(error, 'Não foi possível excluir a conta agora.'));
-                      },
-                    },
-                  );
-                }}
+                className="mt-4 text-sm font-semibold text-rose-700 underline underline-offset-4 transition hover:text-rose-800"
+                onClick={() => setShowDeleteAccountForm(true)}
                 type="button"
               >
-                {deleteAccountMutation.isPending ? 'Excluindo...' : 'Excluir minha conta'}
+                Excluir minha conta
               </button>
-            </div>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                <Field label="Senha atual">
+                  <input
+                    className="h-12 w-full rounded-2xl border border-rose-100 bg-white px-4 outline-none transition focus:border-rose-300"
+                    type="password"
+                    value={deletePassword}
+                    onChange={(event) => setDeletePassword(event.target.value)}
+                  />
+                </Field>
+
+                {deleteError && (
+                  <div className="rounded-[18px] border border-rose-200 bg-white px-4 py-3 text-sm leading-7 text-rose-700">
+                    {deleteError}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
+                    disabled={deleteAccountMutation.isPending || !deletePassword}
+                    onClick={() => {
+                      setDeleteError('');
+                      deleteAccountMutation.mutate(
+                        { password: deletePassword },
+                        {
+                          onSuccess: () => {
+                            queryClient.clear();
+                            onLogout();
+                            navigate('/');
+                          },
+                          onError: (error) => {
+                            setDeleteError(getApiErrorMessage(error, 'Não foi possível excluir a conta agora.'));
+                          },
+                        },
+                      );
+                    }}
+                    type="button"
+                  >
+                    {deleteAccountMutation.isPending ? 'Excluindo...' : 'Confirmar exclusão'}
+                  </button>
+                  <button
+                    className="rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    onClick={() => {
+                      setShowDeleteAccountForm(false);
+                      setDeletePassword('');
+                      setDeleteError('');
+                    }}
+                    type="button"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </SectionCard>

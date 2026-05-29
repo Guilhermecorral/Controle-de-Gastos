@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -45,7 +46,13 @@ public class PasswordResetDeliveryService {
                 Se voce nao pediu essa troca, ignore este email.
                 """.formatted(resetLink));
 
-        mailSender.send(message);
-        return true;
+        try {
+            mailSender.send(message);
+            return true;
+        } catch (MailException exception) {
+            log.warn("Nao foi possivel enviar o email de redefinicao para {}", email, exception);
+            log.info("Link de redefinicao gerado para {}: {}", email, resetLink);
+            return false;
+        }
     }
 }
