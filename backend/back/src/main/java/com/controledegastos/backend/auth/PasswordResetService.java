@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -42,6 +43,7 @@ public class PasswordResetService {
     /**
      * Dispara o fluxo de redefinicao para o email informado sem entregar pistas para atacantes.
      */
+    @Transactional
     public ForgotPasswordResponseDTO requestReset(ForgotPasswordRequestDTO dto, String remoteIp) {
         captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "recuperacao de senha");
 
@@ -76,6 +78,7 @@ public class PasswordResetService {
     /**
      * Troca a senha quando o token ainda estiver valido e respeitar a politica minima de seguranca.
      */
+    @Transactional
     public void resetPassword(ResetPasswordRequestDTO dto, String remoteIp) {
         captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "troca de senha");
 

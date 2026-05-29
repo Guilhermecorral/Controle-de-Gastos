@@ -18,5 +18,7 @@ public interface WishlistListRepository extends JpaRepository<WishlistList, Long
 
     Optional<WishlistList> findByUserAndIsDefaultTrue(User user);
 
+    List<WishlistList> findAllByUserAndIsDefaultTrueOrderByCreatedAtAsc(User user);
+
     boolean existsByUserAndNameIgnoreCase(User user, String name);
 }

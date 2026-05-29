@@ -67,15 +67,30 @@ public class WishlistService {
      * Cria ou recupera a lista padrao do usuario, usada como fallback seguro da 6.1.
      */
     private WishlistList getOrCreateDefaultList(User user) {
-        return wishlistListRepository.findByUserAndIsDefaultTrue(user)
-                .orElseGet(() -> wishlistListRepository.save(
-                        WishlistList.builder()
-                                .name("Lista Principal")
-                                .description("Lista padrao criada automaticamente pelo sistema")
-                                .isDefault(true)
-                                .user(user)
-                                .build()
-                ));
+        List<WishlistList> defaultLists = wishlistListRepository.findAllByUserAndIsDefaultTrueOrderByCreatedAtAsc(user);
+
+        if (defaultLists.isEmpty()) {
+            return wishlistListRepository.save(
+                    WishlistList.builder()
+                            .name("Lista Principal")
+                            .description("Lista padrao criada automaticamente pelo sistema")
+                            .isDefault(true)
+                            .user(user)
+                            .build()
+            );
+        }
+
+        WishlistList canonicalDefaultList = defaultLists.getFirst();
+
+        if (defaultLists.size() > 1) {
+            defaultLists.stream()
+                    .skip(1)
+                    .forEach(list -> list.setIsDefault(false));
+
+            wishlistListRepository.saveAll(defaultLists);
+        }
+
+        return canonicalDefaultList;
     }
 
     /**
