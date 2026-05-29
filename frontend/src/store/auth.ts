@@ -1,97 +1,86 @@
-// Centraliza a sessão do usuário no frontend sem confiar em cookies acessíveis por JavaScript.
-import { create } from 'zustand';
-import { AuthResponse, AuthUser } from '../types';
-
-type AuthSession = {
-  accessToken: string;
-  refreshToken: string;
-  user: AuthUser;
-};
+// Centraliza o estado da sessão no frontend, mas deixa os cookies sensíveis sob controle exclusivo do backend.
+import { create } from 'zustand'
+import { AuthResponse, AuthUser } from '../types'
 
 type AuthState = {
-  accessToken: string | null;
-  refreshToken: string | null;
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  hydrated: boolean;
-  hydrate: () => void;
-  login: (data: AuthResponse) => void;
-  logout: () => void;
-};
-
-const storageKey = 'cg-auth-session';
-
-function readSession(): AuthSession | null {
-  const rawValue = sessionStorage.getItem(storageKey);
-
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawValue) as AuthSession;
-  } catch {
-    sessionStorage.removeItem(storageKey);
-    return null;
-  }
+  user: AuthUser | null
+  isAuthenticated: boolean
+  hydrated: boolean
+  hydrate: () => Promise<void>
+  login: (data: AuthResponse) => void
+  updateUser: (data: AuthResponse) => void
+  logout: () => void
 }
 
-function persistSession(session: AuthSession) {
-  sessionStorage.setItem(storageKey, JSON.stringify(session));
-}
-
-function clearSessionStorage() {
-  sessionStorage.removeItem(storageKey);
-}
-
-export function getAccessToken() {
-  return readSession()?.accessToken ?? null;
-}
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '/api'
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: null,
-  refreshToken: null,
   user: null,
   isAuthenticated: false,
   hydrated: false,
-  hydrate: () => {
-    const session = readSession();
+  hydrate: async () => {
+    try {
+      let response = await fetch(`${apiBaseUrl}/auth/me`, {
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+        },
+      })
 
-    if (!session) {
-      set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false, hydrated: true });
-      return;
+      if (response.status === 401) {
+        const refreshResponse = await fetch(`${apiBaseUrl}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+          },
+        })
+
+        if (refreshResponse.ok) {
+          response = await fetch(`${apiBaseUrl}/auth/me`, {
+            credentials: 'include',
+            headers: {
+              Accept: 'application/json',
+            },
+          })
+        }
+      }
+
+      if (!response.ok) {
+        set({ user: null, isAuthenticated: false, hydrated: true })
+        return
+      }
+
+      const user = (await response.json()) as AuthUser
+      set({ user, isAuthenticated: true, hydrated: true })
+    } catch {
+      set({ user: null, isAuthenticated: false, hydrated: true })
     }
-
-    set({
-      accessToken: session.accessToken,
-      refreshToken: session.refreshToken,
-      user: session.user,
-      isAuthenticated: true,
-      hydrated: true,
-    });
   },
   login: (data) => {
-    const nextSession = {
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
+    set({
       user: {
         name: data.name,
         email: data.email,
         role: data.role,
       },
-    };
-
-    persistSession(nextSession);
-    set({
-      accessToken: nextSession.accessToken,
-      refreshToken: nextSession.refreshToken,
-      user: nextSession.user,
       isAuthenticated: true,
       hydrated: true,
-    });
+    })
+  },
+  updateUser: (data) => {
+    set((currentValue) => ({
+      ...currentValue,
+      user: {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+      },
+      isAuthenticated: true,
+      hydrated: true,
+    }))
   },
   logout: () => {
-    clearSessionStorage();
-    set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false, hydrated: true });
+    set({ user: null, isAuthenticated: false, hydrated: true })
   },
-}));
+}))

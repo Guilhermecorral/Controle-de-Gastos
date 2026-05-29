@@ -15,8 +15,6 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Aplica um limite simples por IP nas rotas publicas de autenticacao para reduzir abuso automatizado.
@@ -24,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class AuthRateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, RateWindow> attempts = new ConcurrentHashMap<>();
+    private final AuthRateLimitService authRateLimitService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.security.auth-rate-limit.window-seconds:60}")
@@ -33,13 +31,23 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     @Value("${app.security.auth-rate-limit.max-attempts:12}")
     private int maxAttempts;
 
+    public AuthRateLimitFilter(AuthRateLimitService authRateLimitService) {
+        this.authRateLimitService = authRateLimitService;
+    }
+
     /**
-     * Limita apenas login e cadastro, deixando o resto do fluxo seguir normalmente.
+     * Limita rotas publicas sensiveis onde abuso automatizado causa mais risco.
      */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !("/api/auth/login".equals(path) || "/api/auth/register".equals(path));
+        return !(
+                "/api/auth/login".equals(path)
+                        || "/api/auth/register".equals(path)
+                        || "/api/auth/forgot-password".equals(path)
+                        || "/api/auth/reset-password".equals(path)
+                        || "/api/auth/refresh".equals(path)
+        );
     }
 
     /**
@@ -52,17 +60,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         String key = resolveClientKey(request);
-        long now = System.currentTimeMillis();
-        RateWindow window = attempts.compute(key, (ignored, current) -> {
-            if (current == null || current.expiresAt() <= now) {
-                return new RateWindow(new AtomicInteger(1), now + (windowSeconds * 1000));
-            }
-
-            current.attempts().incrementAndGet();
-            return current;
-        });
-
-        if (window.attempts().get() > maxAttempts) {
+        if (!authRateLimitService.isAllowed(key, windowSeconds, maxAttempts)) {
             writeRateLimitResponse(request, response);
             return;
         }
@@ -101,9 +99,4 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         ));
     }
 
-    /**
-     * Mantem a janela de tentativas e sua expiracao agrupadas num unico registro simples.
-     */
-    private record RateWindow(AtomicInteger attempts, long expiresAt) {
-    }
 }

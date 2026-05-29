@@ -20,7 +20,7 @@ export type PaymentMethod =
   | 'CARTAO_CREDITO_AVISTA'
   | 'CARTAO_CREDITO_PARCELADO';
 
-export type WishlistPriority = 'BAIXA' | 'MEDIA' | 'ALTA';
+export type WishlistPriority = 'BAIXO' | 'MEDIA' | 'ALTO';
 export type WishlistStatus = 'PENDENTE' | 'COMPRADO';
 export type WishlistSortBy =
   | 'MENOR_PRECO'
@@ -32,8 +32,6 @@ export type WishlistSortBy =
 export type Trend = 'MELHOR' | 'PIOR' | 'IGUAL';
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
   name: string;
   email: string;
   role: Role;
@@ -42,18 +40,50 @@ export interface AuthResponse {
 export interface LoginRequest {
   email: string;
   password: string;
+  captchaToken?: string;
 }
 
 export interface RegisterRequest {
   name: string;
   email: string;
   password: string;
+  captchaToken?: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+  captchaToken?: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+  confirmPassword: string;
+  captchaToken?: string;
 }
 
 export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+}
+
+export interface SimpleMessageResponse {
+  message: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  debugResetLink: string | null;
+}
+
+export interface UpdateProfileRequest {
+  name: string;
+  email: string;
+}
+
+export interface DeleteAccountRequest {
+  password: string;
 }
 
 export interface TransactionRequest {
@@ -218,7 +248,7 @@ export interface WishlistSummaryResponse {
 
 export interface WishlistHistoryResponse {
   id: number;
-  actionType: 'CRIADO' | 'ATUALIZADO' | 'COMPRADO' | 'COMPRA_DESFEITA';
+  actionType: 'CREATED' | 'UPDATED' | 'MOVED' | 'PURCHASED' | 'PURCHASE_UNDONE' | 'DELETED';
   description: string;
   finalPriceSnapshot: number;
   listNameSnapshot: string;

@@ -1,38 +1,62 @@
-// Centraliza as chamadas HTTP e trata autenticação de forma consistente no frontend.
-import axios from 'axios';
-import { getAccessToken, useAuthStore } from '../store/auth';
+// Centraliza as chamadas HTTP e usa cookies HttpOnly para a sessão, sem expor tokens à aplicação.
+import axios from 'axios'
+import { useAuthStore } from '../store/auth'
+
+type RetriableRequestConfig = {
+  _retry?: boolean
+  skipAuthRefresh?: boolean
+  url?: string
+}
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL?.trim() || '/api',
   timeout: 15000,
+  withCredentials: true,
   headers: {
     Accept: 'application/json',
   },
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
+})
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+  async (error) => {
+    const originalRequest = (error.config ?? {}) as RetriableRequestConfig
+    const requestUrl = String(originalRequest.url ?? '')
+    const isAuthRoute = requestUrl.includes('/auth/login')
+      || requestUrl.includes('/auth/register')
+      || requestUrl.includes('/auth/forgot-password')
+      || requestUrl.includes('/auth/reset-password')
 
-      if (window.location.pathname.startsWith('/app')) {
-        window.location.assign('/login');
+    if (
+      error.response?.status === 401
+      && !originalRequest._retry
+      && !originalRequest.skipAuthRefresh
+      && !isAuthRoute
+    ) {
+      originalRequest._retry = true
+
+      try {
+        await api.post('/auth/refresh', undefined, { skipAuthRefresh: true } as RetriableRequestConfig)
+        return api(error.config)
+      } catch {
+        useAuthStore.getState().logout()
+
+        if (window.location.pathname.startsWith('/app')) {
+          window.location.assign('/login')
+        }
       }
     }
 
-    return Promise.reject(error);
-  },
-);
+    if (error.response?.status === 401 && !isAuthRoute) {
+      useAuthStore.getState().logout()
 
-export default api;
+      if (window.location.pathname.startsWith('/app')) {
+        window.location.assign('/login')
+      }
+    }
+
+    return Promise.reject(error)
+  },
+)
+
+export default api

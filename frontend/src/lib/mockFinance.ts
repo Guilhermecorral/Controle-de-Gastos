@@ -18,7 +18,7 @@ export type PaymentMethod =
 
 export type TransactionType = 'RECEITA' | 'DESPESA';
 export type WishlistStatus = 'PENDENTE' | 'COMPRADO';
-export type WishlistPriority = 'BAIXA' | 'MEDIA' | 'ALTA';
+export type WishlistPriority = 'BAIXO' | 'MEDIA' | 'ALTO';
 export type Trend = 'MELHOR' | 'PIOR' | 'IGUAL';
 
 export interface AppTransaction {
@@ -44,7 +44,7 @@ export interface WishlistList {
 export interface WishlistHistoryEntry {
   id: number;
   itemId: number;
-  actionType: 'CRIADO' | 'ATUALIZADO' | 'COMPRADO' | 'COMPRA_DESFEITA';
+  actionType: 'CREATED' | 'UPDATED' | 'PURCHASED' | 'PURCHASE_UNDONE';
   message: string;
   createdAt: string;
 }
@@ -138,9 +138,9 @@ export const categoryLabels: Record<Category, string> = {
 };
 
 export const priorityLabels: Record<WishlistPriority, string> = {
-  BAIXA: 'Baixa',
+  BAIXO: 'Baixa',
   MEDIA: 'Média',
-  ALTA: 'Alta',
+  ALTO: 'Alta',
 };
 
 export const paymentMethodLabels: Record<PaymentMethod, string> = {
@@ -238,7 +238,7 @@ export const initialWishlistItems: AppWishlistItem[] = [
     originalPrice: 5300,
     discountPercent: 8,
     finalPrice: 4876,
-    priority: 'ALTA',
+    priority: 'ALTO',
     category: 'EDUCACAO',
     status: 'PENDENTE',
     listId: 2,
@@ -262,7 +262,7 @@ export const initialWishlistItems: AppWishlistItem[] = [
     originalPrice: 520,
     discountPercent: 5,
     finalPrice: 494,
-    priority: 'BAIXA',
+    priority: 'BAIXO',
     category: 'COMPRAS',
     status: 'COMPRADO',
     listId: 3,
@@ -276,21 +276,21 @@ export const initialWishlistHistory: WishlistHistoryEntry[] = [
   {
     id: 1,
     itemId: 101,
-    actionType: 'CRIADO',
+    actionType: 'CREATED',
     message: 'Item criado na lista Tecnologia.',
     createdAt: '2026-05-01T09:00:00',
   },
   {
     id: 2,
     itemId: 101,
-    actionType: 'ATUALIZADO',
+    actionType: 'UPDATED',
     message: 'Desconto atualizado para 8%.',
     createdAt: '2026-05-02T10:15:00',
   },
   {
     id: 3,
     itemId: 103,
-    actionType: 'COMPRADO',
+    actionType: 'PURCHASED',
     message: 'Compra lançada à vista e vinculada ao financeiro.',
     createdAt: '2026-05-03T12:40:00',
   },

@@ -3,6 +3,10 @@
 *.iml
 *.ipr
 *.iws
+.ai/
+_cleanup-backup/
+backend-recovery-worktree/
+frontend-recovery-worktree/
 
 # VS Code
 .vscode/
@@ -20,6 +24,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.properties
 
 # Logs
 logs

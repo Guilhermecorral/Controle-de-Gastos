@@ -34,8 +34,8 @@ public class WishlistItem {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal finalPrice;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Convert(converter = WishlistPriorityConverter.class)
     @Builder.Default
     private Priority priority = Priority.MEDIA;
 

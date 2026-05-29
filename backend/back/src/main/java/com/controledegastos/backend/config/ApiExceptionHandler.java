@@ -95,6 +95,22 @@ public class ApiExceptionHandler {
     }
 
     /**
+     * Trata indisponibilidades previsiveis de infraestrutura sem vazar stack trace ao cliente.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalState(
+            IllegalStateException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                exception.getMessage(),
+                request.getRequestURI(),
+                List.of()
+        );
+    }
+
+    /**
      * Mantem um fallback generico para evitar vazar detalhes internos da aplicacao.
      */
     @ExceptionHandler(Exception.class)

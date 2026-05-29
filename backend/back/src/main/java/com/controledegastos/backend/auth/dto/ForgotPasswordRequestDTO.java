@@ -4,15 +4,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Representa os dados enviados no login.
+ * Representa o pedido de abertura do fluxo seguro de redefinicao de senha.
  */
-public record LoginRequestDTO(
+public record ForgotPasswordRequestDTO(
         @NotBlank(message = "Email e obrigatorio")
         @Email(message = "Email invalido")
         String email,
-
-        @NotBlank(message = "Senha e obrigatoria")
-        String password,
 
         String captchaToken
 ) {

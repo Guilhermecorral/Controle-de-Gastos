@@ -1,5 +1,6 @@
 import { Dispatch, ReactNode, SetStateAction, useEffect, useMemo, useState } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import CaptchaField from './components/CaptchaField';
 import CookieConsent from './components/CookieConsent';
 import {
   calculateFinalPrice,
@@ -16,17 +17,23 @@ import {
   useCreateTransactionMutation,
   useCreateWishlistItemMutation,
   useDashboardQuery,
+  useDeleteAccountMutation,
+  useForgotPasswordMutation,
   useLoginMutation,
+  useLogoutMutation,
   useMonthlyAnalysisQuery,
   usePurchaseWishlistItemMutation,
   useRegisterMutation,
+  useResetPasswordMutation,
   useTransactionsQuery,
   useUndoWishlistPurchaseMutation,
+  useUpdateProfileMutation,
   useWishlistHistoryQuery,
   useWishlistItemsQuery,
   useWishlistListsQuery,
   useWishlistSummaryQuery,
 } from './lib/queries';
+import { getApiErrorMessage } from './lib/httpErrors';
 import {
   AuthUser,
   DashboardResponse,
@@ -83,7 +90,7 @@ const navItems: Array<{ id: ViewId; label: string; description: string }> = [
   { id: 'transacoes', label: 'Transações', description: 'Entradas, saídas e histórico' },
   { id: 'analise', label: 'Análise mensal', description: 'Comparativos e tendência' },
   { id: 'wishlist', label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
-  { id: 'configuracoes', label: 'Configurações', description: 'Conta, segurança e privacidade' },
+  { id: 'configuracoes', label: 'Configurações', description: 'Conta, privacidade e preferências' },
 ];
 
 const today = new Date();
@@ -96,6 +103,14 @@ const monthOptions = Array.from({ length: 12 }, (_, index) => ({
 }));
 
 const yearOptions = Array.from({ length: 5 }, (_, index) => currentYear - 2 + index);
+
+const viewMeta: Record<ViewId, { label: string; description: string }> = {
+  painel: { label: 'Painel', description: 'Resumo do período e acumulado' },
+  transacoes: { label: 'Transações', description: 'Entradas, saídas e histórico' },
+  analise: { label: 'Análise mensal', description: 'Comparativos e tendência' },
+  wishlist: { label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
+  configuracoes: { label: 'Configurações', description: 'Conta, privacidade e preferências' },
+};
 
 function App() {
   const { isAuthenticated, hydrated, hydrate, logout } = useAuthStore();
@@ -121,6 +136,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<RegisterPage />} />
         <Route path="/esqueci-a-senha" element={<ForgotPasswordPage />} />
+        <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
         <Route
           path="/app"
           element={
@@ -173,12 +189,12 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
       <main>
         <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Produto em construção séria</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Organize sua vida financeira</p>
             <h2 className="mt-4 text-5xl font-semibold leading-tight text-balance text-slate-900">
               Um espaço para entender o mês, planejar compras e decidir melhor.
             </h2>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              O Controle de Gastos nasceu de um problema real e está sendo pensado em fases: primeiro clareza financeira, depois profundidade, segurança e experiência de SaaS.
+              Tenha uma leitura clara do que entrou, do que saiu e do que faz sentido comprar agora, sem se perder em telas confusas.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -186,7 +202,7 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
                 className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 to={isLoggedIn ? '/app' : '/cadastro'}
               >
-                {isLoggedIn ? 'Abrir meu ambiente' : 'Criar conta de demonstração'}
+                {isLoggedIn ? 'Abrir meu ambiente' : 'Criar conta agora'}
               </Link>
               <Link
                 className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
@@ -208,13 +224,13 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
             <div className="mt-5 grid gap-4">
               <LandingStat title="Receitas do mês" value={formatCurrency(4200)} />
               <LandingStat title="Despesas do mês" value={formatCurrency(1462)} tone="negative" />
-              <LandingStat title="Resultado do mês" value={formatCurrency(2738)} />
+              <LandingStat title="Saldo do mês" value={formatCurrency(2738)} />
               <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
-                <p className="text-sm font-semibold text-white">O que o sistema já faz hoje</p>
+                <p className="text-sm font-semibold text-white">O que você consegue acompanhar</p>
                 <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-300">
-                  <li>Mostra o mês atual e o acumulado até o período escolhido.</li>
-                  <li>Compara mês anterior, mesmo mês do ano passado e acumulado anual.</li>
-                  <li>Planeja desejos e envia compras para o financeiro.</li>
+                  <li>O mês atual com leitura rápida das suas entradas, saídas e saldo.</li>
+                  <li>Comparações para perceber se o momento está melhorando ou apertando.</li>
+                  <li>Uma lista de desejos que ajuda a comprar com mais intenção.</li>
                 </ul>
               </div>
             </div>
@@ -225,7 +241,7 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Por que isso importa</p>
-              <h3 className="mt-3 text-3xl font-semibold text-slate-900">O produto precisa ajudar, não só parecer um sistema bonito.</h3>
+              <h3 className="mt-3 text-3xl font-semibold text-slate-900">Tudo foi pensado para ser claro, útil e fácil de acompanhar.</h3>
               <p className="mt-4 text-base leading-8 text-slate-600">
                 A proposta aqui é simples: facilitar a leitura do mês, evitar sustos com o dinheiro e transformar vontade de compra em decisão consciente.
               </p>
@@ -251,21 +267,21 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
         <section className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
           <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="rounded-[32px] border border-emerald-100 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Camadas de SaaS que já estão no radar</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Recursos pensados para o dia a dia</p>
               <ul className="mt-5 grid gap-3 text-sm leading-7 text-slate-600">
-                <li>Cadastro com força de senha e mensagens claras.</li>
-                <li>Fluxo de recuperação de senha.</li>
-                <li>Cookies com escolha simples entre essenciais e opcionais.</li>
-                <li>Base para anti-bot em cadastro, recuperação e comportamentos suspeitos.</li>
-                <li>Espaço para privacidade, termos e confiança do usuário.</li>
+                <li>Cadastro com orientação de senha forte e mensagens simples.</li>
+                <li>Recuperação de senha para quando você precisar retomar o acesso.</li>
+                <li>Escolha de cookies entre essenciais e opcionais.</li>
+                <li>Proteções contra abuso em cadastro, login e recuperação.</li>
+                <li>Privacidade explicada de forma direta, sem juridiquês desnecessário.</li>
               </ul>
             </div>
 
             <div className="rounded-[32px] bg-emerald-500 px-7 py-8 text-white shadow-[0_24px_70px_rgba(16,185,129,0.18)]">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-100">Próximo passo de quem está conhecendo o projeto</p>
-              <h3 className="mt-4 text-3xl font-semibold text-balance">Entrar no app, sentir os fluxos e descobrir o que ainda precisa nascer.</h3>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-100">Comece pelo essencial</p>
+              <h3 className="mt-4 text-3xl font-semibold text-balance">Entre, acompanhe seu momento e ajuste o que fizer sentido para a sua rotina.</h3>
               <p className="mt-5 max-w-2xl text-base leading-8 text-emerald-50">
-                Você ainda vai refinar muita coisa, e isso é ótimo. A função desta fase não é ser perfeita. É te dar um terreno visual firme para pensar com mais profundidade.
+                O objetivo é te ajudar a tomar boas decisões financeiras desde o primeiro acesso, sem excesso de informação nem passos desnecessários.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
@@ -289,9 +305,9 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">Como funciona na prática</p>
-              <h3 className="mt-3 text-3xl font-semibold text-white">O fluxo principal já está claro antes mesmo da integração real.</h3>
+              <h3 className="mt-3 text-3xl font-semibold text-white">Você acompanha o presente, compara períodos e planeja compras com mais calma.</h3>
               <p className="mt-4 text-base leading-8 text-slate-300">
-                Primeiro o usuário entende o mês, depois compara períodos e por fim conecta desejos ao financeiro quando realmente compra algo.
+                Primeiro você entende o mês, depois compara períodos e por fim conecta desejos ao financeiro quando realmente compra algo.
               </p>
             </div>
 
@@ -318,9 +334,10 @@ function LandingPage({ isLoggedIn }: { isLoggedIn: boolean }) {
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { isAuthenticated, login, logout, user } = useAuthStore();
   const [email, setEmail] = useState('jorge@email.com');
   const [password, setPassword] = useState('Senha@123');
+  const [captchaToken, setCaptchaToken] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const loginMutation = useLoginMutation();
@@ -329,10 +346,17 @@ function LoginPage() {
     <AuthLayout
       eyebrow="Entrar"
       title="Acesse sua conta"
-      description="Esta etapa continua simples de propósito: clareza, foco e uma entrada sem distração para você testar o produto."
-      sideTitle="Login limpo e honesto"
-      sideText="Aqui a ideia é reproduzir a sensação de um acesso real sem depender do backend ainda."
+      description="Entre com seu e-mail e senha para acompanhar seu mês, suas compras planejadas e o histórico financeiro."
+      showSidePanel={false}
     >
+      {isAuthenticated && (
+        <AuthSessionNotice
+          email={user?.email ?? ''}
+          onContinue={() => navigate('/app')}
+          onSwitchAccount={() => logout()}
+        />
+      )}
+
       <Field label="E-mail">
         <input
           className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
@@ -362,10 +386,7 @@ function LoginPage() {
         </div>
       </Field>
 
-      <div className="rounded-[22px] bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-        <p className="font-semibold text-slate-900">Microtexto de apoio</p>
-        <p className="mt-2">No produto real, essa tela vai continuar enxuta. O suporte maior ficará no cadastro e na recuperação de senha.</p>
-      </div>
+      <CaptchaField value={captchaToken} onChange={setCaptchaToken} />
 
       {errorMessage && (
         <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
@@ -379,14 +400,14 @@ function LoginPage() {
         onClick={() => {
           setErrorMessage('');
           loginMutation.mutate(
-            { email, password },
+            { email, password, captchaToken: captchaToken || undefined },
             {
               onSuccess: (response) => {
                 login(response);
                 navigate('/app');
               },
-              onError: () => {
-                setErrorMessage('Não foi possível entrar. Confira o e-mail, a senha ou o estado do backend.');
+              onError: (error) => {
+                setErrorMessage(getApiErrorMessage(error, 'Não foi possível entrar. Confira seu e-mail e sua senha.'));
               },
             },
           );
@@ -410,12 +431,13 @@ function LoginPage() {
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { isAuthenticated, login, logout, user } = useAuthStore();
   const [name, setName] = useState('Jorge Corral');
   const [email, setEmail] = useState('jorge@email.com');
   const [confirmEmail, setConfirmEmail] = useState('jorge@email.com');
   const [password, setPassword] = useState('Senha@123');
   const [confirmPassword, setConfirmPassword] = useState('Senha@123');
+  const [captchaToken, setCaptchaToken] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const registerMutation = useRegisterMutation();
 
@@ -434,10 +456,19 @@ function RegisterPage() {
     <AuthLayout
       eyebrow="Cadastro"
       title="Crie sua conta"
-      description="A ideia aqui é ser claro, ajudar quem está começando e não deixar o usuário se perder no meio do caminho."
+      description="Preencha seus dados, escolha uma senha segura e comece a acompanhar sua vida financeira em poucos minutos."
       sideTitle="Cadastro com segurança visível"
-      sideText="Seu produto vai ganhar muito quando o usuário sentir que está sendo guiado, não testado."
+      sideText="Seu acesso começa com uma senha forte, confirmação de dados e proteção pensada para o dia a dia."
+      showSidePanel={false}
     >
+      {isAuthenticated && (
+        <AuthSessionNotice
+          email={user?.email ?? ''}
+          onContinue={() => navigate('/app')}
+          onSwitchAccount={() => logout()}
+        />
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Nome">
           <input
@@ -510,12 +541,7 @@ function RegisterPage() {
         </div>
       </div>
 
-      <div className="rounded-[24px] border border-amber-100 bg-amber-50 p-4 text-sm leading-7 text-slate-600">
-        <p className="font-semibold text-slate-900">Base para anti-bot</p>
-        <p className="mt-2">
-          Aqui vai entrar um fluxo silencioso para verificar comportamento suspeito sem atrapalhar o cadastro de quem está agindo normalmente.
-        </p>
-      </div>
+      <CaptchaField value={captchaToken} onChange={setCaptchaToken} />
 
       {errorMessage && (
         <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
@@ -529,7 +555,7 @@ function RegisterPage() {
         onClick={() => {
           setErrorMessage('');
           registerMutation.mutate(
-            { name, email, password },
+            { name, email, password, captchaToken: captchaToken || undefined },
             {
               onSuccess: (response) => {
                 login(response);
@@ -557,16 +583,47 @@ function RegisterPage() {
 }
 
 function ForgotPasswordPage() {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, user } = useAuthStore();
   const [email, setEmail] = useState('jorge@email.com');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [debugResetLink, setDebugResetLink] = useState('');
+  const forgotPasswordMutation = useForgotPasswordMutation();
+  const localResetLink = useMemo(() => {
+    if (!debugResetLink) {
+      return '';
+    }
+
+    try {
+      const parsedUrl = new URL(debugResetLink);
+      const token = parsedUrl.searchParams.get('token');
+
+      if (!token) {
+        return '';
+      }
+
+      return `${window.location.origin}/redefinir-senha?token=${encodeURIComponent(token)}`;
+    } catch {
+      return debugResetLink;
+    }
+  }, [debugResetLink]);
 
   return (
     <AuthLayout
       eyebrow="Recuperação"
       title="Esqueci minha senha"
-      description="Mesmo em modo demonstração, essa tela já existe porque ela é parte da sensação de SaaS real e confiável."
-      sideTitle="Mensagem clara e neutra"
-      sideText="No fluxo real, o sistema não deve confirmar se o e-mail existe. Ele só orienta o próximo passo com segurança."
+      description="Informe o e-mail da sua conta. Se ele existir no sistema, você receberá as instruções para criar uma nova senha."
+      showSidePanel={false}
     >
+      {isAuthenticated && (
+        <AuthSessionNotice
+          email={user?.email ?? ''}
+          onContinue={() => navigate('/app')}
+          onSwitchAccount={() => logout()}
+        />
+      )}
+
       <Field label="E-mail da conta">
         <input
           className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
@@ -575,15 +632,51 @@ function ForgotPasswordPage() {
         />
       </Field>
 
-      <div className="rounded-[24px] bg-slate-50 p-4 text-sm leading-7 text-slate-600">
-        <p className="font-semibold text-slate-900">Como o produto deve se comportar</p>
-        <p className="mt-2">
-          “Se existir uma conta vinculada a este e-mail, enviaremos as orientações para redefinição de senha.”
-        </p>
-      </div>
+      <CaptchaField value={captchaToken} onChange={setCaptchaToken} />
 
-      <button className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800" type="button">
-        Enviar instruções
+      {feedbackMessage && (
+        <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-700">
+          {feedbackMessage}
+        </div>
+      )}
+
+      {localResetLink && (
+        <div className="rounded-[22px] border border-sky-100 bg-sky-50 px-4 py-4 text-sm leading-7 text-sky-800">
+          <p className="font-semibold text-slate-900">Link de redefinição disponível para este teste</p>
+          <p className="mt-2">
+            Como o envio por e-mail ainda não está configurado, você pode continuar por aqui sem perder o fluxo.
+          </p>
+          <a
+            className="mt-3 inline-flex rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-slate-800"
+            href={localResetLink}
+          >
+            Abrir redefinição de senha
+          </a>
+        </div>
+      )}
+
+      <button
+        className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+        disabled={forgotPasswordMutation.isPending || !email}
+        onClick={() => {
+          setFeedbackMessage('');
+          setDebugResetLink('');
+          forgotPasswordMutation.mutate(
+            { email, captchaToken: captchaToken || undefined },
+            {
+              onSuccess: (response) => {
+                setFeedbackMessage(response.message);
+                setDebugResetLink(response.debugResetLink ?? '');
+              },
+              onError: (error) => {
+                setFeedbackMessage(getApiErrorMessage(error, 'Não foi possível iniciar a recuperação agora. Tente novamente em instantes.'));
+              },
+            },
+          );
+        }}
+        type="button"
+      >
+        {forgotPasswordMutation.isPending ? 'Enviando...' : 'Enviar instruções'}
       </button>
 
       <div className="flex flex-wrap gap-4 text-sm">
@@ -595,6 +688,182 @@ function ForgotPasswordPage() {
         </Link>
       </div>
     </AuthLayout>
+  );
+}
+
+function ResetPasswordPage() {
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, user } = useAuthStore();
+  const searchParams = new URLSearchParams(window.location.search);
+  const [token] = useState(searchParams.get('token') ?? '');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const resetPasswordMutation = useResetPasswordMutation();
+  const passwordChecks = [
+    { label: 'Pelo menos 8 caracteres', valid: password.length >= 8 },
+    { label: 'Pelo menos 1 número', valid: /\d/.test(password) },
+    { label: 'Pelo menos 1 caractere especial', valid: /[^A-Za-z0-9]/.test(password) },
+    { label: 'Pelo menos 1 letra maiúscula', valid: /[A-Z]/.test(password) },
+  ];
+  const passwordScore = passwordChecks.filter((rule) => rule.valid).length;
+  const passwordStrength = passwordScore <= 1 ? 'Fraca' : passwordScore <= 3 ? 'Média' : 'Forte';
+
+  return (
+    <AuthLayout
+      eyebrow="Nova senha"
+      title="Redefinir senha"
+      description="Escolha uma nova senha para voltar a acessar sua conta com segurança."
+      showSidePanel={false}
+    >
+      {isAuthenticated && (
+        <AuthSessionNotice
+          email={user?.email ?? ''}
+          onContinue={() => navigate('/app')}
+          onSwitchAccount={() => logout()}
+        />
+      )}
+
+      <Field label="Nova senha">
+        <input
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </Field>
+
+      <Field label="Confirmar nova senha">
+        <input
+          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+          type="password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+        />
+      </Field>
+
+      <div className="rounded-[24px] bg-slate-50 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <p className="font-semibold text-slate-900">Força da senha</p>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600">
+            {passwordStrength}
+          </span>
+        </div>
+
+        <div className="mt-4 h-3 rounded-full bg-white">
+          <div
+            className={`h-3 rounded-full ${
+              passwordScore <= 1 ? 'bg-rose-500' : passwordScore <= 3 ? 'bg-amber-500' : 'bg-emerald-500'
+            }`}
+            style={{ width: `${(passwordScore / passwordChecks.length) * 100}%` }}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-2 text-sm text-slate-600">
+          {passwordChecks.map((rule) => (
+            <div key={rule.label} className="flex items-center gap-3">
+              <div className={`h-3 w-3 rounded-full ${rule.valid ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              <span>{rule.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <CaptchaField value={captchaToken} onChange={setCaptchaToken} />
+
+      {feedbackMessage && (
+        <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-700">
+          {feedbackMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
+          {errorMessage}
+        </div>
+      )}
+
+      <button
+        className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+        disabled={resetPasswordMutation.isPending || !password || !confirmPassword || !token}
+        onClick={() => {
+          setFeedbackMessage('');
+          setErrorMessage('');
+          resetPasswordMutation.mutate(
+            {
+              token,
+              password,
+              confirmPassword,
+              captchaToken: captchaToken || undefined,
+            },
+            {
+              onSuccess: (response) => {
+                setFeedbackMessage(response.message);
+                window.setTimeout(() => navigate('/login'), 1500);
+              },
+              onError: (error) => {
+                setErrorMessage(
+                  getApiErrorMessage(
+                    error,
+                    'Não foi possível redefinir a senha. Confira o link, a senha e tente novamente.',
+                  ),
+                );
+              },
+            },
+          );
+        }}
+        type="button"
+      >
+        {resetPasswordMutation.isPending ? 'Salvando...' : 'Salvar nova senha'}
+      </button>
+
+      <div className="flex flex-wrap gap-4 text-sm">
+        <Link className="font-semibold text-slate-600 transition hover:text-emerald-600" to="/login">
+          Voltar ao login
+        </Link>
+        <Link className="font-semibold text-emerald-600 transition hover:text-emerald-700" to="/cadastro">
+          Criar conta
+        </Link>
+      </div>
+    </AuthLayout>
+  );
+}
+
+function AuthSessionNotice({
+  email,
+  onContinue,
+  onSwitchAccount,
+}: {
+  email: string;
+  onContinue: () => void;
+  onSwitchAccount: () => void;
+}) {
+  return (
+    <div className="rounded-[24px] border border-amber-100 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-900">
+      <p className="font-semibold text-slate-900">Você já está com uma sessão ativa</p>
+      <p className="mt-2">
+        A sessão atual está aberta com <span className="font-semibold">{email}</span>. Se quiser entrar com outra conta,
+        encerre a sessão atual antes de continuar.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-slate-800"
+          onClick={onContinue}
+          type="button"
+        >
+          Continuar no app
+        </button>
+        <button
+          className="rounded-full border border-amber-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-amber-900 transition hover:border-amber-300 hover:bg-amber-100"
+          onClick={onSwitchAccount}
+          type="button"
+        >
+          Encerrar sessão e trocar conta
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -630,20 +899,23 @@ function AuthLayout({
   eyebrow,
   title,
   description,
-  sideTitle,
-  sideText,
+  sideTitle = '',
+  sideText = '',
+  showSidePanel = true,
   children,
 }: {
   eyebrow: string;
   title: string;
   description: string;
-  sideTitle: string;
-  sideText: string;
+  sideTitle?: string;
+  sideText?: string;
+  showSidePanel?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f4f6f1] px-4 py-12">
-      <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[0.92fr_1.08fr]">
+      <div className={`grid w-full gap-8 ${showSidePanel ? 'max-w-5xl lg:grid-cols-[0.92fr_1.08fr]' : 'max-w-2xl'}`}>
+        {showSidePanel && (
         <section className="rounded-[32px] bg-slate-900 px-7 py-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">{eyebrow}</p>
           <h1 className="mt-4 text-4xl font-semibold leading-tight text-balance">{sideTitle}</h1>
@@ -655,6 +927,7 @@ function AuthLayout({
             <FeatureChip label="Confiança" helper="Privacidade e recuperação já pensadas." dark />
           </div>
         </section>
+        )}
 
         <section className="rounded-[32px] border border-emerald-100 bg-white p-7 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">{eyebrow}</p>
@@ -688,6 +961,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   const [transactionCategoryTouched, setTransactionCategoryTouched] = useState(false);
   const [wishlistCategoryTouched, setWishlistCategoryTouched] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [transactionDraft, setTransactionDraft] = useState<TransactionDraft>(buildTransactionDraft('DESPESA'));
   const [wishlistDraft, setWishlistDraft] = useState<WishlistDraft>({
     description: '',
@@ -724,6 +998,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
   const createWishlistItemMutation = useCreateWishlistItemMutation();
   const purchaseWishlistItemMutation = usePurchaseWishlistItemMutation();
   const undoWishlistPurchaseMutation = useUndoWishlistPurchaseMutation();
+  const logoutMutation = useLogoutMutation();
 
   useEffect(() => {
     if (location.pathname === '/app') {
@@ -967,7 +1242,16 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
     });
   };
 
-  const currentSection = navItems.find((item) => item.id === currentView) ?? navItems[0];
+  const currentSection = viewMeta[currentView];
+
+  const handleWorkspaceLogout = () => {
+    logoutMutation.mutate(undefined, {
+      onSettled: () => {
+        setUserMenuOpen(false);
+        onLogout();
+      },
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[#f4f6f1] text-slate-900">
@@ -979,7 +1263,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
             </div>
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Controle de Gastos</p>
-              <h1 className="text-xl font-semibold text-slate-900">Ambiente logado para explorar o produto</h1>
+              <h1 className="text-xl font-semibold text-slate-900">Seu ambiente financeiro</h1>
             </div>
           </div>
 
@@ -1006,6 +1290,43 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
             >
               Nova despesa
             </button>
+            <div className="relative">
+              <button
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                onClick={() => setUserMenuOpen((currentValue) => !currentValue)}
+                type="button"
+              >
+                {(user?.name ?? 'U').slice(0, 1).toUpperCase()}
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-72 rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_18px_60px_rgba(15,23,42,0.14)]">
+                  <div className="rounded-[18px] bg-slate-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-slate-900">{user?.name ?? 'UsuÃ¡rio'}</p>
+                    <p className="mt-1 text-xs leading-6 text-slate-500">{user?.email ?? 'sem e-mail carregado'}</p>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <button
+                      className="rounded-[18px] bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => {
+                        setCurrentView('configuracoes');
+                        setUserMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      ConfiguraÃ§Ãµes
+                    </button>
+                    <button
+                      className="rounded-[18px] bg-rose-50 px-4 py-3 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                      onClick={handleWorkspaceLogout}
+                      type="button"
+                    >
+                      Sair da conta
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2">
               <div className="h-9 w-9 rounded-full bg-slate-100" />
               <div className="text-left">
@@ -1021,7 +1342,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
         <aside className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Navegação</p>
           <nav className="mt-4 grid gap-2">
-            {navItems.map((item) => (
+            {navItems.filter((item) => item.id !== 'configuracoes').map((item) => (
               <button
                 key={item.id}
                 className={`rounded-[22px] px-4 py-4 text-left transition ${
@@ -1043,7 +1364,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
           <div className="mt-6 rounded-[22px] border border-emerald-100 bg-emerald-50 p-4">
             <p className="text-sm font-semibold text-emerald-700">Decisão importante</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Este front já conversa com a lógica do backend, mas continua sem integração real para te dar espaço para pensar com calma.
+              Aqui você acompanha seus números, seus lançamentos e seus desejos de compra em um só lugar.
             </p>
           </div>
         </aside>
@@ -1055,16 +1376,16 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">Visão atual</p>
                 <h2 className="mt-2 text-3xl font-semibold">{currentSection.label}</h2>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                  {currentSection.id === 'painel' &&
+                  {currentView === 'painel' &&
                     'O painel resume o mês atual, mostra o acumulado até o período de referência e conecta o usuário às ações mais importantes.'}
-                  {currentSection.id === 'transacoes' &&
+                  {currentView === 'transacoes' &&
                     'A área de transações já nasce preparada para modal, sugestão automática de categoria e filtros que façam sentido no uso real.'}
-                  {currentSection.id === 'analise' &&
+                  {currentView === 'analise' &&
                     'A análise mensal foi desenhada para ler o mês atual, comparar com períodos anteriores e deixar a tendência explícita.'}
-                  {currentSection.id === 'wishlist' &&
+                  {currentView === 'wishlist' &&
                     'A lista de desejos funciona como um bloco forte do produto: desejo, prioridade, desconto, compra e impacto financeiro visualizados juntos.'}
-                  {currentSection.id === 'configuracoes' &&
-                    'Configurações foi organizada como seção de SaaS real: perfil, conta, segurança, privacidade e preferências.'}
+                  {currentView === 'configuracoes' &&
+                    'A área de configurações reúne seus dados da conta, privacidade e preferências de uso.'}
                 </p>
               </div>
 
@@ -1141,7 +1462,7 @@ function Workspace({ onLogout }: { onLogout: () => void }) {
               currentStatusFilter={wishlistStatusFilter}
               draft={wishlistDraft}
               filteredItems={filteredWishlistItems}
-              hasError={wishlistItemsQuery.isError || wishlistListsQuery.isError || wishlistSummaryQuery.isError}
+              hasError={wishlistItemsQuery.isError || wishlistListsQuery.isError}
               history={selectedWishlistHistory}
               isLoading={wishlistItemsQuery.isLoading || wishlistListsQuery.isLoading || wishlistSummaryQuery.isLoading}
               lists={wishlistLists}
@@ -1961,7 +2282,7 @@ function WishlistView({
             {history.map((entry) => (
               <div key={entry.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <Tag tone={historyTone(entry.actionType)}>{entry.actionType.replace('_', ' ')}</Tag>
+                  <Tag tone={historyTone(entry.actionType)}>{historyLabel(entry.actionType)}</Tag>
                   <span className="text-xs text-slate-500">
                     {new Date(entry.createdAt).toLocaleDateString('pt-BR', {
                       day: '2-digit',
@@ -1983,56 +2304,170 @@ function WishlistView({
 }
 
 function SettingsView({ onLogout, user }: { onLogout: () => void; user: AuthUser | null }) {
+  const navigate = useNavigate();
+  const { updateUser } = useAuthStore();
+  const logoutMutation = useLogoutMutation();
+  const updateProfileMutation = useUpdateProfileMutation();
+  const deleteAccountMutation = useDeleteAccountMutation();
+  const [name, setName] = useState(user?.name ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [profileMessage, setProfileMessage] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+
+  useEffect(() => {
+    setName(user?.name ?? '');
+    setEmail(user?.email ?? '');
+  }, [user?.email, user?.name]);
+
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <SectionCard title="Perfil">
         <div className="grid gap-4">
-          <InfoStrip helper="Nome que aparece nas áreas logadas." label="Nome" value={user?.name ?? 'Usuário'} />
-          <InfoStrip helper="E-mail principal da conta." label="E-mail" value={user?.email ?? 'E-mail indisponível'} />
-          <InfoStrip helper="Papel carregado a partir da autenticação real." label="Perfil de acesso" value={user?.role ?? 'USER'} />
+          <Field label="Nome">
+            <input
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </Field>
+          <Field label="E-mail">
+            <input
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </Field>
+          <InfoStrip helper="Nível de acesso usado na sua sessão atual." label="Perfil de acesso" value={user?.role ?? 'USER'} />
+          {profileMessage && (
+            <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm leading-7 text-emerald-700">
+              {profileMessage}
+            </div>
+          )}
+          {profileError && (
+            <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
+              {profileError}
+            </div>
+          )}
+          <button
+            className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            disabled={updateProfileMutation.isPending || !name.trim() || !email.trim()}
+            onClick={() => {
+              setProfileMessage('');
+              setProfileError('');
+              updateProfileMutation.mutate(
+                { name: name.trim(), email: email.trim() },
+                {
+                  onSuccess: (response) => {
+                    updateUser(response);
+                    setProfileMessage('Dados atualizados com sucesso.');
+                  },
+                  onError: (error) => {
+                    setProfileError(getApiErrorMessage(error, 'Não foi possível atualizar seus dados agora.'));
+                  },
+                },
+              );
+            }}
+            type="button"
+          >
+            {updateProfileMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
+          </button>
         </div>
       </SectionCard>
 
       <SectionCard title="Conta">
         <div className="grid gap-4">
-          <InfoStrip helper="Reset de senha com token temporário e mensagem neutra." label="Recuperação de senha" value="Planejado" />
-          <InfoStrip helper="Troca de e-mail com confirmação." label="Alteração de e-mail" value="Planejada" />
-          <InfoStrip helper="Sessão simulada para testar o app." label="Sessão" value="Ativa" />
+          <InfoStrip helper="Seu acesso fica ativo com uma sessão protegida no navegador." label="Sessão atual" value="Ativa" />
+          <InfoStrip helper="Você pode pedir um link temporário para trocar sua senha quando precisar." label="Recuperação de senha" value="Disponível" />
+          <div className="rounded-[22px] border border-rose-100 bg-rose-50 p-4">
+            <p className="font-semibold text-slate-900">Excluir conta</p>
+            <p className="mt-2 text-sm leading-7 text-slate-600">
+              Esta ação apaga seu acesso e os dados ligados à conta. Para confirmar, informe sua senha atual.
+            </p>
+            <div className="mt-4 grid gap-3">
+              <Field label="Senha atual">
+                <input
+                  className="h-12 w-full rounded-2xl border border-rose-100 bg-white px-4 outline-none transition focus:border-rose-300"
+                  type="password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                />
+              </Field>
+
+              {deleteError && (
+                <div className="rounded-[18px] border border-rose-200 bg-white px-4 py-3 text-sm leading-7 text-rose-700">
+                  {deleteError}
+                </div>
+              )}
+
+              <button
+                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
+                disabled={deleteAccountMutation.isPending || !deletePassword}
+                onClick={() => {
+                  setDeleteError('');
+                  deleteAccountMutation.mutate(
+                    { password: deletePassword },
+                    {
+                      onSuccess: () => {
+                        onLogout();
+                        navigate('/');
+                      },
+                      onError: (error) => {
+                        setDeleteError(getApiErrorMessage(error, 'Não foi possível excluir a conta agora.'));
+                      },
+                    },
+                  );
+                }}
+                type="button"
+              >
+                {deleteAccountMutation.isPending ? 'Excluindo...' : 'Excluir minha conta'}
+              </button>
+            </div>
+          </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="Segurança">
+      <SectionCard title="Transparência do uso de dados">
         <div className="grid gap-4">
-          <ChecklistItem checked label="Força de senha visível no cadastro." />
-          <ChecklistItem checked label="Captcha previsto para cadastro, recuperação e ações suspeitas." />
-          <ChecklistItem checked label="Cookies previstos com escolha simples no primeiro acesso." />
-          <ChecklistItem checked label="Base para cookies necessários e opcionais." />
+          <ChecklistItem checked label="Seu nome, e-mail e senha protegida são usados para criar e manter sua conta." />
+          <ChecklistItem checked label="Tentativas de login, recuperação de senha e ações sensíveis podem gerar registros de proteção." />
+          <ChecklistItem checked label="Tentativas repetidas demais podem ser bloqueadas por um período curto para proteger a conta." />
+          <ChecklistItem checked label="Cookies essenciais mantêm sua sessão ativa e guardam sua escolha de privacidade." />
+          <ChecklistItem checked label="Cookies opcionais e medições de uso só devem ser ativados com o seu consentimento." />
+          <ChecklistItem checked label="Você pode atualizar seus dados e solicitar a exclusão da conta diretamente por esta área." />
         </div>
       </SectionCard>
 
       <SectionCard title="Preferências">
         <div className="grid gap-4">
-          <PreferenceItem description="Primeiro dia útil para olhar a vida financeira do mês." title="Mês padrão de abertura" />
-          <PreferenceItem description="Notificações futuras para compras e tendência ruim." title="Alertas de produto" />
-          <PreferenceItem description="Tema visual, densidade de cards e leitura mobile." title="Experiência do usuário" />
+          <PreferenceItem description="Abra o app já olhando o mês atual com seus principais números." title="Resumo inicial" />
+          <PreferenceItem description="Receba lembretes futuros sobre compras da lista de desejos e movimentos importantes." title="Alertas e lembretes" />
+          <PreferenceItem description="Ajuste o jeito como os cards e os blocos aparecem em telas maiores ou menores." title="Experiência visual" />
         </div>
       </SectionCard>
 
       <SectionCard title="Privacidade e cookies">
         <p className="text-sm leading-7 text-slate-600">
-          A base do frontend já prevê banner de cookies, preferência essencial ou opcional e espaço para política de privacidade real quando o produto entrar em produção.
+          Aqui você encontra, em linguagem simples, o que o site usa para funcionar e quais dados podem ser tratados com o seu consentimento.
         </p>
         <div className="mt-5 grid gap-3">
-          <ChecklistItem checked label="Cookies essenciais para sessão." />
-          <ChecklistItem checked label="Cookies opcionais para analytics e experiência." />
-          <ChecklistItem checked label="Base pronta para política de privacidade." />
+          <PreferenceItem description="Mantêm sua sessão autenticada e guardam a escolha de cookies no navegador." title="Cookies essenciais" />
+          <PreferenceItem description="Podem medir navegação e páginas mais usadas quando você autorizar cookies opcionais." title="Medição e analytics" />
+          <PreferenceItem description="Cadastro, login, recuperação de senha, nome, e-mail e registros de proteção contra abuso." title="Dados tratados no produto" />
+          <PreferenceItem description="Você pode corrigir seus dados, pedir exclusão da conta e revisar sua escolha de cookies." title="Seus direitos no app" />
         </div>
         <button
           className="mt-5 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          onClick={onLogout}
+          onClick={() => {
+            logoutMutation.mutate(undefined, {
+              onSettled: () => onLogout(),
+            });
+          }}
           type="button"
         >
-          Sair da demonstração
+          Encerrar sessão
         </button>
       </SectionCard>
     </div>
@@ -2274,7 +2709,7 @@ function PurchaseModal({
             {history.map((entry) => (
               <div key={entry.id} className="rounded-[20px] border border-white bg-white p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <Tag tone={historyTone(entry.actionType)}>{entry.actionType.replace('_', ' ')}</Tag>
+                  <Tag tone={historyTone(entry.actionType)}>{historyLabel(entry.actionType)}</Tag>
                   <span className="text-xs text-slate-500">
                     {new Date(entry.createdAt).toLocaleDateString('pt-BR', {
                       day: '2-digit',
@@ -2630,19 +3065,38 @@ function buildTransactionDraft(type: 'RECEITA' | 'DESPESA'): TransactionDraft {
 }
 
 function historyTone(actionType: WishlistHistoryResponse['actionType']): 'positive' | 'negative' | 'warning' | 'neutral' {
-  if (actionType === 'COMPRADO') {
+  if (actionType === 'PURCHASED') {
     return 'positive';
   }
 
-  if (actionType === 'COMPRA_DESFEITA') {
+  if (actionType === 'PURCHASE_UNDONE') {
     return 'warning';
   }
 
-  if (actionType === 'ATUALIZADO') {
+  if (actionType === 'UPDATED' || actionType === 'MOVED') {
     return 'neutral';
   }
 
   return 'warning';
+}
+
+function historyLabel(actionType: WishlistHistoryResponse['actionType']) {
+  switch (actionType) {
+    case 'CREATED':
+      return 'Criado';
+    case 'UPDATED':
+      return 'Atualizado';
+    case 'MOVED':
+      return 'Movido';
+    case 'PURCHASED':
+      return 'Comprado';
+    case 'PURCHASE_UNDONE':
+      return 'Compra desfeita';
+    case 'DELETED':
+      return 'Excluído';
+    default:
+      return actionType;
+  }
 }
 
 export default App;

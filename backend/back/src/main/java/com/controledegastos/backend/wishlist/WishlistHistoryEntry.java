@@ -30,8 +30,8 @@ public class WishlistHistoryEntry {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Convert(converter = WishlistHistoryActionTypeConverter.class)
     private ActionType actionType;
 
     @Column(nullable = false, length = 255)

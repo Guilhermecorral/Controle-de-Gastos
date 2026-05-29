@@ -17,7 +17,9 @@ public record RegisterRequestDTO(
         String email,
 
         @NotBlank(message = "Senha e obrigatoria")
-        @Size(min = 6, max = 100, message = "Senha deve ter no minimo 6 caracteres")
-        String password
+        @Size(min = 8, max = 100, message = "Senha deve ter no minimo 8 caracteres")
+        String password,
+
+        String captchaToken
 ) {
 }

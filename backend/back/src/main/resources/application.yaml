@@ -15,6 +15,10 @@ spring:
     import: optional:file:.env[.properties],optional:file:.env.properties[.properties]
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  data:
+    redis:
+      repositories:
+        enabled: false
 
 jwt:
   secret: ${JWT_SECRET}
@@ -23,11 +27,27 @@ jwt:
 
 app:
   security:
+    cookies:
+      access-token-name: ${APP_ACCESS_COOKIE_NAME}
+      refresh-token-name: ${APP_REFRESH_COOKIE_NAME}
+      secure: ${APP_COOKIES_SECURE}
+      same-site: ${APP_COOKIES_SAME_SITE}
+      domain: ${APP_COOKIES_DOMAIN}
     cors:
-      allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:4173}
+      allowed-origins: ${APP_ALLOWED_ORIGINS}
     auth-rate-limit:
-      window-seconds: ${APP_AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
-      max-attempts: ${APP_AUTH_RATE_LIMIT_MAX_ATTEMPTS:12}
+      window-seconds: ${APP_AUTH_RATE_LIMIT_WINDOW_SECONDS}
+      max-attempts: ${APP_AUTH_RATE_LIMIT_MAX_ATTEMPTS}
+      redis-enabled: ${APP_AUTH_RATE_LIMIT_REDIS_ENABLED}
+    captcha:
+      enabled: ${APP_CAPTCHA_ENABLED}
+      secret-key: ${APP_CAPTCHA_SECRET_KEY}
+      verify-url: ${APP_CAPTCHA_VERIFY_URL}
+    password-reset:
+      frontend-url: ${APP_PASSWORD_RESET_FRONTEND_URL}
+      token-expiration-minutes: ${APP_PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES}
+      mail-from: ${APP_PASSWORD_RESET_MAIL_FROM}
+      expose-link-in-dev: ${APP_PASSWORD_RESET_EXPOSE_LINK_IN_DEV:false}
 
 logging:
   level:

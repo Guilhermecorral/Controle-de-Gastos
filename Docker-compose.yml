@@ -19,6 +19,18 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: controle-gastos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend/back
@@ -36,10 +48,29 @@ services:
       JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS}
+      APP_COOKIES_SECURE: ${APP_COOKIES_SECURE}
+      APP_COOKIES_SAME_SITE: ${APP_COOKIES_SAME_SITE}
+      APP_COOKIES_DOMAIN: ${APP_COOKIES_DOMAIN}
+      APP_AUTH_RATE_LIMIT_REDIS_ENABLED: ${APP_AUTH_RATE_LIMIT_REDIS_ENABLED}
+      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST}
+      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT}
+      APP_CAPTCHA_ENABLED: ${APP_CAPTCHA_ENABLED}
+      APP_CAPTCHA_SECRET_KEY: ${APP_CAPTCHA_SECRET_KEY}
+      APP_PASSWORD_RESET_FRONTEND_URL: ${APP_PASSWORD_RESET_FRONTEND_URL}
+      APP_PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES: ${APP_PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES}
+      APP_PASSWORD_RESET_MAIL_FROM: ${APP_PASSWORD_RESET_MAIL_FROM}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH}
+      SPRING_MAIL_SMTP_STARTTLS: ${SPRING_MAIL_SMTP_STARTTLS}
     ports:
       - "8081:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:

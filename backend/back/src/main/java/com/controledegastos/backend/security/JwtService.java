@@ -2,6 +2,7 @@ package com.controledegastos.backend.security;
 
 import com.controledegastos.backend.user.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -19,6 +20,10 @@ import java.util.Map;
  */
 @Service
 public class JwtService {
+
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
 
     @Value("${jwt.secret}")
     private String secret;
@@ -57,6 +62,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
         claims.put("name", user.getName());
+        claims.put(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE);
         return buildToken(claims, user.getEmail(), expiration);
     }
 
@@ -64,7 +70,9 @@ public class JwtService {
      * Gera o token de refresh usado para renovar a sessao sem novo login imediato.
      */
     public String generateRefreshToken(User user) {
-        return buildToken(new HashMap<>(), user.getEmail(), refreshExpiration);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE);
+        return buildToken(claims, user.getEmail(), refreshExpiration);
     }
 
     /**
@@ -92,7 +100,15 @@ public class JwtService {
      */
     public boolean isTokenValid(String token, User user) {
         final String email = extractEmail(token);
-        return email.equals(user.getEmail()) && !isTokenExpired(token);
+        return email.equals(user.getEmail()) && !isTokenExpired(token) && ACCESS_TOKEN_TYPE.equals(extractTokenType(token));
+    }
+
+    /**
+     * Valida explicitamente tokens de refresh para impedir o uso do cookie errado no fluxo de renovacao.
+     */
+    public boolean isRefreshTokenValid(String token, User user) {
+        final String email = extractEmail(token);
+        return email.equals(user.getEmail()) && !isTokenExpired(token) && REFRESH_TOKEN_TYPE.equals(extractTokenType(token));
     }
 
     /**
@@ -100,6 +116,35 @@ public class JwtService {
      */
     public boolean isTokenExpired(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());
+    }
+
+    /**
+     * Permite que filtros lidem com tokens invalidos sem transformar toda chamada em erro 500.
+     */
+    public String extractEmailSafely(String token) {
+        try {
+            return extractEmail(token);
+        } catch (JwtException | IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Expoe a expiracao do access token para alinhar max-age do cookie no servidor.
+     */
+    public long getAccessExpiration() {
+        return expiration;
+    }
+
+    /**
+     * Expoe a expiracao do refresh token para alinhar max-age do cookie no servidor.
+     */
+    public long getRefreshExpiration() {
+        return refreshExpiration;
+    }
+
+    private String extractTokenType(String token) {
+        return extractAllClaims(token).get(TOKEN_TYPE_CLAIM, String.class);
     }
 
     /**
