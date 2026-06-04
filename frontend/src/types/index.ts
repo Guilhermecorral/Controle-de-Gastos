@@ -74,7 +74,6 @@ export interface SimpleMessageResponse {
 
 export interface ForgotPasswordResponse {
   message: string;
-  debugResetLink: string | null;
 }
 
 export interface UpdateProfileRequest {
@@ -92,6 +91,7 @@ export interface TransactionRequest {
   category: Category;
   amount: number;
   paymentMethod: PaymentMethod;
+  installments: number;
   transactionDate: string;
 }
 
@@ -102,6 +102,7 @@ export interface TransactionResponse {
   category: Category;
   amount: number;
   paymentMethod: PaymentMethod;
+  installments: number | null;
   transactionDate: string;
   createdAt: string;
 }
@@ -179,6 +180,7 @@ export interface MonthlyAnalysisResponse {
   totalDespesas: number;
   saldo: number;
   maiorGasto: MonthlyExpenseSummary | null;
+  receitasPorCategoria: DashboardCategorySummary[];
   gastosPorCategoria: DashboardCategorySummary[];
   comparativoMesAnterior: ComparisonSnapshot;
   comparativoMesmoMesAnoAnterior: ComparisonSnapshot;

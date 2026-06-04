@@ -13,6 +13,10 @@ export function getApiErrorMessage(error: unknown, fallbackMessage: string) {
     return fallbackMessage
   }
 
+  if (!error.response) {
+    return 'Não foi possível falar com o servidor agora. Confirme se o frontend está em localhost:5173 e o backend em localhost:8080.'
+  }
+
   const responseData = error.response?.data
 
   if (responseData?.details && responseData.details.length > 0) {

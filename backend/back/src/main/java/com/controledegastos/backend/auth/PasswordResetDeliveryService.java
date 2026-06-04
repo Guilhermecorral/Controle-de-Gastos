@@ -10,7 +10,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 /**
- * Entrega o link de redefinicao por email quando houver SMTP e cai para log seguro em ambiente local.
+ * Entrega o link de redefinição por e-mail usando a infraestrutura configurada no ambiente.
  */
 @Service
 @Slf4j
@@ -19,40 +19,37 @@ public class PasswordResetDeliveryService {
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
 
-    @Value("${app.security.password-reset.mail-from:no-reply@controledegastos.local}")
+    @Value("${app.security.password-reset.mail-from:no-reply@farolfinanceiro.local}")
     private String mailFrom;
 
     /**
-     * Encaminha o link de redefinicao no canal disponivel para o ambiente atual.
+     * Encaminha o link de redefinição por e-mail e falha explicitamente quando o SMTP não estiver pronto.
      */
-    public boolean deliverResetLink(String email, String resetLink) {
+    public void deliverResetLink(String email, String resetLink) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
 
         if (mailSender == null) {
-            log.info("Link de redefinicao gerado para {}: {}", email, resetLink);
-            return false;
+            throw new IllegalStateException("O envio de e-mail não está configurado no ambiente atual");
         }
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailFrom);
         message.setTo(email);
-        message.setSubject("Redefinicao de senha - Controle de Gastos");
+        message.setSubject("Redefinição de senha - Farol Financeiro");
         message.setText("""
-                Recebemos um pedido para redefinir sua senha.
+                Recebemos um pedido para redefinir sua senha no Farol Financeiro.
 
-                Use o link abaixo para concluir a troca com seguranca:
+                Use o link abaixo para concluir a troca com segurança:
                 %s
 
-                Se voce nao pediu essa troca, ignore este email.
+                Se você não pediu essa troca, ignore este e-mail.
                 """.formatted(resetLink));
 
         try {
             mailSender.send(message);
-            return true;
         } catch (MailException exception) {
-            log.warn("Nao foi possivel enviar o email de redefinicao para {}", email, exception);
-            log.info("Link de redefinicao gerado para {}: {}", email, resetLink);
-            return false;
+            log.error("Não foi possível enviar o e-mail de redefinição para {}", email, exception);
+            throw new IllegalStateException("Não foi possível enviar o e-mail de recuperação agora");
         }
     }
 }

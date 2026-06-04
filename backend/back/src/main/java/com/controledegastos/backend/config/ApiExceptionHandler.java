@@ -2,6 +2,8 @@ package com.controledegastos.backend.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -18,6 +20,8 @@ import java.util.List;
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     /**
      * Trata erros de validacao de DTOs e devolve os campos invalidos de forma amigavel.
@@ -118,6 +122,8 @@ public class ApiExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        log.error("Erro inesperado em {} {}", request.getMethod(), request.getRequestURI(), exception);
+
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Ocorreu um erro inesperado",

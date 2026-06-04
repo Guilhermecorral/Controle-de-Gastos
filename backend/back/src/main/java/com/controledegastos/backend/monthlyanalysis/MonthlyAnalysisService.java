@@ -51,6 +51,12 @@ public class MonthlyAnalysisService {
         BigDecimal saldo = totalReceitas.subtract(totalDespesas);
 
         MonthlyHighestExpenseDTO maiorGasto = findHighestExpense(user, requestedStartDate, requestedEndDate);
+        List<DashboardCategorySummaryDTO> receitasPorCategoria = findGroupedTransactionsByType(
+                user,
+                Transaction.TransactionType.RECEITA,
+                requestedStartDate,
+                requestedEndDate
+        );
         List<DashboardCategorySummaryDTO> gastosPorCategoria = findGroupedExpenses(user, requestedStartDate, requestedEndDate);
 
         MonthlyComparisonDTO comparativoMesAnterior = buildMonthlyComparison(
@@ -97,6 +103,7 @@ public class MonthlyAnalysisService {
                 totalDespesas,
                 saldo,
                 maiorGasto,
+                receitasPorCategoria,
                 gastosPorCategoria,
                 comparativoMesAnterior,
                 comparativoMesmoMesAnoAnterior,
@@ -127,7 +134,16 @@ public class MonthlyAnalysisService {
             LocalDate startDate,
             LocalDate endDate
     ) {
-        return transactionRepository.findExpenseSummaryByCategoryAndTransactionDateBetween(user, startDate, endDate)
+        return findGroupedTransactionsByType(user, Transaction.TransactionType.DESPESA, startDate, endDate);
+    }
+
+    private List<DashboardCategorySummaryDTO> findGroupedTransactionsByType(
+            User user,
+            Transaction.TransactionType type,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        return transactionRepository.findSummaryByCategoryAndTypeAndTransactionDateBetween(user, type, startDate, endDate)
                 .stream()
                 .map(this::toCategorySummaryDTO)
                 .toList();

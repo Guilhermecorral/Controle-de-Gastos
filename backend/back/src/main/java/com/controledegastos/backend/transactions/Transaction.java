@@ -48,6 +48,9 @@ public class Transaction {
     @Column(nullable = false)
     private PaymentMethod paymentMethod;
 
+    @Column(name = "installments")
+    private Integer installments;
+
     @Column(nullable = false)
     private LocalDate transactionDate;
 

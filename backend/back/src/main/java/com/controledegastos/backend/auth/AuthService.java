@@ -12,6 +12,7 @@ import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -49,7 +50,12 @@ public class AuthService {
                 .role(User.Role.USER)
                 .build();
 
-        userRepository.save(user);
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalArgumentException("Email ja cadastrado");
+        }
+
         return buildAuthenticationSession(user);
     }
 
@@ -104,8 +110,8 @@ public class AuthService {
     /**
      * Inicia o fluxo de redefinicao de senha e mantem a resposta neutra por seguranca.
      */
-    public ForgotPasswordResponseDTO requestPasswordReset(ForgotPasswordRequestDTO dto, String remoteIp) {
-        return passwordResetService.requestReset(dto, remoteIp);
+    public ForgotPasswordResponseDTO requestPasswordReset(ForgotPasswordRequestDTO dto, String remoteIp, String applicationBaseUrl) {
+        return passwordResetService.requestReset(dto, remoteIp, applicationBaseUrl);
     }
 
     /**
@@ -113,6 +119,10 @@ public class AuthService {
      */
     public void resetPassword(ResetPasswordRequestDTO dto, String remoteIp) {
         passwordResetService.resetPassword(dto, remoteIp);
+    }
+
+    public String buildFrontendResetUrl(String token) {
+        return passwordResetService.buildFrontendResetUrl(token);
     }
 
     private AuthenticationSession buildAuthenticationSession(User user) {

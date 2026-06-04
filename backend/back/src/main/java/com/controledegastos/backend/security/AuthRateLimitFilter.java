@@ -5,7 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,15 +24,11 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private final AuthRateLimitService authRateLimitService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final Environment environment;
 
-    @Value("${app.security.auth-rate-limit.window-seconds:60}")
-    private long windowSeconds;
-
-    @Value("${app.security.auth-rate-limit.max-attempts:12}")
-    private int maxAttempts;
-
-    public AuthRateLimitFilter(AuthRateLimitService authRateLimitService) {
+    public AuthRateLimitFilter(AuthRateLimitService authRateLimitService, Environment environment) {
         this.authRateLimitService = authRateLimitService;
+        this.environment = environment;
     }
 
     /**
@@ -59,7 +55,10 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
+        long windowSeconds = resolveLongProperty("app.security.auth-rate-limit.window-seconds", 60L);
+        int maxAttempts = resolveIntProperty("app.security.auth-rate-limit.max-attempts", 12);
         String key = resolveClientKey(request);
+
         if (!authRateLimitService.isAllowed(key, windowSeconds, maxAttempts)) {
             writeRateLimitResponse(request, response);
             return;
@@ -97,6 +96,34 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
                 "path", request.getRequestURI(),
                 "details", List.of()
         ));
+    }
+
+    private long resolveLongProperty(String propertyName, long defaultValue) {
+        String rawValue = environment.getProperty(propertyName);
+
+        if (rawValue == null || rawValue.isBlank()) {
+            return defaultValue;
+        }
+
+        try {
+            return Long.parseLong(rawValue.trim());
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
+    }
+
+    private int resolveIntProperty(String propertyName, int defaultValue) {
+        String rawValue = environment.getProperty(propertyName);
+
+        if (rawValue == null || rawValue.isBlank()) {
+            return defaultValue;
+        }
+
+        try {
+            return Integer.parseInt(rawValue.trim());
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
     }
 
 }

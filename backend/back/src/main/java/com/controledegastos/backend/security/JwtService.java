@@ -6,7 +6,8 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.PlaceholderResolutionException;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -24,21 +25,28 @@ public class JwtService {
     private static final String TOKEN_TYPE_CLAIM = "token_type";
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
+    private static final long DEFAULT_ACCESS_EXPIRATION = 900_000L;
+    private static final long DEFAULT_REFRESH_EXPIRATION = 604_800_000L;
 
-    @Value("${jwt.secret}")
+    private final Environment environment;
+
     private String secret;
-
-    @Value("${jwt.expiration}")
     private long expiration;
-
-    @Value("${jwt.refresh-expiration}")
     private long refreshExpiration;
+
+    public JwtService(Environment environment) {
+        this.environment = environment;
+    }
 
     /**
      * Garante que o segredo e os tempos de expiracao estejam aceitaveis antes de subir a aplicacao.
      */
     @PostConstruct
     void validateConfiguration() {
+        this.secret = resolveSecret();
+        this.expiration = resolveExpiration("jwt.expiration", "JWT_ACCESS_EXPIRATION", DEFAULT_ACCESS_EXPIRATION);
+        this.refreshExpiration = resolveExpiration("jwt.refresh-expiration", "JWT_REFRESH_EXPIRATION", DEFAULT_REFRESH_EXPIRATION);
+
         if (secret == null || secret.length() < 32) {
             throw new IllegalStateException("JWT_SECRET precisa ter pelo menos 32 caracteres");
         }
@@ -156,5 +164,62 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    private String resolveStringProperty(String propertyName, String defaultValue) {
+        String rawValue;
+
+        try {
+            rawValue = environment.getProperty(propertyName);
+        } catch (PlaceholderResolutionException exception) {
+            return defaultValue;
+        }
+
+        if (rawValue == null) {
+            return defaultValue;
+        }
+
+        String trimmedValue = rawValue.trim();
+        return trimmedValue.isEmpty() ? defaultValue : trimmedValue;
+    }
+
+    private long resolveLongProperty(String propertyName, long defaultValue) {
+        String rawValue;
+
+        try {
+            rawValue = environment.getProperty(propertyName);
+        } catch (PlaceholderResolutionException exception) {
+            return defaultValue;
+        }
+
+        if (rawValue == null || rawValue.isBlank()) {
+            return defaultValue;
+        }
+
+        try {
+            return Long.parseLong(rawValue.trim());
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
+    }
+
+    private String resolveSecret() {
+        String configuredSecret = resolveStringProperty("jwt.secret", null);
+
+        if (configuredSecret != null) {
+            return configuredSecret;
+        }
+
+        return resolveStringProperty("JWT_SECRET", null);
+    }
+
+    private long resolveExpiration(String primaryProperty, String fallbackProperty, long defaultValue) {
+        long primaryValue = resolveLongProperty(primaryProperty, defaultValue);
+
+        if (primaryValue != defaultValue) {
+            return primaryValue;
+        }
+
+        return resolveLongProperty(fallbackProperty, defaultValue);
     }
 }

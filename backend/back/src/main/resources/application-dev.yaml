@@ -28,8 +28,3 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_ACCESS_EXPIRATION}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
-
-app:
-  security:
-    password-reset:
-      expose-link-in-dev: true

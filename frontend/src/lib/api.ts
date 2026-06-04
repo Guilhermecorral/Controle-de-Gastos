@@ -17,6 +17,29 @@ const api = axios.create({
   },
 })
 
+if (import.meta.env.DEV) {
+  api.interceptors.request.use((config) => {
+    const method = (config.method ?? 'GET').toUpperCase()
+    console.info('[API request]', method, config.baseURL ? `${config.baseURL}${config.url ?? ''}` : config.url ?? '')
+    return config
+  })
+
+  api.interceptors.response.use(
+    (response) => {
+      const method = (response.config.method ?? 'GET').toUpperCase()
+      console.info('[API response]', method, response.config.url ?? '', response.status)
+      return response
+    },
+    (error) => {
+      const method = (error.config?.method ?? 'GET').toUpperCase()
+      const url = error.config?.url ?? ''
+      const status = error.response?.status ?? 'sem-resposta'
+      console.error('[API error]', method, url, status, error.response?.data ?? error.message)
+      return Promise.reject(error)
+    },
+  )
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {

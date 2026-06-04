@@ -37,6 +37,7 @@ public class DashboardService {
                 transaction.getCategory(),
                 transaction.getAmount(),
                 transaction.getPaymentMethod(),
+                transaction.getInstallments(),
                 transaction.getTransactionDate(),
                 transaction.getCreatedAt()
         );

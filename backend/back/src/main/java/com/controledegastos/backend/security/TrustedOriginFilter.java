@@ -24,7 +24,7 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
     private final Set<String> allowedOrigins;
 
     public TrustedOriginFilter(
-            @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://localhost:4173}")
+            @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173}")
             String allowedOrigins
     ) {
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))

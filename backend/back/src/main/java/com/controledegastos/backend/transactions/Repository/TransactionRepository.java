@@ -91,6 +91,22 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
             SELECT t.category AS category, SUM(t.amount) AS totalAmount
             FROM Transaction t
             WHERE t.user = :user
+              AND t.type = :type
+              AND t.transactionDate BETWEEN :startDate AND :endDate
+            GROUP BY t.category
+            ORDER BY SUM(t.amount) DESC
+            """)
+    List<TransactionCategorySummaryProjection> findSummaryByCategoryAndTypeAndTransactionDateBetween(
+            @Param("user") User user,
+            @Param("type") Transaction.TransactionType type,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("""
+            SELECT t.category AS category, SUM(t.amount) AS totalAmount
+            FROM Transaction t
+            WHERE t.user = :user
               AND t.type = com.controledegastos.backend.transactions.Transaction.TransactionType.DESPESA
               AND t.transactionDate BETWEEN :startDate AND :endDate
             GROUP BY t.category

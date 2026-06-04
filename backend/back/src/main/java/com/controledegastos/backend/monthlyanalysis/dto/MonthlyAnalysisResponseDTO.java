@@ -12,6 +12,7 @@ public record MonthlyAnalysisResponseDTO(
         BigDecimal totalDespesas,
         BigDecimal saldo,
         MonthlyHighestExpenseDTO maiorGasto,
+        List<DashboardCategorySummaryDTO> receitasPorCategoria,
         List<DashboardCategorySummaryDTO> gastosPorCategoria,
         MonthlyComparisonDTO comparativoMesAnterior,
         MonthlyComparisonDTO comparativoMesmoMesAnoAnterior,

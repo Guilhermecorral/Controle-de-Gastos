@@ -43,7 +43,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://localhost:4173}")
+    @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173}")
     private String allowedOrigins;
 
     private final AuthRateLimitFilter authRateLimitFilter;
@@ -75,6 +75,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/forgot-password",
+                                "/api/auth/reset-password/redirect",
                                 "/api/auth/reset-password",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
@@ -147,7 +148,7 @@ public class SecurityConfig {
 
         return new OpenAPI()
                 .info(new Info()
-                        .title("Controle de Gastos API")
+                        .title("Farol Financeiro API")
                         .version("1.0.0")
                         .description("API REST para controle financeiro pessoal"))
                 .components(new Components()

@@ -12,13 +12,24 @@ spring:
         format_sql: true
     open-in-view: false
   config:
-    import: optional:file:.env[.properties],optional:file:.env.properties[.properties]
+    import: optional:file:.env[.properties],optional:file:.env.properties[.properties],optional:file:backend/back/.env[.properties],optional:file:backend/back/.env.properties[.properties]
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   data:
     redis:
       repositories:
         enabled: false
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${SPRING_MAIL_SMTP_STARTTLS:true}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -47,7 +58,6 @@ app:
       frontend-url: ${APP_PASSWORD_RESET_FRONTEND_URL}
       token-expiration-minutes: ${APP_PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES}
       mail-from: ${APP_PASSWORD_RESET_MAIL_FROM}
-      expose-link-in-dev: ${APP_PASSWORD_RESET_EXPOSE_LINK_IN_DEV:false}
 
 logging:
   level:

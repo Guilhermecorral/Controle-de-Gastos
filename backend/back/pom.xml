@@ -18,7 +18,7 @@
 	<version>0.0.1-SNAPSHOT</version>
 
 	<name>backend</name>
-	<description>Controle de Gastos - Back-End</description>
+	<description>Farol Financeiro - Back-End</description>
 
 	<url/>
 	<licenses>
@@ -141,7 +141,6 @@
 			<artifactId>h2</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-
 	</dependencies>
 
 	<build>

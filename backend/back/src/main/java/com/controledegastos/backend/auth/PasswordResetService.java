@@ -4,12 +4,14 @@ import com.controledegastos.backend.auth.dto.ForgotPasswordRequestDTO;
 import com.controledegastos.backend.auth.dto.ForgotPasswordResponseDTO;
 import com.controledegastos.backend.auth.dto.ResetPasswordRequestDTO;
 import com.controledegastos.backend.security.CaptchaVerificationService;
+import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -37,17 +39,16 @@ public class PasswordResetService {
     @Value("${app.security.password-reset.frontend-url:http://localhost:5173/redefinir-senha}")
     private String frontendResetUrl;
 
-    @Value("${app.security.password-reset.expose-link-in-dev:false}")
-    private boolean exposeLinkInDev;
-
     /**
      * Dispara o fluxo de redefinicao para o email informado sem entregar pistas para atacantes.
      */
     @Transactional
-    public ForgotPasswordResponseDTO requestReset(ForgotPasswordRequestDTO dto, String remoteIp) {
+    public ForgotPasswordResponseDTO requestReset(ForgotPasswordRequestDTO dto, String remoteIp, String applicationBaseUrl) {
         captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "recuperacao de senha");
 
-        String debugResetLink = userRepository.findByEmail(dto.email()).map(user -> {
+        User user = userRepository.findByEmail(dto.email()).orElse(null);
+
+        if (user != null) {
             passwordResetTokenRepository.deleteByUser(user);
             passwordResetTokenRepository.deleteByExpiresAtBefore(OffsetDateTime.now());
 
@@ -59,20 +60,15 @@ public class PasswordResetService {
                     .build();
 
             passwordResetTokenRepository.save(token);
-            String resetLink = frontendResetUrl + "?token=" + rawToken;
-            boolean deliveredByMail = passwordResetDeliveryService.deliverResetLink(user.getEmail(), resetLink);
+            String resetLink = UriComponentsBuilder.fromUriString(applicationBaseUrl)
+                    .path("/api/auth/reset-password/redirect")
+                    .queryParam("token", rawToken)
+                    .build()
+                    .toUriString();
+            passwordResetDeliveryService.deliverResetLink(user.getEmail(), resetLink);
+        }
 
-            if (!deliveredByMail && exposeLinkInDev) {
-                return resetLink;
-            }
-
-            return null;
-        }).orElse(null);
-
-        return new ForgotPasswordResponseDTO(
-                "Se o email existir, enviaremos um link de redefinicao em instantes",
-                debugResetLink
-        );
+        return new ForgotPasswordResponseDTO("Se o email existir, enviaremos um link de redefinicao em instantes");
     }
 
     /**
@@ -100,6 +96,16 @@ public class PasswordResetService {
 
         userRepository.save(token.getUser());
         passwordResetTokenRepository.save(token);
+    }
+
+    /**
+     * Monta a URL final do frontend para que o backend possa redirecionar links recebidos por e-mail.
+     */
+    public String buildFrontendResetUrl(String token) {
+        return UriComponentsBuilder.fromUriString(frontendResetUrl)
+                .queryParam("token", token)
+                .build()
+                .toUriString();
     }
 
     private void validatePasswordStrength(String password) {

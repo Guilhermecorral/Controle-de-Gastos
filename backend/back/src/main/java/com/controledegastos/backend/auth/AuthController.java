@@ -11,11 +11,16 @@ import com.controledegastos.backend.security.AuthCookieService;
 import com.controledegastos.backend.security.JwtService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
+import java.net.URI;
 
 /**
  * Expoe o fluxo publico de autenticacao e os utilitarios de sessao usados pelo frontend.
@@ -24,6 +29,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthService authService;
     private final AuthCookieService authCookieService;
@@ -38,8 +45,10 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
+        log.info("Tentativa de cadastro para email={} a partir de {}", dto.email(), request.getRemoteAddr());
         AuthenticationSession session = authService.register(dto, request.getRemoteAddr());
         writeCookies(response, session);
+        log.info("Cadastro concluido com sucesso para email={}", dto.email());
         return ResponseEntity.status(HttpStatus.CREATED).body(session.user());
     }
 
@@ -95,7 +104,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequestDTO dto,
             HttpServletRequest request
     ) {
-        return ResponseEntity.ok(authService.requestPasswordReset(dto, request.getRemoteAddr()));
+        return ResponseEntity.ok(authService.requestPasswordReset(dto, request.getRemoteAddr(), resolveApplicationBaseUrl(request)));
     }
 
     /**
@@ -110,6 +119,16 @@ public class AuthController {
         return ResponseEntity.ok(new SimpleMessageResponseDTO("Senha alterada com sucesso"));
     }
 
+    /**
+     * Recebe o link do e-mail e redireciona para a tela correta do frontend com o token preservado.
+     */
+    @GetMapping("/reset-password/redirect")
+    public ResponseEntity<Void> redirectToFrontendReset(@RequestParam("token") String token) {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, authService.buildFrontendResetUrl(token))
+                .build();
+    }
+
     private void writeCookies(HttpServletResponse response, AuthenticationSession session) {
         authCookieService.writeAuthenticationCookies(
                 response,
@@ -118,5 +137,17 @@ public class AuthController {
                 session.refreshToken(),
                 jwtService.getRefreshExpiration()
         );
+    }
+
+    private String resolveApplicationBaseUrl(HttpServletRequest request) {
+        String scheme = request.getScheme();
+        String serverName = request.getServerName();
+        int serverPort = request.getServerPort();
+        boolean defaultPort = ("http".equalsIgnoreCase(scheme) && serverPort == 80)
+                || ("https".equalsIgnoreCase(scheme) && serverPort == 443);
+
+        return defaultPort
+                ? scheme + "://" + serverName
+                : scheme + "://" + serverName + ":" + serverPort;
     }
 }

@@ -18,6 +18,7 @@ public record TransactionResponseDTO(
         TransactionCategory category,
         BigDecimal amount,
         PaymentMethod paymentMethod,
+        Integer installments,
         LocalDate transactionDate,
         LocalDateTime createdAt
 ) {

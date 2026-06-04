@@ -4,6 +4,7 @@ import com.controledegastos.backend.transactions.Transaction.PaymentMethod;
 import com.controledegastos.backend.transactions.Transaction.TransactionCategory;
 import com.controledegastos.backend.transactions.Transaction.TransactionType;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -31,6 +32,9 @@ public record TransactionRequestDTO(
 
         @NotNull(message = "Forma de pagamento e obrigatoria")
         PaymentMethod paymentMethod,
+
+        @Min(value = 1, message = "Parcelas deve ser no minimo 1")
+        Integer installments,
 
         @NotNull(message = "Data e obrigatoria")
         LocalDate transactionDate
