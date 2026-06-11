@@ -1,5 +1,9 @@
 package com.controledegastos.backend.security;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -73,6 +77,38 @@ public class TwoFactorTotpService {
                 + CODE_DIGITS
                 + "&period="
                 + TIME_STEP_SECONDS;
+    }
+
+    /**
+     * Gera um SVG simples do QR Code para a tela de configuração sem depender de serviço externo.
+     */
+    public String buildQrCodeSvg(String otpAuthUri) {
+        try {
+            QRCodeWriter qrCodeWriter = new QRCodeWriter();
+            BitMatrix bitMatrix = qrCodeWriter.encode(otpAuthUri, BarcodeFormat.QR_CODE, 256, 256);
+
+            StringBuilder pathBuilder = new StringBuilder();
+            for (int y = 0; y < bitMatrix.getHeight(); y++) {
+                for (int x = 0; x < bitMatrix.getWidth(); x++) {
+                    if (bitMatrix.get(x, y)) {
+                        pathBuilder.append("M").append(x).append(",").append(y).append("h1v1h-1z");
+                    }
+                }
+            }
+
+            return "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 "
+                    + bitMatrix.getWidth()
+                    + " "
+                    + bitMatrix.getHeight()
+                    + "\" shape-rendering=\"crispEdges\">"
+                    + "<rect width=\"100%\" height=\"100%\" fill=\"#ffffff\"/>"
+                    + "<path d=\""
+                    + pathBuilder
+                    + "\" fill=\"#0f172a\"/>"
+                    + "</svg>";
+        } catch (WriterException exception) {
+            throw new IllegalStateException("Nao foi possivel gerar o QR Code do autenticador", exception);
+        }
     }
 
     public String getIssuer() {

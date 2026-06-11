@@ -12,6 +12,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.controledegastos.backend.user.Repository.UserRepository;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +27,7 @@ public class TwoFactorService {
     private final SensitiveFieldEncryptionService sensitiveFieldEncryptionService;
     private final TwoFactorTotpService twoFactorTotpService;
     private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
 
     /**
      * Informa se o segundo fator esta ativo ou se existe uma configuracao pendente.
@@ -47,14 +49,17 @@ public class TwoFactorService {
     public TwoFactorSetupResponseDTO beginSetup() {
         User user = authenticatedUserService.getAuthenticatedUser();
         String secret = twoFactorTotpService.generateSecret();
+        String otpAuthUri = twoFactorTotpService.buildOtpAuthUri(user.getEmail(), secret);
 
         user.setTwoFactorPendingSecretEncrypted(sensitiveFieldEncryptionService.encrypt(secret));
+        userRepository.saveAndFlush(user);
 
         return new TwoFactorSetupResponseDTO(
                 secret,
                 twoFactorTotpService.getIssuer(),
                 user.getEmail(),
-                twoFactorTotpService.buildOtpAuthUri(user.getEmail(), secret)
+                otpAuthUri,
+                twoFactorTotpService.buildQrCodeSvg(otpAuthUri)
         );
     }
 
@@ -78,6 +83,7 @@ public class TwoFactorService {
         user.setTwoFactorPendingSecretEncrypted(null);
         user.setTwoFactorEnabled(true);
         user.setTwoFactorEnabledAt(LocalDateTime.now());
+        userRepository.saveAndFlush(user);
 
         return getStatus();
     }
@@ -106,6 +112,7 @@ public class TwoFactorService {
         user.setTwoFactorSecretEncrypted(null);
         user.setTwoFactorPendingSecretEncrypted(null);
         user.setTwoFactorEnabledAt(null);
+        userRepository.saveAndFlush(user);
 
         return getStatus();
     }

@@ -28,11 +28,10 @@ public class AuthenticatedUserService {
         }
 
         Object principal = authentication.getPrincipal();
-        if (principal instanceof User user) {
-            return user;
-        }
+        String email = principal instanceof User user
+                ? user.getEmail()
+                : principal.toString();
 
-        String email = principal.toString();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
     }

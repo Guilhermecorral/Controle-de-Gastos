@@ -7,6 +7,7 @@ public record TwoFactorSetupResponseDTO(
         String secret,
         String issuer,
         String accountName,
-        String otpAuthUri
+        String otpAuthUri,
+        String qrCodeSvg
 ) {
 }
