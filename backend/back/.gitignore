@@ -28,3 +28,4 @@ target/
 .env.properties
 .env.local
 .env.*.local
+/.m2-temp/org/springframework/boot/spring-boot-starter-parent/4.0.3/spring-boot-starter-parent-4.0.3.pom.1292893739868465499.tmp.3364068883157873232.tmp
