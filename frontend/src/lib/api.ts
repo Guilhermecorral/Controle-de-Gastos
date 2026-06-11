@@ -1,11 +1,15 @@
-// Centraliza as chamadas HTTP e usa cookies HttpOnly para a sessão, sem expor tokens à aplicação.
-import axios from 'axios'
+// Centraliza as chamadas HTTP e usa cookies HttpOnly para a sessÃ£o, sem expor tokens Ã  aplicaÃ§Ã£o.
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/auth'
 
-type RetriableRequestConfig = {
+type RetriableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean
   skipAuthRefresh?: boolean
-  url?: string
+}
+
+type PendingRequest = {
+  resolve: () => void
+  reject: (error: unknown) => void
 }
 
 const api = axios.create({
@@ -16,6 +20,30 @@ const api = axios.create({
     Accept: 'application/json',
   },
 })
+
+let isRefreshing = false
+let failedQueue: PendingRequest[] = []
+
+function processQueue(error?: unknown) {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error)
+      return
+    }
+
+    resolve()
+  })
+
+  failedQueue = []
+}
+
+function forceLogout() {
+  useAuthStore.getState().logout()
+
+  if (window.location.pathname.startsWith('/app')) {
+    window.location.assign('/login')
+  }
+}
 
 if (import.meta.env.DEV) {
   api.interceptors.request.use((config) => {
@@ -42,7 +70,7 @@ if (import.meta.env.DEV) {
 
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  async (error: AxiosError) => {
     const originalRequest = (error.config ?? {}) as RetriableRequestConfig
     const requestUrl = String(originalRequest.url ?? '')
     const isAuthRoute = requestUrl.includes('/auth/login')
@@ -58,24 +86,32 @@ api.interceptors.response.use(
     ) {
       originalRequest._retry = true
 
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: () => resolve(api(originalRequest)),
+            reject,
+          })
+        })
+      }
+
+      isRefreshing = true
+
       try {
         await api.post('/auth/refresh', undefined, { skipAuthRefresh: true } as RetriableRequestConfig)
-        return api(error.config)
-      } catch {
-        useAuthStore.getState().logout()
-
-        if (window.location.pathname.startsWith('/app')) {
-          window.location.assign('/login')
-        }
+        processQueue()
+        return api(originalRequest)
+      } catch (refreshError) {
+        processQueue(refreshError)
+        forceLogout()
+        return Promise.reject(refreshError)
+      } finally {
+        isRefreshing = false
       }
     }
 
     if (error.response?.status === 401 && !isAuthRoute) {
-      useAuthStore.getState().logout()
-
-      if (window.location.pathname.startsWith('/app')) {
-        window.location.assign('/login')
-      }
+      forceLogout()
     }
 
     return Promise.reject(error)

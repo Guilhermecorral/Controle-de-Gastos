@@ -1,5 +1,5 @@
 import { Category, TransactionResponse } from '../../../types';
-import { categoryLabels, formatCurrency, paymentMethodLabels } from '../../../lib/mockFinance';
+import { categoryLabels, formatCurrency, formatIsoDate, paymentMethodLabels } from '../../../lib/mockFinance';
 import { EmptyState, Field, LoadingCard, SectionCard, SelectField, Tag, UnavailableCard } from '../../shared/ui';
 
 type TransactionsPageProps = {
@@ -9,10 +9,14 @@ type TransactionsPageProps = {
   categoryFilter: 'TODAS' | Category;
   hasError: boolean;
   isLoading: boolean;
+  isDeleting: boolean;
   onSearchChange: (value: string) => void;
   onTypeFilterChange: (value: 'TODOS' | 'RECEITA' | 'DESPESA') => void;
   onCategoryFilterChange: (value: 'TODAS' | Category) => void;
   onOpenModal: () => void;
+  onOpenReceipts: () => void;
+  onUploadReceipt: (transaction: TransactionResponse) => void;
+  onDeleteTransaction: (transaction: TransactionResponse) => void;
 };
 
 export default function TransactionsPage({
@@ -22,10 +26,14 @@ export default function TransactionsPage({
   categoryFilter,
   hasError,
   isLoading,
+  isDeleting,
   onSearchChange,
   onTypeFilterChange,
   onCategoryFilterChange,
   onOpenModal,
+  onOpenReceipts,
+  onUploadReceipt,
+  onDeleteTransaction,
 }: TransactionsPageProps) {
   const getPaymentLabel = (
     paymentMethod: TransactionResponse['paymentMethod'],
@@ -86,13 +94,22 @@ export default function TransactionsPage({
           <p className="text-sm leading-7 text-slate-600">
             O fluxo principal continua no modal, para o usuário registrar algo sem sair da tela de histórico.
           </p>
-          <button
-            className="mt-5 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-            onClick={onOpenModal}
-            type="button"
-          >
-            Abrir modal de lançamento
-          </button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              onClick={onOpenModal}
+              type="button"
+            >
+              Abrir modal de lançamento
+            </button>
+            <button
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+              onClick={onOpenReceipts}
+              type="button"
+            >
+              Ver notas fiscais
+            </button>
+          </div>
         </SectionCard>
       </section>
 
@@ -108,12 +125,14 @@ export default function TransactionsPage({
         </div>
 
         <div className="mt-6 overflow-hidden rounded-[24px] border border-slate-100">
-          <div className="hidden grid-cols-[1.1fr_0.7fr_0.7fr_0.7fr_0.8fr_0.7fr] gap-3 bg-slate-50 px-5 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 md:grid">
+          <div className="hidden grid-cols-[1fr_0.55fr_0.65fr_0.8fr_0.65fr_0.85fr_0.65fr_0.7fr] gap-3 bg-slate-50 px-5 py-4 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 xl:grid">
             <span>Descrição</span>
             <span>Tipo</span>
             <span>Categoria</span>
             <span>Pagamento</span>
             <span>Data</span>
+            <span>Nota fiscal</span>
+            <span>Ações</span>
             <span className="text-right">Valor</span>
           </div>
 
@@ -125,7 +144,10 @@ export default function TransactionsPage({
             )}
 
             {transactions.map((transaction) => (
-              <div key={transaction.id} className="grid gap-4 bg-white px-5 py-4 md:grid-cols-[1.1fr_0.7fr_0.7fr_0.7fr_0.8fr_0.7fr] md:items-center">
+              <div
+                key={transaction.id}
+                className="grid gap-4 bg-white px-5 py-4 xl:grid-cols-[1fr_0.55fr_0.65fr_0.8fr_0.65fr_0.85fr_0.65fr_0.7fr] xl:items-center"
+              >
                 <div>
                   <p className="font-semibold text-slate-900">{transaction.description}</p>
                 </div>
@@ -134,7 +156,33 @@ export default function TransactionsPage({
                 </Tag>
                 <span className="text-sm text-slate-600">{categoryLabels[transaction.category]}</span>
                 <span className="text-sm text-slate-600">{getPaymentLabel(transaction.paymentMethod, transaction.installments)}</span>
-                <span className="text-sm text-slate-600">{new Date(`${transaction.transactionDate}T12:00:00`).toLocaleDateString('pt-BR')}</span>
+                <span className="text-sm text-slate-600">{formatIsoDate(transaction.transactionDate)}</span>
+                <div className="flex flex-col items-start gap-2">
+                  <span className="text-xs text-slate-500">
+                    {transaction.receipt ? `Anexada em ${formatIsoDate(transaction.receipt.uploadedAt.slice(0, 10))}` : 'Sem anexo'}
+                  </span>
+                  <button
+                    className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
+                      transaction.receipt
+                        ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    }`}
+                    onClick={() => onUploadReceipt(transaction)}
+                    type="button"
+                  >
+                    {transaction.receipt ? 'Trocar nota' : 'Anexar nota'}
+                  </button>
+                </div>
+                <div className="flex items-start">
+                  <button
+                    className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeleting}
+                    onClick={() => onDeleteTransaction(transaction)}
+                    type="button"
+                  >
+                    {isDeleting ? 'Apagando...' : 'Apagar'}
+                  </button>
+                </div>
                 <span className={`text-right text-sm font-semibold ${transaction.type === 'RECEITA' ? 'text-emerald-600' : 'text-rose-600'}`}>
                   {transaction.type === 'RECEITA' ? '+' : '-'} {formatCurrency(transaction.amount)}
                 </span>

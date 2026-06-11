@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface TransactionRepository extends  JpaRepository<Transaction, Long> {
@@ -34,9 +35,21 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
             Transaction.TransactionCategory category
     );
 
+    List<Transaction> findAllByUserAndReceiptStorageNameIsNotNullAndTransactionDateBetweenOrderByTransactionDateDescReceiptUploadedAtDesc(
+            User user,
+            LocalDate startDate,
+            LocalDate endDate
+    );
+
     Optional<Transaction> findByIdAndUser(Long id, User user);
 
+    List<Transaction> findAllByTransactionGroupIdAndUserOrderByTransactionDateAscCreatedAtAsc(UUID transactionGroupId, User user);
+
+    void deleteAllByTransactionGroupIdAndUser(UUID transactionGroupId, User user);
+
     List<Transaction> findAllByWishlistItemOrderByTransactionDateAscCreatedAtAsc(WishlistItem wishlistItem);
+
+    Optional<Transaction> findTopByWishlistItemOrderByTransactionDateAscCreatedAtAsc(WishlistItem wishlistItem);
 
     void deleteAllByWishlistItem(WishlistItem wishlistItem);
 

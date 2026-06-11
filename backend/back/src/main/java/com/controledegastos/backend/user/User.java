@@ -34,6 +34,18 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean twoFactorEnabled = false;
+
+    @Column(length = 512)
+    private String twoFactorSecretEncrypted;
+
+    @Column(length = 512)
+    private String twoFactorPendingSecretEncrypted;
+
+    private LocalDateTime twoFactorEnabledAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

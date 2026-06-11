@@ -8,8 +8,10 @@ type PurchaseModalProps = {
   isOpen: boolean;
   item: WishlistItemResponse | null;
   draft: PurchaseDraft;
+  receiptFile: File | null;
   history: WishlistHistoryResponse[];
   onDraftChange: Dispatch<SetStateAction<PurchaseDraft>>;
+  onReceiptFileChange: (file: File | null) => void;
   onSubmit: () => void;
   onClose: () => void;
 };
@@ -18,8 +20,10 @@ export default function PurchaseModal({
   isOpen,
   item,
   draft,
+  receiptFile,
   history,
   onDraftChange,
+  onReceiptFileChange,
   onSubmit,
   onClose,
 }: PurchaseModalProps) {
@@ -28,13 +32,15 @@ export default function PurchaseModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/45 p-4">
-      <div className="grid w-full max-w-4xl gap-5 rounded-[32px] bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)] xl:grid-cols-[1.1fr_0.9fr]">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/45 p-4">
+      <div className="mx-auto flex min-h-full items-center justify-center">
+        <div className="grid max-h-[calc(100vh-2rem)] w-full max-w-4xl gap-5 overflow-y-auto rounded-[32px] bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)] xl:grid-cols-[1.1fr_0.9fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Compra da lista</p>
           <h3 className="mt-2 text-2xl font-semibold text-slate-900">{item.description}</h3>
           <p className="mt-2 text-sm leading-7 text-slate-600">
             Ao confirmar, o item sai dos desejados, vai para comprados e gera lançamentos financeiros automáticos.
+            Se houver comprovante, ele já pode nascer junto da compra.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -70,7 +76,12 @@ export default function PurchaseModal({
                 min={1}
                 type="number"
                 value={draft.installments}
-                onChange={(event) => onDraftChange((currentValue) => ({ ...currentValue, installments: Number(event.target.value) }))}
+                onChange={(event) =>
+                  onDraftChange((currentValue) => ({
+                    ...currentValue,
+                    installments: Number(event.target.value),
+                  }))
+                }
               />
             </Field>
             <label className="flex items-center gap-3 rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -88,6 +99,22 @@ export default function PurchaseModal({
               Primeira parcela cai no mês seguinte
             </label>
           </div>
+
+          <label className="mt-6 flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-emerald-200 bg-emerald-50/50 p-5 text-center">
+            <span className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Nota fiscal da compra</span>
+            <span className="mt-3 text-sm leading-7 text-slate-600">
+              Se a compra for parcelada, anexar uma vez aqui já cobre todas as parcelas geradas dessa compra.
+            </span>
+            <span className="mt-5 rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700">
+              {receiptFile ? receiptFile.name : 'Escolher arquivo'}
+            </span>
+            <input
+              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              className="hidden"
+              type="file"
+              onChange={(event) => onReceiptFileChange(event.target.files?.[0] ?? null)}
+            />
+          </label>
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
@@ -129,6 +156,7 @@ export default function PurchaseModal({
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }

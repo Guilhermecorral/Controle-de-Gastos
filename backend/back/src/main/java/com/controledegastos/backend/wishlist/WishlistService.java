@@ -26,6 +26,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Orquestra as regras de negocio da wishlist e sua integracao com transacoes.
@@ -61,6 +62,15 @@ public class WishlistService {
     private WishlistList getOwnedWishlistList(Long id, User user) {
         return wishlistListRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new RuntimeException("Wishlist list not found"));
+    }
+
+    /**
+     * Localiza a primeira transacao gerada por uma compra da wishlist para integrar anexos fiscais.
+     */
+    private Long resolveLinkedTransactionId(WishlistItem item) {
+        return transactionRepository.findTopByWishlistItemOrderByTransactionDateAscCreatedAtAsc(item)
+                .map(Transaction::getId)
+                .orElse(null);
     }
 
     /**
@@ -177,6 +187,7 @@ public class WishlistService {
                 item.getInstallments(),
                 item.getFirstInstallmentNextMonth(),
                 item.getArchivedAfterPurchase(),
+                resolveLinkedTransactionId(item),
                 item.getWishlistList().getId(),
                 item.getWishlistList().getName(),
                 item.getCreatedAt(),
@@ -269,6 +280,9 @@ public class WishlistService {
     private List<Transaction> buildPurchaseTransactions(WishlistItem item) {
         List<Transaction> generatedTransactions = new ArrayList<>();
         int installments = item.getInstallments() == null ? 1 : item.getInstallments();
+        UUID transactionGroupId = item.getPaymentMethod() == WishlistItem.PurchasePaymentMethod.CARTAO_CREDITO_PARCELADO
+                ? UUID.randomUUID()
+                : null;
 
         LocalDate baseDate = Boolean.TRUE.equals(item.getFirstInstallmentNextMonth())
                 ? item.getPurchaseDate().plusMonths(1)
@@ -283,6 +297,7 @@ public class WishlistService {
                     .category(mapCategory(item.getCategory()))
                     .amount(item.getFinalPrice())
                     .paymentMethod(mapPaymentMethod(item.getPaymentMethod()))
+                    .transactionGroupId(transactionGroupId)
                     .transactionDate(baseDate)
                     .build());
             return generatedTransactions;
@@ -308,6 +323,7 @@ public class WishlistService {
                     .category(mapCategory(item.getCategory()))
                     .amount(installmentAmount)
                     .paymentMethod(Transaction.PaymentMethod.CARTAO_CREDITO_PARCELADO)
+                    .transactionGroupId(transactionGroupId)
                     .transactionDate(installmentDate)
                     .build());
         }

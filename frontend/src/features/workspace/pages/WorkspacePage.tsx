@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Category } from '../../../types';
+import { Category, TransactionResponse, WishlistItemResponse } from '../../../types';
+import api from '../../../lib/api';
 import { formatMonthLabel, getSuggestedCategory } from '../../../lib/mockFinance';
 import {
   useCreateTransactionMutation,
   useCreateWishlistItemMutation,
   useDashboardQuery,
+  useDeleteTransactionMutation,
   useLogoutMutation,
   useMonthlyAnalysisQuery,
   usePurchaseWishlistItemMutation,
+  useTransactionReceiptsQuery,
   useTransactionsQuery,
   useUndoWishlistPurchaseMutation,
+  useUploadTransactionReceiptMutation,
   useWishlistHistoryQuery,
   useWishlistItemsQuery,
   useWishlistListsQuery,
@@ -21,8 +25,10 @@ import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { useAuthStore } from '../../../store/auth';
 import DashboardPage from '../../dashboard/pages/DashboardPage';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
+import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
 import SettingsPage from '../../settings/pages/SettingsPage';
 import { ToastStack } from '../../shared/ui';
+import ReceiptUploadModal from '../../transactions/components/ReceiptUploadModal';
 import TransactionsPage from '../../transactions/pages/TransactionsPage';
 import WishlistPage from '../../wishlist/pages/WishlistPage';
 import { currentMonth, currentYear, monthOptions, navItems, onboardingKey, viewMeta, yearOptions } from '../constants';
@@ -52,13 +58,21 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   const [dashboardMonth, setDashboardMonth] = useState(currentMonth);
   const [analysisYear, setAnalysisYear] = useState(currentYear);
   const [analysisMonth, setAnalysisMonth] = useState(currentMonth);
+  const [receiptsYear, setReceiptsYear] = useState(currentYear);
+  const [receiptsMonth, setReceiptsMonth] = useState(currentMonth);
   const [transactionSearch, setTransactionSearch] = useState('');
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<'TODOS' | 'RECEITA' | 'DESPESA'>('TODOS');
   const [transactionCategoryFilter, setTransactionCategoryFilter] = useState<'TODAS' | Category>('TODAS');
   const [wishlistStatusFilter, setWishlistStatusFilter] = useState<'TODOS' | 'PENDENTE' | 'COMPRADO'>('TODOS');
   const [wishlistListFilter, setWishlistListFilter] = useState<'TODAS' | string>('TODAS');
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionReceiptFile, setTransactionReceiptFile] = useState<File | null>(null);
+  const [receiptModalTransaction, setReceiptModalTransaction] = useState<TransactionResponse | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptsSelectedTransactionId, setReceiptsSelectedTransactionId] = useState('');
+  const [receiptsSelectedFile, setReceiptsSelectedFile] = useState<File | null>(null);
   const [purchaseModalItemId, setPurchaseModalItemId] = useState<number | null>(null);
+  const [purchaseReceiptFile, setPurchaseReceiptFile] = useState<File | null>(null);
   const [historyItemId, setHistoryItemId] = useState<number | null>(null);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [transactionCategoryTouched, setTransactionCategoryTouched] = useState(false);
@@ -90,6 +104,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
     enabled: true,
   });
   const monthlyAnalysisQuery = useMonthlyAnalysisQuery(analysisYear, analysisMonth);
+  const receiptsQuery = useTransactionReceiptsQuery(receiptsYear, receiptsMonth);
   const wishlistListsQuery = useWishlistListsQuery();
   const wishlistItemsQuery = useWishlistItemsQuery({
     status: wishlistStatusFilter,
@@ -100,6 +115,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   const wishlistHistoryQuery = useWishlistHistoryQuery(historyItemId);
   const purchaseHistoryQuery = useWishlistHistoryQuery(purchaseModalItemId);
   const createTransactionMutation = useCreateTransactionMutation();
+  const deleteTransactionMutation = useDeleteTransactionMutation();
+  const uploadTransactionReceiptMutation = useUploadTransactionReceiptMutation();
   const createWishlistItemMutation = useCreateWishlistItemMutation();
   const purchaseWishlistItemMutation = usePurchaseWishlistItemMutation();
   const undoWishlistPurchaseMutation = useUndoWishlistPurchaseMutation();
@@ -162,6 +179,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         if (!transactionSearch.trim()) {
           return true;
         }
+
         const normalizedSearch = transactionSearch.toLowerCase();
         return (
           transaction.description.toLowerCase().includes(normalizedSearch) ||
@@ -223,6 +241,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
       return;
     }
 
+    const selectedReceipt = transactionReceiptFile;
+
     createTransactionMutation.mutate(
       {
         type: transactionDraft.type,
@@ -234,14 +254,39 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         transactionDate: transactionDraft.transactionDate,
       },
       {
-        onSuccess: () => {
-          setTransactionDraft(buildTransactionDraft(transactionDraft.type));
-          setTransactionCategoryTouched(false);
-          setTransactionModalOpen(false);
-          pushToast(
-            transactionDraft.type === 'RECEITA'
-              ? 'Receita adicionada ao histórico.'
-              : 'Despesa adicionada ao histórico.',
+        onSuccess: (createdTransaction) => {
+          const finishSuccess = () => {
+            setTransactionDraft(buildTransactionDraft(transactionDraft.type));
+            setTransactionReceiptFile(null);
+            setTransactionCategoryTouched(false);
+            setTransactionModalOpen(false);
+            pushToast(
+              transactionDraft.type === 'RECEITA'
+                ? 'Receita adicionada ao histórico.'
+                : 'Despesa adicionada ao histórico.',
+            );
+          };
+
+          if (!selectedReceipt) {
+            finishSuccess();
+            return;
+          }
+
+          uploadTransactionReceiptMutation.mutate(
+            {
+              id: createdTransaction.id,
+              file: selectedReceipt,
+            },
+            {
+              onSuccess: () => {
+                finishSuccess();
+                pushToast('Nota fiscal anexada junto com o lançamento.');
+              },
+              onError: (error) => {
+                finishSuccess();
+                pushToast(getApiErrorMessage(error, 'A transação foi criada, mas não conseguimos anexar a nota fiscal.'), 'info');
+              },
+            },
           );
         },
         onError: () => {
@@ -249,6 +294,105 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         },
       },
     );
+  };
+
+  const handleUploadReceipt = () => {
+    if (!receiptModalTransaction || !receiptFile) {
+      return;
+    }
+
+    uploadTransactionReceiptMutation.mutate(
+      {
+        id: receiptModalTransaction.id,
+        file: receiptFile,
+      },
+      {
+        onSuccess: () => {
+          setReceiptFile(null);
+          setReceiptModalTransaction(null);
+          pushToast('Nota fiscal salva e vinculada à transação.');
+        },
+        onError: (error) => {
+          pushToast(getApiErrorMessage(error, 'Não foi possível salvar a nota fiscal agora.'), 'info');
+        },
+      },
+    );
+  };
+
+  const handleUploadReceiptFromReceiptsView = () => {
+    if (!receiptsSelectedTransactionId || !receiptsSelectedFile) {
+      return;
+    }
+
+    uploadTransactionReceiptMutation.mutate(
+      {
+        id: Number(receiptsSelectedTransactionId),
+        file: receiptsSelectedFile,
+      },
+      {
+        onSuccess: () => {
+          setReceiptsSelectedTransactionId('');
+          setReceiptsSelectedFile(null);
+          pushToast('Nota fiscal salva a partir da aba fiscal.');
+        },
+        onError: (error) => {
+          pushToast(getApiErrorMessage(error, 'Não foi possível salvar a nota fiscal agora.'), 'info');
+        },
+      },
+    );
+  };
+
+  const handleDownloadReceipt = async (transactionId: number, filename: string) => {
+    try {
+      const response = await api.get(`/transactions/${transactionId}/receipt/download`, {
+        responseType: 'blob',
+      });
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = blobUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      pushToast(getApiErrorMessage(error, 'Não foi possível baixar a nota fiscal agora.'), 'info');
+    }
+  };
+
+  const handleDeleteTransaction = (transaction: TransactionResponse) => {
+    const isInstallmentGroup =
+      transaction.paymentMethod === 'CARTAO_CREDITO_PARCELADO' &&
+      (transaction.installments ?? 1) > 1;
+
+    const confirmed = window.confirm(
+      isInstallmentGroup
+        ? `Essa compra parcelada possui ${transaction.installments} parcelas. Apagar esta transação removerá o grupo inteiro. Deseja continuar?`
+        : `Deseja apagar a transação "${transaction.description}"?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    deleteTransactionMutation.mutate(transaction.id, {
+      onSuccess: () => {
+        if (receiptModalTransaction?.id === transaction.id) {
+          setReceiptModalTransaction(null);
+          setReceiptFile(null);
+        }
+
+        pushToast(
+          isInstallmentGroup
+            ? 'Grupo parcelado removido do histórico.'
+            : 'Transação removida do histórico.',
+          'info',
+        );
+      },
+      onError: (error) => {
+        pushToast(getApiErrorMessage(error, 'Não foi possível apagar a transação agora.'), 'info');
+      },
+    });
   };
 
   const handleCreateWishlistItem = () => {
@@ -296,6 +440,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
       return;
     }
 
+    const selectedReceipt = purchaseReceiptFile;
+
     purchaseWishlistItemMutation.mutate(
       {
         id: purchaseModalItem.id,
@@ -307,16 +453,41 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         },
       },
       {
-        onSuccess: () => {
-          setHistoryItemId(purchaseModalItem.id);
-          setPurchaseDraft({
-            purchaseDate: new Date().toISOString().slice(0, 10),
-            paymentMethod: 'PIX',
-            installments: 1,
-            firstInstallmentNextMonth: false,
-          });
-          setPurchaseModalItemId(null);
-          pushToast('Compra concluída e lançamentos gerados.');
+        onSuccess: (purchasedItem) => {
+          const finishSuccess = () => {
+            setHistoryItemId(purchaseModalItem.id);
+            setPurchaseDraft({
+              purchaseDate: new Date().toISOString().slice(0, 10),
+              paymentMethod: 'PIX',
+              installments: 1,
+              firstInstallmentNextMonth: false,
+            });
+            setPurchaseReceiptFile(null);
+            setPurchaseModalItemId(null);
+            pushToast('Compra concluída e lançamentos gerados.');
+          };
+
+          if (!selectedReceipt || !purchasedItem.linkedTransactionId) {
+            finishSuccess();
+            return;
+          }
+
+          uploadTransactionReceiptMutation.mutate(
+            {
+              id: purchasedItem.linkedTransactionId,
+              file: selectedReceipt,
+            },
+            {
+              onSuccess: () => {
+                finishSuccess();
+                pushToast('Nota fiscal anexada junto com a compra.');
+              },
+              onError: (error) => {
+                finishSuccess();
+                pushToast(getApiErrorMessage(error, 'A compra foi concluída, mas não conseguimos anexar a nota fiscal.'), 'info');
+              },
+            },
+          );
         },
         onError: (error) => {
           pushToast(getApiErrorMessage(error, 'Não foi possível concluir a compra agora.'), 'info');
@@ -335,6 +506,22 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         pushToast(getApiErrorMessage(error, 'Não foi possível desfazer a compra agora.'), 'info');
       },
     });
+  };
+
+  const handleOpenReceiptForWishlistItem = (item: WishlistItemResponse) => {
+    if (!item.linkedTransactionId) {
+      pushToast('Esse item ainda não possui transação vinculada para receber nota fiscal.', 'info');
+      return;
+    }
+
+    const linkedTransaction = allTransactions.find((transaction) => transaction.id === item.linkedTransactionId);
+    if (!linkedTransaction) {
+      pushToast('A transação da compra ainda não apareceu na listagem atual. Tente novamente em instantes.', 'info');
+      return;
+    }
+
+    setReceiptFile(null);
+    setReceiptModalTransaction(linkedTransaction);
   };
 
   const currentSection = viewMeta[currentView];
@@ -368,6 +555,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
               onClick={() => {
                 setTransactionDraft(buildTransactionDraft('RECEITA'));
+                setTransactionReceiptFile(null);
                 setTransactionCategoryTouched(false);
                 setTransactionModalOpen(true);
               }}
@@ -379,6 +567,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
               onClick={() => {
                 setTransactionDraft(buildTransactionDraft('DESPESA'));
+                setTransactionReceiptFile(null);
                 setTransactionCategoryTouched(false);
                 setTransactionModalOpen(true);
               }}
@@ -475,17 +664,19 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                   {currentView === 'painel' &&
                     'O painel resume o mês atual, mostra o acumulado até o período de referência e conecta o usuário às ações mais importantes.'}
                   {currentView === 'transacoes' &&
-                    'A área de transações já nasce preparada para modal, sugestão automática de categoria e filtros que façam sentido no uso real.'}
+                    'A área de transações já nasce preparada para modal, sugestão automática de categoria, parcelamento e anexos fiscais por lançamento.'}
                   {currentView === 'analise' &&
                     'A análise mensal foi desenhada para ler o mês atual, comparar com períodos anteriores e deixar a tendência explícita.'}
                   {currentView === 'wishlist' &&
                     'A lista de desejos funciona como um bloco forte do produto: desejo, prioridade, desconto, compra e impacto financeiro visualizados juntos.'}
+                  {currentView === 'notasFiscais' &&
+                    'As notas fiscais ficam organizadas por ano, mês e momento do envio para facilitar consulta futura e rotina fiscal.'}
                   {currentView === 'configuracoes' &&
                     'A área de configurações reúne seus dados da conta, privacidade e preferências de uso.'}
                 </p>
               </div>
 
-              <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300 sm:grid-cols-2">
+              <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300 sm:grid-cols-3">
                 <div>
                   <p className="font-semibold text-white">Período do painel</p>
                   <p className="mt-1">{formatMonthLabel(dashboardYear, dashboardMonth)}</p>
@@ -493,6 +684,10 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                 <div>
                   <p className="font-semibold text-white">Período da análise</p>
                   <p className="mt-1">{formatMonthLabel(analysisYear, analysisMonth)}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-white">Período fiscal</p>
+                  <p className="mt-1">{formatMonthLabel(receiptsYear, receiptsMonth)}</p>
                 </div>
               </div>
             </div>
@@ -525,10 +720,17 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               categoryFilter={transactionCategoryFilter}
               hasError={transactionsQuery.isError}
               isLoading={transactionsQuery.isLoading}
+              isDeleting={deleteTransactionMutation.isPending}
               onSearchChange={setTransactionSearch}
               onTypeFilterChange={setTransactionTypeFilter}
               onCategoryFilterChange={setTransactionCategoryFilter}
               onOpenModal={() => setTransactionModalOpen(true)}
+              onOpenReceipts={() => setCurrentView('notasFiscais')}
+              onUploadReceipt={(transaction) => {
+                setReceiptFile(null);
+                setReceiptModalTransaction(transaction);
+              }}
+              onDeleteTransaction={handleDeleteTransaction}
             />
           )}
 
@@ -562,11 +764,37 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               onListFilterChange={setWishlistListFilter}
               onDraftChange={setWishlistDraft}
               onCreate={handleCreateWishlistItem}
-              onMarkPurchased={setPurchaseModalItemId}
+              onMarkPurchased={(itemId) => {
+                setPurchaseReceiptFile(null);
+                setPurchaseModalItemId(itemId);
+              }}
               onUndoPurchase={handleUndoPurchase}
               onOpenHistory={setHistoryItemId}
+              onOpenReceiptForItem={handleOpenReceiptForWishlistItem}
               history={selectedWishlistHistory}
               setCategoryTouched={setWishlistCategoryTouched}
+            />
+          )}
+
+          {currentView === 'notasFiscais' && (
+            <ReceiptsPage
+              receipts={receiptsQuery.data ?? []}
+              availableTransactions={allTransactions}
+              selectedTransactionId={receiptsSelectedTransactionId}
+              selectedFile={receiptsSelectedFile}
+              year={receiptsYear}
+              month={receiptsMonth}
+              yearOptions={yearOptions}
+              monthOptions={monthOptions}
+              hasError={receiptsQuery.isError}
+              isLoading={receiptsQuery.isLoading}
+              isUploading={uploadTransactionReceiptMutation.isPending}
+              onYearChange={setReceiptsYear}
+              onMonthChange={setReceiptsMonth}
+              onSelectedTransactionChange={setReceiptsSelectedTransactionId}
+              onSelectedFileChange={setReceiptsSelectedFile}
+              onUploadReceipt={handleUploadReceiptFromReceiptsView}
+              onDownloadReceipt={handleDownloadReceipt}
             />
           )}
 
@@ -577,22 +805,44 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
       <TransactionModal
         isOpen={transactionModalOpen}
         draft={transactionDraft}
+        receiptFile={transactionReceiptFile}
         suggestion={transactionSuggestion}
         onDraftChange={setTransactionDraft}
+        onReceiptFileChange={setTransactionReceiptFile}
         onDescriptionChange={handleTransactionDescriptionChange}
         onCategoryTouched={setTransactionCategoryTouched}
         onSubmit={handleCreateTransaction}
-        onClose={() => setTransactionModalOpen(false)}
+        onClose={() => {
+          setTransactionReceiptFile(null);
+          setTransactionModalOpen(false);
+        }}
+      />
+
+      <ReceiptUploadModal
+        transaction={receiptModalTransaction}
+        file={receiptFile}
+        isSubmitting={uploadTransactionReceiptMutation.isPending}
+        onFileChange={setReceiptFile}
+        onSubmit={handleUploadReceipt}
+        onClose={() => {
+          setReceiptFile(null);
+          setReceiptModalTransaction(null);
+        }}
       />
 
       <PurchaseModal
         isOpen={!!purchaseModalItem}
         item={purchaseModalItem}
         draft={purchaseDraft}
+        receiptFile={purchaseReceiptFile}
         history={purchaseModalHistory}
         onDraftChange={setPurchaseDraft}
+        onReceiptFileChange={setPurchaseReceiptFile}
         onSubmit={handlePurchaseWishlistItem}
-        onClose={() => setPurchaseModalItemId(null)}
+        onClose={() => {
+          setPurchaseReceiptFile(null);
+          setPurchaseModalItemId(null);
+        }}
       />
 
       <ToastStack toasts={toasts} />

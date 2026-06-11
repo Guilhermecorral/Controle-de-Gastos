@@ -63,6 +63,6 @@ public class UserProfileService {
     }
 
     private AuthResponseDTO buildAuthResponse(User user) {
-        return new AuthResponseDTO(user.getName(), user.getEmail(), user.getRole().name());
+        return new AuthResponseDTO(user.getName(), user.getEmail(), user.getRole().name(), user.isTwoFactorEnabled());
     }
 }

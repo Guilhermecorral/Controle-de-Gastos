@@ -35,12 +35,19 @@ export interface AuthResponse {
   name: string;
   email: string;
   role: Role;
+  twoFactorEnabled: boolean;
 }
 
 export interface LoginRequest {
   email: string;
   password: string;
   captchaToken?: string;
+  twoFactorCode?: string;
+}
+
+export interface TwoFactorChallengeResponse {
+  requiresTwoFactor: boolean;
+  message: string;
 }
 
 export interface RegisterRequest {
@@ -66,6 +73,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: Role;
+  twoFactorEnabled: boolean;
 }
 
 export interface SimpleMessageResponse {
@@ -85,6 +93,28 @@ export interface DeleteAccountRequest {
   password: string;
 }
 
+export interface TwoFactorStatusResponse {
+  enabled: boolean;
+  pendingSetup: boolean;
+  issuer: string;
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  issuer: string;
+  accountName: string;
+  otpAuthUri: string;
+}
+
+export interface TwoFactorVerifyRequest {
+  code: string;
+}
+
+export interface DisableTwoFactorRequest {
+  password: string;
+  code: string;
+}
+
 export interface TransactionRequest {
   type: TransactionType;
   description: string;
@@ -93,6 +123,13 @@ export interface TransactionRequest {
   paymentMethod: PaymentMethod;
   installments: number;
   transactionDate: string;
+}
+
+export interface TransactionReceiptSummary {
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
 }
 
 export interface TransactionResponse {
@@ -105,6 +142,23 @@ export interface TransactionResponse {
   installments: number | null;
   transactionDate: string;
   createdAt: string;
+  receipt: TransactionReceiptSummary | null;
+}
+
+export interface TransactionReceiptResponse {
+  transactionId: number;
+  type: TransactionType;
+  description: string;
+  category: Category;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  installments: number | null;
+  transactionDate: string;
+  originalFilename: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  coveredTransactions: number;
 }
 
 export interface DashboardCategorySummary {
@@ -235,6 +289,7 @@ export interface WishlistItemResponse {
   installments: number | null;
   firstInstallmentNextMonth: boolean | null;
   archivedAfterPurchase: boolean | null;
+  linkedTransactionId: number | null;
   listId: number;
   listName: string;
   createdAt: string;

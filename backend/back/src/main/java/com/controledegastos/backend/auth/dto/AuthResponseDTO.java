@@ -6,6 +6,7 @@ package com.controledegastos.backend.auth.dto;
 public record AuthResponseDTO(
         String name,
         String email,
-        String role
+        String role,
+        boolean twoFactorEnabled
 ) {
 }

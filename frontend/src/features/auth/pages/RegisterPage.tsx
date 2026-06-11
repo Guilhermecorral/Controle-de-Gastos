@@ -26,9 +26,9 @@ export default function RegisterPage() {
   const loginMutation = useLoginMutation();
   const logoutMutation = useLogoutMutation();
 
-  function finishAuthentication(nameValue: string, emailValue: string, roleValue: string) {
+  function finishAuthentication(nameValue: string, emailValue: string, roleValue: string, twoFactorEnabledValue: boolean) {
     queryClient.clear();
-    login({ name: nameValue, email: emailValue, role: roleValue });
+    login({ name: nameValue, email: emailValue, role: roleValue, twoFactorEnabled: twoFactorEnabledValue });
     navigate('/app', { replace: true });
   }
 
@@ -38,10 +38,17 @@ export default function RegisterPage() {
         email,
         password,
         captchaToken: captchaToken || undefined,
-      },
+        },
       {
         onSuccess: (response) => {
-          finishAuthentication(response.name, response.email, response.role);
+          if ('requiresTwoFactor' in response) {
+            submitLockRef.current = false;
+            setErrorMessage('Sua conta exige autenticação em dois fatores. Entre pela tela de login para concluir com o código do autenticador.');
+            navigate('/login', { replace: true });
+            return;
+          }
+
+          finishAuthentication(response.name, response.email, response.role, response.twoFactorEnabled);
         },
         onError: () => {
           submitLockRef.current = false;
@@ -154,7 +161,7 @@ export default function RegisterPage() {
             { name, email, password, captchaToken: captchaToken || undefined },
             {
               onSuccess: (response) => {
-                finishAuthentication(response.name, response.email, response.role);
+                finishAuthentication(response.name, response.email, response.role, response.twoFactorEnabled);
               },
               onError: (error) => {
                 handleRegisterFailure(error);

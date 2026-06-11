@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { MonthlyAnalysisResponse, TransactionResponse } from '../../types';
-import { categoryLabels, formatCurrency } from '../../lib/mockFinance';
+import { categoryLabels, formatCurrency, formatIsoDate } from '../../lib/mockFinance';
 import { ToastMessage } from '../workspace/types';
 
 export function SectionCard({ children, title }: { children: ReactNode; title?: string }) {
@@ -209,7 +209,7 @@ export function ExpenseHighlight({
       <p className="mt-2 text-sm text-slate-500">{categoryLabels[transaction.category]}</p>
       <p className="mt-4 text-2xl font-semibold text-rose-600">{formatCurrency(transaction.amount)}</p>
       <p className="mt-3 text-sm text-slate-500">
-        {new Date(`${transaction.transactionDate}T12:00:00`).toLocaleDateString('pt-BR')}
+        {formatIsoDate(transaction.transactionDate)}
       </p>
     </div>
   );

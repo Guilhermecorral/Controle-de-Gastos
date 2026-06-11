@@ -7,8 +7,10 @@ import { TransactionDraft } from '../types';
 type TransactionModalProps = {
   isOpen: boolean;
   draft: TransactionDraft;
+  receiptFile: File | null;
   suggestion: Category | null;
   onDraftChange: Dispatch<SetStateAction<TransactionDraft>>;
+  onReceiptFileChange: (file: File | null) => void;
   onDescriptionChange: (value: string) => void;
   onCategoryTouched: (value: boolean) => void;
   onSubmit: () => void;
@@ -18,8 +20,10 @@ type TransactionModalProps = {
 export default function TransactionModal({
   isOpen,
   draft,
+  receiptFile,
   suggestion,
   onDraftChange,
+  onReceiptFileChange,
   onDescriptionChange,
   onCategoryTouched,
   onSubmit,
@@ -32,8 +36,9 @@ export default function TransactionModal({
   const isInstallmentPayment = draft.paymentMethod === 'CARTAO_CREDITO_PARCELADO';
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/45 p-4">
-      <div className="w-full max-w-2xl rounded-[32px] bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/45 p-4">
+      <div className="mx-auto flex min-h-full items-center justify-center">
+        <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[32px] bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Lançamento rápido</p>
@@ -41,7 +46,8 @@ export default function TransactionModal({
               {draft.type === 'RECEITA' ? 'Nova receita' : 'Nova despesa'}
             </h3>
             <p className="mt-2 text-sm leading-7 text-slate-600">
-              Modal pensado para o usuário registrar algo sem sair do contexto, com sugestão automática de categoria e chance de editar tudo.
+              Modal pensado para o usuário registrar algo sem sair do contexto, com sugestão automática de categoria,
+              opção de parcelamento e anexo fiscal já no fluxo principal.
             </p>
           </div>
           <button
@@ -136,6 +142,22 @@ export default function TransactionModal({
           />
         </Field>
 
+        <label className="mt-5 flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed border-emerald-200 bg-emerald-50/50 p-5 text-center">
+          <span className="text-sm font-semibold uppercase tracking-[0.14em] text-emerald-700">Nota fiscal opcional</span>
+          <span className="mt-3 text-sm leading-7 text-slate-600">
+            Se existir comprovante agora, você já pode anexar aqui. No parcelado, um upload cobre o grupo inteiro.
+          </span>
+          <span className="mt-5 rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-700">
+            {receiptFile ? receiptFile.name : 'Escolher arquivo'}
+          </span>
+          <input
+            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+            className="hidden"
+            type="file"
+            onChange={(event) => onReceiptFileChange(event.target.files?.[0] ?? null)}
+          />
+        </label>
+
         <div className="mt-5 flex flex-col gap-4 rounded-[24px] bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
           <div className="text-sm leading-7 text-slate-600">
             <p>
@@ -153,6 +175,7 @@ export default function TransactionModal({
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

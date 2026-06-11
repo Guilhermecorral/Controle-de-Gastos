@@ -20,3 +20,10 @@ jwt:
   secret: test-secret-key-apenas-para-testes-32-chars-minimo
   expiration: 900000
   refresh-expiration: 604800000
+
+app:
+  security:
+    field-encryption:
+      secret-key: test-field-encryption-secret-key
+    two-factor:
+      issuer: Farol Financeiro Teste

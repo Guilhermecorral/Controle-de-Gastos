@@ -1,5 +1,5 @@
 import { DashboardResponse, TransactionResponse } from '../../../types';
-import { categoryLabels, formatCurrency, formatMonthLabel } from '../../../lib/mockFinance';
+import { categoryLabels, formatCurrency, formatIsoDate, formatMonthLabel } from '../../../lib/mockFinance';
 import {
   EmptyState,
   FeatureChip,
@@ -203,7 +203,7 @@ export default function DashboardPage({
                   <div>
                     <p className="font-semibold text-slate-900">{transaction.description}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {categoryLabels[transaction.category]} · {new Date(`${transaction.transactionDate}T12:00:00`).toLocaleDateString('pt-BR')}
+                      {categoryLabels[transaction.category]} · {formatIsoDate(transaction.transactionDate)}
                     </p>
                   </div>
                   <span className={`text-sm font-semibold ${transaction.type === 'RECEITA' ? 'text-emerald-600' : 'text-rose-600'}`}>

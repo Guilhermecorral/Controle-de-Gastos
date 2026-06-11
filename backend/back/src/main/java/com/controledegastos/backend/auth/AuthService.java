@@ -11,15 +11,18 @@ import com.controledegastos.backend.security.JwtService;
 import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.user.Repository.UserRepository;
+import com.controledegastos.backend.user.TwoFactorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Orquestra o fluxo de cadastro, login e emissao de tokens.
  */
+@Transactional
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -30,6 +33,7 @@ public class AuthService {
     private final CaptchaVerificationService captchaVerificationService;
     private final PasswordResetService passwordResetService;
     private final AuthenticatedUserService authenticatedUserService;
+    private final TwoFactorService twoFactorService;
 
     /**
      * Cria um novo usuario, aplica hash na senha e devolve os tokens iniciais.
@@ -62,7 +66,7 @@ public class AuthService {
     /**
      * Valida as credenciais informadas e devolve novos tokens para o usuario.
      */
-    public AuthenticationSession login(LoginRequestDTO dto, String remoteIp) {
+    public LoginAttemptResult login(LoginRequestDTO dto, String remoteIp) {
         captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "login");
 
         User user = userRepository.findByEmail(dto.email())
@@ -72,7 +76,15 @@ public class AuthService {
             throw new BadCredentialsException("Credenciais invalidas");
         }
 
-        return buildAuthenticationSession(user);
+        if (user.isTwoFactorEnabled() && (dto.twoFactorCode() == null || dto.twoFactorCode().isBlank())) {
+            return LoginAttemptResult.challenge("Digite o código do seu aplicativo autenticador para concluir a entrada.");
+        }
+
+        if (user.isTwoFactorEnabled() && !twoFactorService.validateLoginCode(user, dto.twoFactorCode())) {
+            throw new BadCredentialsException("Credenciais invalidas");
+        }
+
+        return LoginAttemptResult.success(buildAuthenticationSession(user));
     }
 
     /**
@@ -134,7 +146,7 @@ public class AuthService {
     }
 
     private AuthResponseDTO buildAuthResponse(User user) {
-        return new AuthResponseDTO(user.getName(), user.getEmail(), user.getRole().name());
+        return new AuthResponseDTO(user.getName(), user.getEmail(), user.getRole().name(), user.isTwoFactorEnabled());
     }
 
     private void validatePasswordStrength(String password) {
@@ -144,6 +156,20 @@ public class AuthService {
 
         if (!hasUppercase || !hasDigit || !hasSpecial || password.length() < 8) {
             throw new IllegalArgumentException("A senha precisa ter pelo menos 8 caracteres, letra maiuscula, numero e caractere especial");
+        }
+    }
+
+    public record LoginAttemptResult(
+            AuthenticationSession session,
+            boolean requiresTwoFactor,
+            String message
+    ) {
+        static LoginAttemptResult success(AuthenticationSession session) {
+            return new LoginAttemptResult(session, false, null);
+        }
+
+        static LoginAttemptResult challenge(String message) {
+            return new LoginAttemptResult(null, true, message);
         }
     }
 }

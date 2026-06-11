@@ -1,13 +1,21 @@
 package com.controledegastos.backend.transactions;
 
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
+import com.controledegastos.backend.transactions.DTO.TransactionReceiptResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -57,5 +65,42 @@ public class TransactionController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         transactionService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Salva ou substitui a nota fiscal vinculada a uma transacao especifica.
+     */
+    @PostMapping(path = "/{id}/receipt", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<TransactionResponseDTO> uploadReceipt(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ResponseEntity.ok(transactionService.attachReceipt(id, file));
+    }
+
+    /**
+     * Lista as notas fiscais anexadas no periodo selecionado pelo usuario.
+     */
+    @GetMapping("/receipts")
+    public ResponseEntity<List<TransactionReceiptResponseDTO>> listReceiptsByPeriod(
+            @RequestParam int year,
+            @RequestParam int month
+    ) {
+        return ResponseEntity.ok(transactionService.listReceiptsByPeriod(year, month));
+    }
+
+    /**
+     * Devolve o arquivo salvo para download autenticado.
+     */
+    @GetMapping("/{id}/receipt/download")
+    public ResponseEntity<Resource> downloadReceipt(@PathVariable Long id) {
+        TransactionService.ReceiptDownloadPayload payload = transactionService.loadReceiptForDownload(id);
+        String encodedFilename = URLEncoder.encode(payload.originalFilename(), StandardCharsets.UTF_8)
+                .replace("+", "%20");
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFilename)
+                .contentType(MediaType.parseMediaType(payload.contentType()))
+                .body(payload.resource());
     }
 }

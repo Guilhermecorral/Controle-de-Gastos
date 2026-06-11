@@ -20,6 +20,7 @@ public record TransactionResponseDTO(
         PaymentMethod paymentMethod,
         Integer installments,
         LocalDate transactionDate,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        TransactionReceiptSummaryDTO receipt
 ) {
 }

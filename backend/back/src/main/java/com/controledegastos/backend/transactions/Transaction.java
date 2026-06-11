@@ -9,6 +9,7 @@ import com.controledegastos.backend.user.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
@@ -50,6 +51,24 @@ public class Transaction {
 
     @Column(name = "installments")
     private Integer installments;
+
+    @Column(name = "transaction_group_id")
+    private UUID transactionGroupId;
+
+    @Column(name = "receipt_original_filename", length = 255)
+    private String receiptOriginalFilename;
+
+    @Column(name = "receipt_storage_name", length = 255)
+    private String receiptStorageName;
+
+    @Column(name = "receipt_content_type", length = 120)
+    private String receiptContentType;
+
+    @Column(name = "receipt_size_bytes")
+    private Long receiptSizeBytes;
+
+    @Column(name = "receipt_uploaded_at")
+    private LocalDateTime receiptUploadedAt;
 
     @Column(nullable = false)
     private LocalDate transactionDate;

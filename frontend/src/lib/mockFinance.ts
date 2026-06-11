@@ -325,6 +325,15 @@ export function formatMonthLabel(year: number, month: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 }
 
+export function formatIsoDate(date: string): string {
+  const [year, month, day] = date.split('-');
+  if (!year || !month || !day) {
+    return date;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
 export function calculateFinalPrice(originalPrice: number, discountPercent: number): number {
   const safeDiscount = Math.max(0, Math.min(discountPercent, 100));
   const discounted = originalPrice * (1 - safeDiscount / 100);

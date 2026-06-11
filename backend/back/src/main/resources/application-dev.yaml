@@ -28,3 +28,10 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_ACCESS_EXPIRATION}
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+
+app:
+  security:
+    field-encryption:
+      secret-key: ${APP_FIELD_ENCRYPTION_SECRET_KEY:dev-field-encryption-secret-key}
+    two-factor:
+      issuer: ${APP_TWO_FACTOR_ISSUER:Farol Financeiro}

@@ -7,6 +7,7 @@ import com.controledegastos.backend.auth.dto.LoginRequestDTO;
 import com.controledegastos.backend.auth.dto.RegisterRequestDTO;
 import com.controledegastos.backend.auth.dto.ResetPasswordRequestDTO;
 import com.controledegastos.backend.auth.dto.SimpleMessageResponseDTO;
+import com.controledegastos.backend.auth.dto.TwoFactorChallengeResponseDTO;
 import com.controledegastos.backend.security.AuthCookieService;
 import com.controledegastos.backend.security.JwtService;
 import jakarta.validation.Valid;
@@ -56,12 +57,18 @@ public class AuthController {
      * Autentica um usuario existente e passa a sessao para cookies HttpOnly.
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(
+    public ResponseEntity<?> login(
             @Valid @RequestBody LoginRequestDTO dto,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        AuthenticationSession session = authService.login(dto, request.getRemoteAddr());
+        AuthService.LoginAttemptResult result = authService.login(dto, request.getRemoteAddr());
+        if (result.requiresTwoFactor()) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(new TwoFactorChallengeResponseDTO(true, result.message()));
+        }
+
+        AuthenticationSession session = result.session();
         writeCookies(response, session);
         return ResponseEntity.ok(session.user());
     }

@@ -30,6 +30,12 @@ spring:
           auth: ${SPRING_MAIL_SMTP_AUTH:true}
           starttls:
             enable: ${SPRING_MAIL_SMTP_STARTTLS:true}
+  flyway:
+    enabled: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 jwt:
   secret: ${JWT_SECRET}
@@ -37,7 +43,14 @@ jwt:
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
 
 app:
+  transaction-receipts:
+    storage-dir: ${APP_TRANSACTION_RECEIPTS_STORAGE_DIR:storage/transaction-receipts}
+    max-bytes: ${APP_TRANSACTION_RECEIPTS_MAX_BYTES:10485760}
   security:
+    field-encryption:
+      secret-key: ${APP_FIELD_ENCRYPTION_SECRET_KEY}
+    two-factor:
+      issuer: ${APP_TWO_FACTOR_ISSUER:Farol Financeiro}
     cookies:
       access-token-name: ${APP_ACCESS_COOKIE_NAME}
       refresh-token-name: ${APP_REFRESH_COOKIE_NAME}

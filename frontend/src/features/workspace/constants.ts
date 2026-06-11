@@ -7,6 +7,7 @@ export const navItems: Array<{ id: ViewId; label: string; description: string }>
   { id: 'transacoes', label: 'Transações', description: 'Entradas, saídas e histórico' },
   { id: 'analise', label: 'Análise mensal', description: 'Comparativos e tendência' },
   { id: 'wishlist', label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
+  { id: 'notasFiscais', label: 'Notas fiscais', description: 'Anexos por ano, mês e dia' },
   { id: 'configuracoes', label: 'Configurações', description: 'Conta, privacidade e preferências' },
 ];
 
@@ -26,5 +27,6 @@ export const viewMeta: Record<ViewId, { label: string; description: string }> = 
   transacoes: { label: 'Transações', description: 'Entradas, saídas e histórico' },
   analise: { label: 'Análise mensal', description: 'Comparativos e tendência' },
   wishlist: { label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
+  notasFiscais: { label: 'Notas fiscais', description: 'Anexos por ano, mês e dia' },
   configuracoes: { label: 'Configurações', description: 'Conta, privacidade e preferências' },
 };

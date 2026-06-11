@@ -24,6 +24,7 @@ public record WishlistResponseDTO(
         Integer installments,
         Boolean firstInstallmentNextMonth,
         Boolean archivedAfterPurchase,
+        Long linkedTransactionId,
         Long listId,
         String listName,
         LocalDateTime createdAt,

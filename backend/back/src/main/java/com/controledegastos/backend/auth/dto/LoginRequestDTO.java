@@ -14,6 +14,8 @@ public record LoginRequestDTO(
         @NotBlank(message = "Senha e obrigatoria")
         String password,
 
-        String captchaToken
+        String captchaToken,
+
+        String twoFactorCode
 ) {
 }

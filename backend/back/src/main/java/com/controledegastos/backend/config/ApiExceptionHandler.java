@@ -99,6 +99,22 @@ public class ApiExceptionHandler {
     }
 
     /**
+     * Devolve 404 quando o recurso pedido nao existe.
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleResourceNotFound(
+            ResourceNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage(),
+                request.getRequestURI(),
+                List.of()
+        );
+    }
+
+    /**
      * Trata indisponibilidades previsiveis de infraestrutura sem vazar stack trace ao cliente.
      */
     @ExceptionHandler(IllegalStateException.class)
