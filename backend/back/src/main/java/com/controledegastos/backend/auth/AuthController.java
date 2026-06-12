@@ -46,10 +46,10 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        log.info("Tentativa de cadastro para email={} a partir de {}", dto.email(), request.getRemoteAddr());
+        log.info("Tentativa de cadastro recebida a partir de {}", request.getRemoteAddr());
         AuthenticationSession session = authService.register(dto, request.getRemoteAddr());
         writeCookies(response, session);
-        log.info("Cadastro concluido com sucesso para email={}", dto.email());
+        log.info("Cadastro concluido com sucesso");
         return ResponseEntity.status(HttpStatus.CREATED).body(session.user());
     }
 

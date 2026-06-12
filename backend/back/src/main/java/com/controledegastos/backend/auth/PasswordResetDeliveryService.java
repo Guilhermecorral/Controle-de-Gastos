@@ -10,7 +10,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 /**
- * Entrega o link de redefinição por e-mail usando a infraestrutura configurada no ambiente.
+ * Entrega o link de redefinicao por e-mail usando a infraestrutura configurada no ambiente.
  */
 @Service
 @Slf4j
@@ -23,33 +23,33 @@ public class PasswordResetDeliveryService {
     private String mailFrom;
 
     /**
-     * Encaminha o link de redefinição por e-mail e falha explicitamente quando o SMTP não estiver pronto.
+     * Encaminha o link de redefinicao por e-mail e falha explicitamente quando o SMTP nao estiver pronto.
      */
     public void deliverResetLink(String email, String resetLink) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
 
         if (mailSender == null) {
-            throw new IllegalStateException("O envio de e-mail não está configurado no ambiente atual");
+            throw new IllegalStateException("O envio de e-mail nao esta configurado no ambiente atual");
         }
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailFrom);
         message.setTo(email);
-        message.setSubject("Redefinição de senha - Farol Financeiro");
+        message.setSubject("Redefinicao de senha - Farol Financeiro");
         message.setText("""
                 Recebemos um pedido para redefinir sua senha no Farol Financeiro.
 
-                Use o link abaixo para concluir a troca com segurança:
+                Use o link abaixo para concluir a troca com seguranca:
                 %s
 
-                Se você não pediu essa troca, ignore este e-mail.
+                Se voce nao pediu essa troca, ignore este e-mail.
                 """.formatted(resetLink));
 
         try {
             mailSender.send(message);
         } catch (MailException exception) {
-            log.error("Não foi possível enviar o e-mail de redefinição para {}", email, exception);
-            throw new IllegalStateException("Não foi possível enviar o e-mail de recuperação agora");
+            log.error("Nao foi possivel enviar o e-mail de redefinicao", exception);
+            throw new IllegalStateException("Nao foi possivel enviar o e-mail de recuperacao agora");
         }
     }
 }

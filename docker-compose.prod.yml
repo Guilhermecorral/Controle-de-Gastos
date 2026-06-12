@@ -1,0 +1,149 @@
+services:
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    container_name: farol-financeiro-proxy
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
+    env_file:
+      - ./.env.production
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/templates:/etc/nginx/templates:ro
+      - ./infra/nginx/includes:/etc/nginx/includes:ro
+      - ./infra/nginx/entrypoint.sh:/entrypoint.sh:ro
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      NGINX_TEMPLATE_NAME: ${NGINX_TEMPLATE_NAME:-bootstrap.conf.template}
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    mem_limit: 256m
+    cpus: 0.50
+    networks:
+      - public
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY}
+    container_name: farol-financeiro-frontend
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.50
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: ./backend/back
+      dockerfile: Dockerfile
+    container_name: farol-financeiro-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/back/.env
+      - ./.env.production
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/controle_gastos
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      APP_ALLOWED_ORIGINS: https://${APP_DOMAIN}
+      APP_COOKIES_SECURE: true
+      APP_COOKIES_SAME_SITE: Lax
+      APP_COOKIES_DOMAIN: ${APP_COOKIES_DOMAIN}
+      APP_PASSWORD_RESET_FRONTEND_URL: https://${APP_DOMAIN}/redefinir-senha
+      APP_AUTH_RATE_LIMIT_REDIS_ENABLED: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_logs:/app/logs
+      - backend_storage:/app/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 768m
+    cpus: 1.00
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: farol-financeiro-db
+    restart: unless-stopped
+    env_file:
+      - ./.env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: controle_gastos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d controle_gastos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: 0.75
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: farol-financeiro-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1000"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.50
+    networks:
+      - internal
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: farol-financeiro-certbot
+    profiles: ["ops"]
+    volumes:
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    entrypoint: /bin/sh
+    command: -c "trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew --webroot -w /var/www/certbot; done"
+    networks:
+      - public
+
+networks:
+  public:
+  internal:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_www:
+  letsencrypt:
+  backend_logs:
+  backend_storage:

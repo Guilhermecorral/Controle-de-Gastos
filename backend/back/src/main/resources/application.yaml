@@ -1,12 +1,6 @@
-server:
-  port: 8080
-  forward-headers-strategy: framework
-  shutdown: graceful
-
-spring.lifecycle:
-  timeout-per-shutdown-phase: 20s
-
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   jpa:
     hibernate:
       ddl-auto: update
@@ -94,3 +88,8 @@ management:
   endpoint:
     health:
       show-details: never
+
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  shutdown: graceful
