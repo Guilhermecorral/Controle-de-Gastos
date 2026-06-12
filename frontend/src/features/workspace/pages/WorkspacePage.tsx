@@ -31,9 +31,10 @@ import { ToastStack } from '../../shared/ui';
 import ReceiptUploadModal from '../../transactions/components/ReceiptUploadModal';
 import TransactionsPage from '../../transactions/pages/TransactionsPage';
 import WishlistPage from '../../wishlist/pages/WishlistPage';
-import { currentMonth, currentYear, monthOptions, navItems, onboardingKey, viewMeta, yearOptions } from '../constants';
+import { currentMonth, currentYear, monthOptions, navItems, onboardingKey, yearOptions } from '../constants';
 import PurchaseModal from '../components/PurchaseModal';
 import TransactionModal from '../components/TransactionModal';
+import WorkspaceHero from '../components/WorkspaceHero';
 import {
   buildTransactionDraft,
   PurchaseDraft,
@@ -524,8 +525,6 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
     setReceiptModalTransaction(linkedTransaction);
   };
 
-  const currentSection = viewMeta[currentView];
-
   const handleWorkspaceLogout = () => {
     logoutMutation.mutate(undefined, {
       onSettled: () => {
@@ -537,11 +536,13 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f6f1] text-slate-900">
-      <div className="border-b border-emerald-100 bg-white/90 backdrop-blur">
+    <div className="ambient-grid ambient-noise min-h-screen overflow-x-hidden bg-[#f4f6f1] text-slate-900">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[360px] bg-[radial-gradient(circle_at_12%_0%,rgba(16,185,129,0.15),transparent_38%),radial-gradient(circle_at_88%_10%,rgba(45,212,191,0.1),transparent_26%)]" />
+
+      <div className="relative z-40 border-b border-emerald-100 bg-white/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg shadow-emerald-500/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg shadow-emerald-500/30">
               FF
             </div>
             <div>
@@ -552,7 +553,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+              className="button-pop rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
               onClick={() => {
                 setTransactionDraft(buildTransactionDraft('RECEITA'));
                 setTransactionReceiptFile(null);
@@ -564,7 +565,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               Nova receita
             </button>
             <button
-              className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+              className="button-pop rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
               onClick={() => {
                 setTransactionDraft(buildTransactionDraft('DESPESA'));
                 setTransactionReceiptFile(null);
@@ -575,9 +576,9 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
             >
               Nova despesa
             </button>
-            <div className="relative">
+            <div className="relative z-[70]">
               <button
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                className="button-pop flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/92 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 onClick={() => setUserMenuOpen((currentValue) => !currentValue)}
                 type="button"
               >
@@ -585,7 +586,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-30 w-72 rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_18px_60px_rgba(15,23,42,0.14)]">
+                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-[80] w-72 rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_28px_80px_rgba(15,23,42,0.2)]">
                   <div className="rounded-[18px] bg-slate-50 px-4 py-3">
                     <p className="text-sm font-semibold text-slate-900">{user?.name ?? 'Usuário'}</p>
                     <p className="mt-1 text-xs leading-6 text-slate-500">{user?.email ?? 'sem e-mail carregado'}</p>
@@ -612,25 +613,18 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2">
-              <div className="h-9 w-9 rounded-full bg-slate-100" />
-              <div className="text-left">
-                <p className="text-sm font-semibold text-slate-900">{user?.name ?? 'Usuário'}</p>
-                <p className="text-xs text-slate-500">{user?.email ?? 'sem e-mail carregado'}</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:px-8">
-        <aside className="rounded-[28px] border border-emerald-100 bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+      <div className="relative z-10 mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:px-8">
+        <aside className="glass-panel rounded-[28px] p-5">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Navegação</p>
           <nav className="mt-4 grid gap-2">
-            {navItems.filter((item) => item.id !== 'configuracoes').map((item) => (
+            {navItems.map((item) => (
               <button
                 key={item.id}
-                className={`rounded-[22px] px-4 py-4 text-left transition ${
+                className={`card-lift rounded-[22px] px-4 py-4 text-left transition ${
                   item.id === currentView
                     ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10'
                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
@@ -655,43 +649,22 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         </aside>
 
         <main className="space-y-6">
-          <section className="rounded-[32px] bg-slate-900 px-6 py-7 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] lg:px-8">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <WorkspaceHero currentView={currentView}>
+            <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/8 p-4 text-sm text-slate-200 backdrop-blur-sm md:grid-cols-3">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">Visão atual</p>
-                <h2 className="mt-2 text-3xl font-semibold">{currentSection.label}</h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                  {currentView === 'painel' &&
-                    'O painel resume o mês atual, mostra o acumulado até o período de referência e conecta o usuário às ações mais importantes.'}
-                  {currentView === 'transacoes' &&
-                    'A área de transações já nasce preparada para modal, sugestão automática de categoria, parcelamento e anexos fiscais por lançamento.'}
-                  {currentView === 'analise' &&
-                    'A análise mensal foi desenhada para ler o mês atual, comparar com períodos anteriores e deixar a tendência explícita.'}
-                  {currentView === 'wishlist' &&
-                    'A lista de desejos funciona como um bloco forte do produto: desejo, prioridade, desconto, compra e impacto financeiro visualizados juntos.'}
-                  {currentView === 'notasFiscais' &&
-                    'As notas fiscais ficam organizadas por ano, mês e momento do envio para facilitar consulta futura e rotina fiscal.'}
-                  {currentView === 'configuracoes' &&
-                    'A área de configurações reúne seus dados da conta, privacidade e preferências de uso.'}
-                </p>
+                <p className="font-semibold text-white">Período do painel</p>
+                <p className="mt-1">{formatMonthLabel(dashboardYear, dashboardMonth)}</p>
               </div>
-
-              <div className="grid gap-3 rounded-[24px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300 sm:grid-cols-3">
-                <div>
-                  <p className="font-semibold text-white">Período do painel</p>
-                  <p className="mt-1">{formatMonthLabel(dashboardYear, dashboardMonth)}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-white">Período da análise</p>
-                  <p className="mt-1">{formatMonthLabel(analysisYear, analysisMonth)}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-white">Período fiscal</p>
-                  <p className="mt-1">{formatMonthLabel(receiptsYear, receiptsMonth)}</p>
-                </div>
+              <div>
+                <p className="font-semibold text-white">Período da análise</p>
+                <p className="mt-1">{formatMonthLabel(analysisYear, analysisMonth)}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-white">Período fiscal</p>
+                <p className="mt-1">{formatMonthLabel(receiptsYear, receiptsMonth)}</p>
               </div>
             </div>
-          </section>
+          </WorkspaceHero>
 
           {currentView === 'painel' && (
             <DashboardPage

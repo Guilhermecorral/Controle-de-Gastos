@@ -117,6 +117,7 @@ build/
 
 # Spring Boot
 .springBeans
+storage/
 
 # Docker
 .dockerignore

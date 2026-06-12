@@ -104,6 +104,7 @@ export interface TwoFactorSetupResponse {
   issuer: string;
   accountName: string;
   otpAuthUri: string;
+  qrCodeSvg: string;
 }
 
 export interface TwoFactorVerifyRequest {

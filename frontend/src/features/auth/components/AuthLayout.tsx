@@ -21,10 +21,11 @@ export default function AuthLayout({
   children,
 }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f4f6f1] px-4 py-12">
-      <div className={`grid w-full gap-8 ${showSidePanel ? 'max-w-5xl lg:grid-cols-[0.92fr_1.08fr]' : 'max-w-2xl'}`}>
+    <div className="ambient-grid ambient-noise flex min-h-screen items-center justify-center overflow-hidden bg-[#f4f6f1] px-4 py-12">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_58%)]" />
+      <div className={`fade-up grid w-full gap-8 ${showSidePanel ? 'max-w-5xl lg:grid-cols-[0.92fr_1.08fr]' : 'max-w-2xl'}`}>
         {showSidePanel && (
-          <section className="rounded-[32px] bg-slate-900 px-7 py-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
+          <section className="hero-glow rounded-[32px] border border-white/10 bg-slate-900/96 px-7 py-8 text-white shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">{eyebrow}</p>
             <h1 className="mt-4 text-4xl font-semibold leading-tight text-balance">{sideTitle}</h1>
             <p className="mt-5 text-sm leading-7 text-slate-300">{sideText}</p>
@@ -37,9 +38,9 @@ export default function AuthLayout({
           </section>
         )}
 
-        <section className="rounded-[32px] border border-emerald-100 bg-white p-7 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+        <section className="glass-panel card-lift rounded-[32px] p-7">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">{eyebrow}</p>
-          <h2 className="mt-2 text-3xl font-semibold text-slate-900">{title}</h2>
+          <h2 className="title-gradient mt-2 text-3xl font-semibold">{title}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
           <div className="mt-6 grid gap-4">{children}</div>
         </section>

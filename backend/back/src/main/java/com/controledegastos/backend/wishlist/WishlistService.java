@@ -1,5 +1,6 @@
 package com.controledegastos.backend.wishlist;
 
+import com.controledegastos.backend.config.ResourceNotFoundException;
 import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.transactions.Repository.TransactionRepository;
@@ -53,7 +54,7 @@ public class WishlistService {
      */
     private WishlistItem getOwnedWishlistItem(Long id, User user) {
         return wishlistRepository.findByIdAndUser(id, user)
-                .orElseThrow(() -> new RuntimeException("Wishlist item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item da wishlist nao encontrado"));
     }
 
     /**
@@ -61,7 +62,7 @@ public class WishlistService {
      */
     private WishlistList getOwnedWishlistList(Long id, User user) {
         return wishlistListRepository.findByIdAndUser(id, user)
-                .orElseThrow(() -> new RuntimeException("Wishlist list not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Lista da wishlist nao encontrada"));
     }
 
     /**

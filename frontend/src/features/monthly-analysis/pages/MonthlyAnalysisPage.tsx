@@ -72,7 +72,7 @@ export default function MonthlyAnalysisPage({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <SelectField
               label="Ano"
               options={yearOptions.map((option) => ({ value: String(option), label: String(option) }))}
@@ -88,7 +88,7 @@ export default function MonthlyAnalysisPage({
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
           <MetricCard label="Receitas do mês" tone="positive" value={formatCurrency(snapshot.totalReceitas)} />
           <MetricCard label="Despesas do mês" tone="negative" value={formatCurrency(snapshot.totalDespesas)} />
           <MetricCard label="Saldo do mês" tone={snapshot.saldo >= 0 ? 'neutral' : 'warning'} value={formatCurrency(snapshot.saldo)} />
@@ -131,7 +131,7 @@ export default function MonthlyAnalysisPage({
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard title="Acumulado do ano">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4">
             <InfoStrip helper="Receitas até o mês selecionado." label="Receitas" value={formatCurrency(snapshot.acumuladoAnoAtual.totalReceitas)} />
             <InfoStrip helper="Despesas até o mês selecionado." label="Despesas" value={formatCurrency(snapshot.acumuladoAnoAtual.totalDespesas)} />
             <InfoStrip helper="Saldo do ano até aqui." label="Saldo" value={formatCurrency(snapshot.acumuladoAnoAtual.saldo)} />
@@ -151,7 +151,7 @@ export default function MonthlyAnalysisPage({
       </section>
 
       <SectionCard title="Peso das categorias no mês">
-        <div className="grid gap-6 xl:items-start xl:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
           <div className="grid gap-4 xl:grid-rows-[340px_auto]">
             <CategoryPieChart
               data={incomePieData}
@@ -160,7 +160,7 @@ export default function MonthlyAnalysisPage({
               centerLabel="Receitas"
               helper="Aqui você enxerga de onde o dinheiro entrou neste período."
             />
-            <div className="grid gap-4 xl:max-h-[280px] xl:overflow-y-auto xl:pr-1">
+            <div className="grid gap-4">
               <CategoryLegend
                 data={incomePieData}
                 emptyLabel="Sem receitas categorizadas neste mês."
@@ -177,7 +177,7 @@ export default function MonthlyAnalysisPage({
               centerLabel="Despesas"
               helper="Aqui fica mais claro para onde o dinheiro mais saiu no mês."
             />
-            <div className="grid gap-4 xl:max-h-[280px] xl:overflow-y-auto xl:pr-1">
+            <div className="grid gap-4">
               <CategoryLegend
                 data={categoryPieData}
                 emptyLabel="Sem despesas categorizadas neste mês."
@@ -211,7 +211,7 @@ function CategoryPieChart({
   const gradient = buildPieGradient(data);
 
   return (
-    <div className="flex h-[340px] flex-col items-center rounded-[24px] border border-slate-100 bg-white px-6 py-8">
+    <div className="flex h-[340px] flex-col items-center rounded-[26px] border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] px-6 py-8">
       <p className="text-center text-sm font-semibold uppercase tracking-[0.14em] text-emerald-600">{title}</p>
       <div
         className="relative mt-6 h-44 w-44 rounded-full shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
@@ -226,9 +226,7 @@ function CategoryPieChart({
           </div>
         </div>
       </div>
-      <p className="mt-auto text-center text-sm leading-7 text-slate-600">
-        {helper}
-      </p>
+      <p className="mt-auto text-center text-sm leading-7 text-slate-600">{helper}</p>
     </div>
   );
 }
@@ -255,7 +253,9 @@ function CategoryLegend({
               <span className="h-3.5 w-3.5 rounded-full" style={{ backgroundColor: entry.color }} />
               <div>
                 <p className="font-semibold text-slate-900">{categoryLabels[entry.category]}</p>
-                <p className="text-sm text-slate-500">{entry.percentage.toFixed(1)}% {percentageLabel}</p>
+                <p className="text-sm text-slate-500">
+                  {entry.percentage.toFixed(1)}% {percentageLabel}
+                </p>
               </div>
             </div>
             <span className="text-sm font-semibold text-slate-700">{formatCurrency(entry.totalAmount)}</span>
@@ -266,9 +266,7 @@ function CategoryLegend({
   );
 }
 
-function buildCategoryPieData(
-  entries: MonthlyAnalysisResponse['gastosPorCategoria'],
-): PieSlice[] {
+function buildCategoryPieData(entries: MonthlyAnalysisResponse['gastosPorCategoria']): PieSlice[] {
   const total = entries.reduce((sum, entry) => sum + entry.totalAmount, 0);
 
   return entries.map((entry, index) => ({

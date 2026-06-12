@@ -1,6 +1,10 @@
 server:
   port: 8080
   forward-headers-strategy: framework
+  shutdown: graceful
+
+spring.lifecycle:
+  timeout-per-shutdown-phase: 20s
 
 spring:
   jpa:
@@ -46,6 +50,11 @@ app:
   transaction-receipts:
     storage-dir: ${APP_TRANSACTION_RECEIPTS_STORAGE_DIR:storage/transaction-receipts}
     max-bytes: ${APP_TRANSACTION_RECEIPTS_MAX_BYTES:10485760}
+  admin:
+    bootstrap:
+      enabled: ${APP_ADMIN_BOOTSTRAP_ENABLED:false}
+      email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}
+      password: ${APP_ADMIN_BOOTSTRAP_PASSWORD:}
   security:
     field-encryption:
       secret-key: ${APP_FIELD_ENCRYPTION_SECRET_KEY}
@@ -76,3 +85,12 @@ logging:
   level:
     org.springframework.security: INFO
     org.springframework.security.web.FilterChainProxy: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

@@ -5,7 +5,7 @@ import { ToastMessage } from '../workspace/types';
 
 export function SectionCard({ children, title }: { children: ReactNode; title?: string }) {
   return (
-    <section className="rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+    <section className="glass-panel card-lift fade-up rounded-[28px] p-6">
       {title && <h3 className="text-2xl font-semibold text-slate-900">{title}</h3>}
       {title && <div className="mt-5" />}
       {children}
@@ -16,8 +16,12 @@ export function SectionCard({ children, title }: { children: ReactNode; title?: 
 export function LoadingCard({ label }: { label: string }) {
   return (
     <SectionCard>
-      <div className="flex min-h-[220px] items-center justify-center rounded-[24px] bg-slate-50 px-6 text-center text-sm font-semibold text-slate-500">
-        {label}
+      <div className="flex min-h-[220px] flex-col items-center justify-center gap-4 rounded-[24px] bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.92))] px-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 shadow-[0_16px_35px_rgba(16,185,129,0.12)]">
+          <div className="h-5 w-5 rounded-full bg-emerald-400" />
+        </div>
+        <p className="text-base font-semibold text-slate-900">Preparando a leitura desta área.</p>
+        <p className="max-w-md text-sm leading-7 text-slate-500">{label}</p>
       </div>
     </SectionCard>
   );
@@ -26,7 +30,10 @@ export function LoadingCard({ label }: { label: string }) {
 export function UnavailableCard({ label }: { label: string }) {
   return (
     <SectionCard>
-      <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-[24px] bg-slate-50 px-6 text-center">
+      <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-[24px] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] px-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border border-rose-200 bg-rose-50 shadow-[0_16px_35px_rgba(244,63,94,0.1)]">
+          <div className="h-5 w-5 rounded-full bg-rose-400" />
+        </div>
         <p className="text-base font-semibold text-slate-900">Não conseguimos carregar este bloco.</p>
         <p className="max-w-md text-sm leading-7 text-slate-500">{label}</p>
       </div>
@@ -51,16 +58,16 @@ export function MetricCard({
   };
 
   return (
-    <article className={`rounded-[24px] border p-5 ${tones[tone]}`}>
+    <article className={`min-w-0 overflow-hidden rounded-[24px] border p-5 ${tones[tone]}`}>
       <p className="text-sm font-semibold uppercase tracking-[0.16em]">{label}</p>
-      <p className="mt-4 text-3xl font-semibold">{value}</p>
+      <p className="mt-4 break-words text-[clamp(1.55rem,3vw,2rem)] font-semibold leading-tight">{value}</p>
     </article>
   );
 }
 
 export function LandingCard({ title, body }: { title: string; body: string }) {
   return (
-    <article className="rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+    <article className="glass-panel card-lift rounded-[28px] p-6">
       <h4 className="text-xl font-semibold text-slate-900">{title}</h4>
       <p className="mt-4 text-sm leading-7 text-slate-600">{body}</p>
     </article>
@@ -77,7 +84,13 @@ export function FeatureChip({
   dark?: boolean;
 }) {
   return (
-    <div className={`rounded-[22px] border px-4 py-4 ${dark ? 'border-white/10 bg-white/5 text-white' : 'border-emerald-100 bg-white text-slate-900'}`}>
+    <div
+      className={`card-lift rounded-[22px] border px-4 py-4 ${
+        dark
+          ? 'border-white/10 bg-white/5 text-white backdrop-blur-sm'
+          : 'border-emerald-100 bg-white/88 text-slate-900 backdrop-blur-sm'
+      }`}
+    >
       <p className={dark ? 'font-semibold text-white' : 'font-semibold text-slate-900'}>{label}</p>
       <p className={dark ? 'mt-2 text-sm text-slate-300' : 'mt-2 text-sm text-slate-600'}>{helper}</p>
     </div>
@@ -111,9 +124,9 @@ export function InfoStrip({
   value: string;
 }) {
   return (
-    <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
+    <div className="min-w-0 overflow-hidden rounded-[22px] border border-slate-100 bg-slate-50 p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-600">{label}</p>
-      <p className="mt-2 text-xl font-semibold text-slate-900">{value}</p>
+      <p className="mt-2 break-words text-[clamp(1.3rem,2.4vw,1.75rem)] font-semibold leading-tight text-slate-900">{value}</p>
       <p className="mt-2 text-sm leading-7 text-slate-500">{helper}</p>
     </div>
   );
@@ -191,7 +204,10 @@ export function TrendRow({
         <p className="mt-1 text-sm text-slate-500">Comparação automática com a referência</p>
       </div>
       <div className="text-right">
-        <p className={`font-semibold ${color}`}>{value >= 0 ? '+' : ''}{formatCurrency(value)}</p>
+        <p className={`font-semibold ${color}`}>
+          {value >= 0 ? '+' : ''}
+          {formatCurrency(value)}
+        </p>
         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">{trendLabel}</p>
       </div>
     </div>
@@ -208,9 +224,7 @@ export function ExpenseHighlight({
       <p className="text-lg font-semibold text-slate-900">{transaction.description}</p>
       <p className="mt-2 text-sm text-slate-500">{categoryLabels[transaction.category]}</p>
       <p className="mt-4 text-2xl font-semibold text-rose-600">{formatCurrency(transaction.amount)}</p>
-      <p className="mt-3 text-sm text-slate-500">
-        {formatIsoDate(transaction.transactionDate)}
-      </p>
+      <p className="mt-3 text-sm text-slate-500">{formatIsoDate(transaction.transactionDate)}</p>
     </div>
   );
 }
@@ -271,8 +285,12 @@ export function SelectField({
 
 export function EmptyState({ label }: { label: string }) {
   return (
-    <div className="rounded-[24px] border border-dashed border-slate-200 bg-white p-6 text-center text-sm leading-7 text-slate-500">
-      {label}
+    <div className="rounded-[24px] border border-dashed border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(248,250,252,0.88))] p-6 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 shadow-[0_12px_30px_rgba(16,185,129,0.08)]">
+        <div className="h-4 w-4 rounded-full bg-emerald-400" />
+      </div>
+      <p className="mt-4 text-base font-semibold text-slate-900">Ainda não há movimento aqui.</p>
+      <p className="mt-2 text-sm leading-7 text-slate-500">{label}</p>
     </div>
   );
 }
@@ -288,9 +306,7 @@ export function ToastStack({ toasts }: { toasts: ToastMessage[] }) {
         <div
           key={toast.id}
           className={`rounded-[22px] border px-4 py-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)] ${
-            toast.tone === 'success'
-              ? 'border-emerald-100 bg-white text-slate-900'
-              : 'border-sky-100 bg-white text-slate-900'
+            toast.tone === 'success' ? 'border-emerald-100 bg-white text-slate-900' : 'border-sky-100 bg-white text-slate-900'
           }`}
         >
           <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${toast.tone === 'success' ? 'text-emerald-600' : 'text-sky-600'}`}>

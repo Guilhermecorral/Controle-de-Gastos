@@ -120,7 +120,7 @@ export default function DashboardPage({
       </SectionCard>
 
       <SectionCard title="Fluxo do período">
-        <div className="grid gap-4 xl:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <InfoStrip helper="Tudo que entrou até o mês de referência." label="Receitas do ano" value={formatCurrency(snapshot.receitasAnoReferencia)} />
           <InfoStrip helper="Tudo que saiu até o mês de referência." label="Despesas do ano" value={formatCurrency(snapshot.despesasAnoReferencia)} />
           <InfoStrip helper="Resultado acumulado do ano até aqui." label="Resultado do ano" value={formatCurrency(snapshot.resultadoAnoReferencia)} />
@@ -160,7 +160,7 @@ export default function DashboardPage({
                 Esse bloco mostra o peso dos desejos sem roubar a atenção da parte financeira principal.
               </p>
               <button
-                className="mt-5 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                className="button-pop mt-5 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 onClick={onOpenWishlist}
                 type="button"
               >
@@ -194,11 +194,14 @@ export default function DashboardPage({
         </div>
       </SectionCard>
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard title="Últimas 5 transações">
-          <div className="grid max-h-[320px] gap-3 overflow-y-auto pr-1">
+          <div className="grid gap-3">
             {snapshot.ultimasTransacoes.map((transaction) => (
-              <div key={transaction.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4">
+              <div
+                key={transaction.id}
+                className="card-lift rounded-[24px] border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,248,245,0.92))] p-4"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-semibold text-slate-900">{transaction.description}</p>
@@ -216,10 +219,13 @@ export default function DashboardPage({
         </SectionCard>
 
         <SectionCard title="Gastos por categoria">
-          <div className="grid max-h-[320px] gap-4 overflow-y-auto pr-1">
+          <div className="grid gap-4">
             {snapshot.gastosPorCategoria.length === 0 && <EmptyState label="Sem despesas categorizadas no período." />}
             {snapshot.gastosPorCategoria.map((entry) => (
-              <div key={entry.category}>
+              <div
+                key={entry.category}
+                className="card-lift rounded-[24px] border border-slate-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,248,245,0.92))] p-4"
+              >
                 <div className="mb-2 flex items-center justify-between text-sm">
                   <span className="font-semibold text-slate-700">{categoryLabels[entry.category]}</span>
                   <span className="text-slate-500">{formatCurrency(entry.totalAmount)}</span>
@@ -232,6 +238,13 @@ export default function DashboardPage({
                     }}
                   />
                 </div>
+                <p className="mt-3 text-xs uppercase tracking-[0.14em] text-slate-400">
+                  {(
+                    (entry.totalAmount / Math.max(...snapshot.gastosPorCategoria.map((item) => item.totalAmount), 1)) *
+                    100
+                  ).toFixed(0)}
+                  % do maior peso deste bloco
+                </p>
               </div>
             ))}
           </div>
@@ -360,7 +373,7 @@ function WelcomePanel({
   onOpenWishlist: () => void;
 }) {
   return (
-    <section className="rounded-[32px] border border-emerald-200 bg-gradient-to-r from-emerald-500 to-emerald-400 px-6 py-6 text-white shadow-[0_24px_70px_rgba(16,185,129,0.18)] lg:px-8">
+    <section className="fade-up rounded-[32px] border border-emerald-200 bg-gradient-to-r from-emerald-500 to-emerald-400 px-6 py-6 text-white shadow-[0_24px_70px_rgba(16,185,129,0.18)] lg:px-8">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-100">Primeiros passos</p>
@@ -371,7 +384,7 @@ function WelcomePanel({
         </div>
 
         <button
-          className="rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="button-pop rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
           onClick={onDismiss}
           type="button"
         >
@@ -387,14 +400,14 @@ function WelcomePanel({
 
       <div className="mt-6 flex flex-wrap gap-3">
         <button
-          className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+          className="button-pop rounded-full bg-white px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
           onClick={onOpenTransactions}
           type="button"
         >
           Ir para transações
         </button>
         <button
-          className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+          className="button-pop rounded-full border border-white/30 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
           onClick={onOpenWishlist}
           type="button"
         >

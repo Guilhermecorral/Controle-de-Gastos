@@ -21,4 +21,4 @@ EXPOSE 8080
 
 USER spring
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Duser.timezone=UTC", "-jar", "app.jar"]

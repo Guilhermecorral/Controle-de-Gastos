@@ -24,7 +24,7 @@ public class AuthenticatedUserService {
     public User getAuthenticatedUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
-            throw new RuntimeException("No authenticated user in the current request");
+            throw new IllegalStateException("Nao existe usuario autenticado na requisicao atual");
         }
 
         Object principal = authentication.getPrincipal();
@@ -33,6 +33,6 @@ public class AuthenticatedUserService {
                 : principal.toString();
 
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+                .orElseThrow(() -> new IllegalStateException("Usuario autenticado nao foi encontrado na base"));
     }
 }

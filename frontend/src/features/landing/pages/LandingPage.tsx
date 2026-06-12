@@ -8,11 +8,13 @@ type LandingPageProps = {
 
 export default function LandingPage({ isLoggedIn }: LandingPageProps) {
   return (
-    <div className="min-h-screen bg-[#f4f6f1] text-slate-900">
-      <header className="border-b border-emerald-100 bg-white/95 backdrop-blur">
+    <div className="ambient-grid ambient-noise min-h-screen overflow-hidden bg-[#f4f6f1] text-slate-900">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[440px] bg-[radial-gradient(circle_at_12%_16%,rgba(16,185,129,0.1),transparent_30%),radial-gradient(circle_at_85%_12%,rgba(45,212,191,0.08),transparent_24%)]" />
+
+      <header className="relative z-10 border-b border-emerald-100/70 bg-white/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:px-8">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg shadow-emerald-500/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg shadow-emerald-500/30">
               FF
             </div>
             <div>
@@ -23,13 +25,13 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              className="button-pop rounded-full border border-slate-200 bg-white/92 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               to="/login"
             >
               Entrar
             </Link>
             <Link
-              className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+              className="button-pop button-glow rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
               to={isLoggedIn ? '/app' : '/cadastro'}
             >
               {isLoggedIn ? 'Ir para o app' : 'Começar agora'}
@@ -38,11 +40,11 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
         </div>
       </header>
 
-      <main>
-        <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-8">
-          <div>
+      <main className="relative z-10">
+        <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[1.06fr_0.94fr] lg:px-8">
+          <div className="hero-glow fade-up">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Organize sua vida financeira</p>
-            <h2 className="mt-4 text-5xl font-semibold leading-tight text-balance text-slate-900">
+            <h2 className="title-gradient mt-4 text-5xl font-semibold leading-tight text-balance md:text-6xl">
               Um espaço para entender o mês, planejar compras e decidir melhor.
             </h2>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
@@ -51,13 +53,13 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                className="button-pop rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 to={isLoggedIn ? '/app' : '/cadastro'}
               >
                 {isLoggedIn ? 'Abrir meu ambiente' : 'Criar conta agora'}
               </Link>
               <Link
-                className="rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                className="button-pop rounded-full border border-slate-200 bg-white/92 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                 to="/login"
               >
                 Ver área logada
@@ -65,22 +67,22 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
             </div>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              <FeatureChip label="Painel objetivo" helper="Entradas, saídas e acumulado." />
-              <FeatureChip label="Análise mensal" helper="Comparação com meses e anos." />
-              <FeatureChip label="Lista de desejos" helper="Compra planejada ligada ao financeiro." />
+              <FeatureChip label="Painel objetivo" helper="Entradas, saídas e acumulado do período." />
+              <FeatureChip label="Análise mensal" helper="Comparações para perceber melhora e tendência." />
+              <FeatureChip label="Lista de desejos" helper="Compra planejada ligada ao financeiro real." />
             </div>
           </div>
 
-          <div className="rounded-[36px] bg-slate-900 p-6 text-white shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
+          <div className="hero-glow fade-up rounded-[36px] border border-slate-800 bg-slate-950 p-6 text-white shadow-[0_28px_80px_rgba(15,23,42,0.24)]">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">Visão do produto</p>
             <div className="mt-5 grid gap-4">
               <LandingStat title="Receitas do mês" value={formatCurrency(4200)} />
               <LandingStat title="Despesas do mês" value={formatCurrency(1462)} tone="negative" />
               <LandingStat title="Saldo do mês" value={formatCurrency(2738)} />
-              <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+              <div className="rounded-[24px] border border-white/12 bg-white/8 p-5 backdrop-blur-sm">
                 <p className="text-sm font-semibold text-white">O que você consegue acompanhar</p>
-                <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-300">
-                  <li>O mês atual com leitura rápida das suas entradas, saídas e saldo.</li>
+                <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-200">
+                  <li>O mês atual com leitura rápida das entradas, saídas e saldo.</li>
                   <li>Comparações para perceber se o momento está melhorando ou apertando.</li>
                   <li>Uma lista de desejos que ajuda a comprar com mais intenção.</li>
                 </ul>
@@ -89,7 +91,7 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
           </div>
         </section>
 
-        <section className="bg-white/70 py-16">
+        <section className="bg-white/60 py-16 backdrop-blur-sm">
           <div className="mx-auto max-w-7xl px-4 lg:px-8">
             <div className="max-w-3xl">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Por que isso importa</p>
@@ -106,7 +108,7 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
               />
               <LandingCard
                 title="Análise mensal"
-                body="Traz contexto histórico para o usuário descobrir se está melhorando, piorando ou só repetindo padrões."
+                body="Traz contexto histórico para descobrir se o momento está melhorando, piorando ou apenas repetindo padrões."
               />
               <LandingCard
                 title="Lista de desejos"
@@ -118,7 +120,7 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
 
         <section className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
           <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-[32px] border border-emerald-100 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+            <div className="glass-panel card-lift rounded-[32px] p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Recursos pensados para o dia a dia</p>
               <ul className="mt-5 grid gap-3 text-sm leading-7 text-slate-600">
                 <li>Cadastro com orientação de senha forte e mensagens simples.</li>
@@ -129,7 +131,7 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
               </ul>
             </div>
 
-            <div className="rounded-[32px] bg-emerald-500 px-7 py-8 text-white shadow-[0_24px_70px_rgba(16,185,129,0.18)]">
+            <div className="hero-glow rounded-[32px] border border-emerald-300/40 bg-emerald-500 px-7 py-8 text-white shadow-[0_24px_70px_rgba(16,185,129,0.18)]">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-100">Comece pelo essencial</p>
               <h3 className="mt-4 text-3xl font-semibold text-balance">Entre, acompanhe seu momento e ajuste o que fizer sentido para a sua rotina.</h3>
               <p className="mt-5 max-w-2xl text-base leading-8 text-emerald-50">
@@ -137,13 +139,13 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
-                  className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                  className="button-pop rounded-full bg-white px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
                   to={isLoggedIn ? '/app' : '/login'}
                 >
                   Abrir área logada
                 </Link>
                 <Link
-                  className="rounded-full border border-white/30 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                  className="button-pop rounded-full border border-white/30 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
                   to="/cadastro"
                 >
                   Ver cadastro

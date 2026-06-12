@@ -57,7 +57,7 @@ export default function TransactionsPage({
 
   return (
     <>
-      <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard title="Filtros">
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Buscar">
@@ -96,14 +96,14 @@ export default function TransactionsPage({
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <button
-              className="rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="button-pop rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               onClick={onOpenModal}
               type="button"
             >
               Abrir modal de lançamento
             </button>
             <button
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+              className="button-pop rounded-full border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
               onClick={onOpenReceipts}
               type="button"
             >
@@ -113,11 +113,14 @@ export default function TransactionsPage({
         </SectionCard>
       </section>
 
-      <section className="rounded-[28px] border border-emerald-100 bg-white p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+      <section className="fade-up rounded-[30px] border border-emerald-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(245,248,245,0.96))] p-6 shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Histórico</p>
             <h3 className="mt-2 text-2xl font-semibold text-slate-900">Entradas e saídas</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">
+              Aqui ficam as movimentações reais do período, com leitura direta de categoria, pagamento, valor e vínculo fiscal.
+            </p>
           </div>
           <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600">
             {transactions.length} registro(s)
@@ -139,17 +142,20 @@ export default function TransactionsPage({
           <div className="grid gap-px bg-slate-100">
             {transactions.length === 0 && (
               <div className="bg-white px-5 py-12">
-                <EmptyState label="Nenhuma transação encontrada com os filtros atuais." />
+                <EmptyState label="Nenhum lançamento apareceu com os filtros atuais. Ajuste a busca ou registre uma nova movimentação." />
               </div>
             )}
 
             {transactions.map((transaction) => (
               <div
                 key={transaction.id}
-                className="grid gap-4 bg-white px-5 py-4 xl:grid-cols-[1fr_0.55fr_0.65fr_0.8fr_0.65fr_0.85fr_0.65fr_0.7fr] xl:items-center"
+                className="grid gap-4 bg-white px-5 py-4 transition hover:bg-slate-50/80 xl:grid-cols-[1fr_0.55fr_0.65fr_0.8fr_0.65fr_0.85fr_0.65fr_0.7fr] xl:items-center"
               >
                 <div>
                   <p className="font-semibold text-slate-900">{transaction.description}</p>
+                  <p className="mt-1 text-sm text-slate-500 xl:hidden">
+                    {categoryLabels[transaction.category]} · {formatIsoDate(transaction.transactionDate)}
+                  </p>
                 </div>
                 <Tag tone={transaction.type === 'RECEITA' ? 'positive' : 'negative'}>
                   {transaction.type === 'RECEITA' ? 'Receita' : 'Despesa'}
@@ -175,7 +181,7 @@ export default function TransactionsPage({
                 </div>
                 <div className="flex items-start">
                   <button
-                    className="rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="button-pop rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isDeleting}
                     onClick={() => onDeleteTransaction(transaction)}
                     type="button"
