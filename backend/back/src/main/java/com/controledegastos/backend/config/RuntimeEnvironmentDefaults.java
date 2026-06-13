@@ -25,10 +25,7 @@ public final class RuntimeEnvironmentDefaults {
     }
 
     private static void applyDataSourceDefaults(Map<String, String> env, Map<String, Object> defaults) {
-        String dataSourceUrl = firstNonBlank(
-                env.get("SPRING_DATASOURCE_URL"),
-                env.get("DATABASE_URL")
-        );
+        String dataSourceUrl = resolvePreferredDataSourceUrl(env);
         ParsedJdbcSettings parsedSettings = normalizePostgresJdbcSettings(dataSourceUrl);
         String normalizedUrl = parsedSettings.url();
 
@@ -58,6 +55,21 @@ public final class RuntimeEnvironmentDefaults {
             defaults.put("SPRING_DATASOURCE_PASSWORD", password);
             defaults.put("spring.datasource.password", password);
         }
+    }
+
+    private static String resolvePreferredDataSourceUrl(Map<String, String> env) {
+        String configuredUrl = firstNonBlank(
+                env.get("SPRING_DATASOURCE_URL"),
+                env.get("DATABASE_URL"),
+                env.get("SUPABASE_DATABASE_URL")
+        );
+        String supabasePoolerUrl = env.get("SUPABASE_POOLER_URL");
+
+        if (hasText(supabasePoolerUrl) && shouldPreferSupabasePooler(configuredUrl)) {
+            return supabasePoolerUrl;
+        }
+
+        return hasText(configuredUrl) ? configuredUrl : supabasePoolerUrl;
     }
 
     private static void applyRedisDefaults(Map<String, String> env, Map<String, Object> defaults) {
@@ -99,7 +111,9 @@ public final class RuntimeEnvironmentDefaults {
             jdbcUrl = "jdbc:postgresql://" + rawUrl.substring("postgres://".length());
         }
 
-        return extractJdbcUserInfo(jdbcUrl);
+        ParsedJdbcSettings parsed = extractJdbcUserInfo(jdbcUrl);
+        String sslAwareUrl = ensureSupabaseSslMode(parsed.url());
+        return new ParsedJdbcSettings(sslAwareUrl, parsed.username(), parsed.password());
     }
 
     private static ParsedJdbcSettings extractJdbcUserInfo(String jdbcUrl) {
@@ -146,6 +160,34 @@ public final class RuntimeEnvironmentDefaults {
 
     private static boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private static boolean shouldPreferSupabasePooler(String configuredUrl) {
+        if (!hasText(configuredUrl)) {
+            return true;
+        }
+
+        String normalizedUrl = configuredUrl.toLowerCase();
+        return normalizedUrl.contains("supabase.co") && !normalizedUrl.contains("pooler.supabase.com");
+    }
+
+    private static String ensureSupabaseSslMode(String jdbcUrl) {
+        if (!hasText(jdbcUrl) || !jdbcUrl.startsWith("jdbc:postgresql://")) {
+            return jdbcUrl;
+        }
+
+        if (!jdbcUrl.contains("supabase.co")) {
+            return jdbcUrl;
+        }
+
+        String lowerCaseUrl = jdbcUrl.toLowerCase();
+        if (lowerCaseUrl.contains("sslmode=") || lowerCaseUrl.contains("ssl=true")) {
+            return jdbcUrl;
+        }
+
+        return jdbcUrl.contains("?")
+                ? jdbcUrl + "&sslmode=require"
+                : jdbcUrl + "?sslmode=require";
     }
 
     private record ParsedJdbcSettings(String url, String username, String password) {
