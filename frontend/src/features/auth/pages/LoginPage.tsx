@@ -96,6 +96,7 @@ export default function LoginPage() {
       >
         <Field label="E-mail">
           <input
+            autoComplete="email"
             className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
             placeholder="voce@email.com"
             type="email"
@@ -112,6 +113,7 @@ export default function LoginPage() {
         <Field label="Senha">
           <div className="flex gap-3">
             <input
+              autoComplete={showPassword ? 'current-password' : 'current-password'}
               className="h-12 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
               placeholder="Digite sua senha"
               type={showPassword ? 'text' : 'password'}
@@ -138,6 +140,7 @@ export default function LoginPage() {
         {requiresTwoFactor && (
           <Field label="Código do autenticador">
             <input
+              autoComplete="one-time-code"
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 tracking-[0.24em] outline-none transition focus:border-emerald-400 focus:bg-white"
               inputMode="numeric"
               maxLength={6}

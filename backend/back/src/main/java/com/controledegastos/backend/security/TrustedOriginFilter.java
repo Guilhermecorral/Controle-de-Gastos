@@ -12,6 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -28,7 +29,7 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
             String allowedOrigins
     ) {
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
+                .map(TrustedOriginFilter::normalizeOrigin)
                 .filter(origin -> !origin.isBlank())
                 .collect(Collectors.toSet());
     }
@@ -52,9 +53,9 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        String origin = request.getHeader("Origin");
-        String requestOrigin = request.getScheme() + "://" + request.getServerName()
-                + ((request.getServerPort() == 80 || request.getServerPort() == 443) ? "" : ":" + request.getServerPort());
+        String origin = normalizeOrigin(request.getHeader("Origin"));
+        String requestOrigin = normalizeOrigin(request.getScheme() + "://" + request.getServerName()
+                + ((request.getServerPort() == 80 || request.getServerPort() == 443) ? "" : ":" + request.getServerPort()));
 
         if (origin != null && !origin.isBlank() && !allowedOrigins.contains(origin) && !requestOrigin.equals(origin)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -67,5 +68,13 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static String normalizeOrigin(String origin) {
+        String normalized = origin == null ? "" : origin.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.toLowerCase(Locale.ROOT);
     }
 }

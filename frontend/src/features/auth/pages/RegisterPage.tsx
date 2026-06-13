@@ -108,6 +108,7 @@ export default function RegisterPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Nome">
             <input
+              autoComplete="name"
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
               placeholder="Seu nome"
               value={name}
@@ -116,6 +117,7 @@ export default function RegisterPage() {
           </Field>
           <Field label="E-mail">
             <input
+              autoComplete="email"
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
               placeholder="voce@email.com"
               type="email"
@@ -125,6 +127,7 @@ export default function RegisterPage() {
           </Field>
           <Field label="Confirmar e-mail">
             <input
+              autoComplete="email"
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
               placeholder="Repita seu e-mail"
               type="email"
@@ -134,6 +137,7 @@ export default function RegisterPage() {
           </Field>
           <Field label="Senha">
             <input
+              autoComplete="new-password"
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
               placeholder="Crie uma senha forte"
               type="password"
@@ -145,6 +149,7 @@ export default function RegisterPage() {
 
         <Field label="Confirmar senha">
           <input
+            autoComplete="new-password"
             className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
             placeholder="Repita sua senha"
             type="password"

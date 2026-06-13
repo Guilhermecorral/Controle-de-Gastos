@@ -12,14 +12,19 @@ import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Centraliza os fluxos administrativos de leitura global e gestao segura de contas.
@@ -32,6 +37,8 @@ public class AdminService {
     private final TransactionRepository transactionRepository;
     private final AuthenticatedUserService authenticatedUserService;
     private final PasswordEncoder passwordEncoder;
+    @Value("${app.admin.allowed-emails:}")
+    private String allowedAdminEmails;
 
     /**
      * Resume os numeros principais do produto sem expor detalhes individuais desnecessarios.
@@ -99,6 +106,10 @@ public class AdminService {
             throw new IllegalArgumentException("Voce nao pode remover o proprio acesso administrativo");
         }
 
+        if (newRole == User.Role.ADMIN && !isAdminPromotionAllowed(targetUser.getEmail())) {
+            throw new IllegalArgumentException("Este e-mail nao esta autorizado para receber acesso administrativo");
+        }
+
         targetUser.setRole(newRole);
         return toAdminUserResponse(userRepository.save(targetUser));
     }
@@ -155,5 +166,19 @@ public class AdminService {
         if (!hasUppercase || !hasDigit || !hasSpecial || password.length() < 8) {
             throw new IllegalArgumentException("A senha precisa ter pelo menos 8 caracteres, letra maiuscula, numero e caractere especial");
         }
+    }
+
+    private boolean isAdminPromotionAllowed(String email) {
+        Set<String> whitelist = Arrays.stream(allowedAdminEmails.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        if (whitelist.isEmpty()) {
+            return false;
+        }
+
+        return whitelist.contains(email.toLowerCase(Locale.ROOT));
     }
 }

@@ -49,6 +49,7 @@ app:
       enabled: ${APP_ADMIN_BOOTSTRAP_ENABLED:false}
       email: ${APP_ADMIN_BOOTSTRAP_EMAIL:}
       password: ${APP_ADMIN_BOOTSTRAP_PASSWORD:}
+    allowed-emails: ${APP_ADMIN_ALLOWED_EMAILS:}
   security:
     field-encryption:
       secret-key: ${APP_FIELD_ENCRYPTION_SECRET_KEY}
