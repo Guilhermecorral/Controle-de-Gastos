@@ -1,37 +1,12 @@
 import { useEffect, useState } from 'react';
-
-type CookiePreferences = {
-  necessary: true;
-  analytics: boolean;
-  preferences: boolean;
-};
-
-const storageKey = 'cg-cookie-preferences';
-
-function readPreferences(): CookiePreferences | null {
-  const rawValue = localStorage.getItem(storageKey);
-
-  if (!rawValue) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawValue) as CookiePreferences;
-  } catch {
-    return null;
-  }
-}
-
-function savePreferences(preferences: CookiePreferences) {
-  localStorage.setItem(storageKey, JSON.stringify(preferences));
-}
+import { CookiePreferences, readCookiePreferences, saveCookiePreferences } from '../lib/cookiePreferences';
 
 // Controla a experiência inicial de cookies do app e já prepara o terreno para uma política mais madura.
 export default function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const existingPreferences = readPreferences();
+    const existingPreferences = readCookiePreferences();
 
     if (existingPreferences) {
       return;
@@ -42,13 +17,13 @@ export default function CookieConsent() {
 
   const acceptAll = () => {
     const nextPreferences = { necessary: true, analytics: true, preferences: true } as CookiePreferences;
-    savePreferences(nextPreferences);
+    saveCookiePreferences(nextPreferences);
     setIsVisible(false);
   };
 
   const keepEssentialOnly = () => {
     const nextPreferences = { necessary: true, analytics: false, preferences: false } as CookiePreferences;
-    savePreferences(nextPreferences);
+    saveCookiePreferences(nextPreferences);
     setIsVisible(false);
   };
 

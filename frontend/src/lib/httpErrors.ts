@@ -14,7 +14,7 @@ export function getApiErrorMessage(error: unknown, fallbackMessage: string) {
   }
 
   if (!error.response) {
-    return 'Nao foi possivel falar com o servidor agora. Verifique sua conexao e tente novamente em instantes.'
+    return 'Não foi possível falar com o servidor agora. Verifique sua conexão e tente novamente em instantes.'
   }
 
   const responseData = error.response.data

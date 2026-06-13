@@ -38,7 +38,7 @@ export default function RegisterPage() {
         email,
         password,
         captchaToken: captchaToken || undefined,
-        },
+      },
       {
         onSuccess: (response) => {
           if ('requiresTwoFactor' in response) {
@@ -82,75 +82,10 @@ export default function RegisterPage() {
         />
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Nome">
-          <input
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
-            placeholder="Seu nome"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </Field>
-        <Field label="E-mail">
-          <input
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
-            placeholder="voce@email.com"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-        </Field>
-        <Field label="Confirmar e-mail">
-          <input
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
-            placeholder="Repita seu e-mail"
-            type="email"
-            value={confirmEmail}
-            onChange={(event) => setConfirmEmail(event.target.value)}
-          />
-        </Field>
-        <Field label="Senha">
-          <input
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
-            placeholder="Crie uma senha forte"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </Field>
-      </div>
-
-      <Field label="Confirmar senha">
-        <input
-          className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
-          placeholder="Repita sua senha"
-          type="password"
-          value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-        />
-      </Field>
-
-      <PasswordStrengthCard password={password} />
-
-      <CaptchaField value={captchaToken} onChange={setCaptchaToken} />
-
-      {errorMessage && (
-        <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
-          {errorMessage}
-        </div>
-      )}
-
-      <button
-        className="rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-300"
-        disabled={
-          !name
-          || email !== confirmEmail
-          || password !== confirmPassword
-          || registerMutation.isPending
-          || loginMutation.isPending
-          || submitLockRef.current
-        }
-        onClick={() => {
+      <form
+        className="space-y-6"
+        onSubmit={(event) => {
+          event.preventDefault();
           if (submitLockRef.current) {
             return;
           }
@@ -169,17 +104,87 @@ export default function RegisterPage() {
             },
           );
         }}
-        type="button"
       >
-        {registerMutation.isPending || loginMutation.isPending ? 'Criando conta...' : 'Criar conta e entrar'}
-      </button>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Nome">
+            <input
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+              placeholder="Seu nome"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </Field>
+          <Field label="E-mail">
+            <input
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+              placeholder="voce@email.com"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </Field>
+          <Field label="Confirmar e-mail">
+            <input
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+              placeholder="Repita seu e-mail"
+              type="email"
+              value={confirmEmail}
+              onChange={(event) => setConfirmEmail(event.target.value)}
+            />
+          </Field>
+          <Field label="Senha">
+            <input
+              className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+              placeholder="Crie uma senha forte"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </Field>
+        </div>
 
-      <p className="text-sm leading-7 text-slate-600">
-        Já tem conta?{' '}
-        <Link className="font-semibold text-emerald-600 transition hover:text-emerald-700" to="/login">
-          Voltar para o login
-        </Link>
-      </p>
+        <Field label="Confirmar senha">
+          <input
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+            placeholder="Repita sua senha"
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+        </Field>
+
+        <PasswordStrengthCard password={password} />
+
+        <CaptchaField value={captchaToken} onChange={setCaptchaToken} />
+
+        {errorMessage && (
+          <div className="rounded-[22px] border border-rose-100 bg-rose-50 px-4 py-3 text-sm leading-7 text-rose-700">
+            {errorMessage}
+          </div>
+        )}
+
+        <button
+          className="w-full rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-300"
+          disabled={
+            !name
+            || email !== confirmEmail
+            || password !== confirmPassword
+            || registerMutation.isPending
+            || loginMutation.isPending
+            || submitLockRef.current
+          }
+          type="submit"
+        >
+          {registerMutation.isPending || loginMutation.isPending ? 'Criando conta...' : 'Criar conta e entrar'}
+        </button>
+
+        <p className="text-sm leading-7 text-slate-600">
+          Já tem conta?{' '}
+          <Link className="font-semibold text-emerald-600 transition hover:text-emerald-700" to="/login">
+            Voltar para o login
+          </Link>
+        </p>
+      </form>
     </AuthLayout>
   );
 }
