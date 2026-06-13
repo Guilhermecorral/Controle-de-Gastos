@@ -8,13 +8,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Rejeita origens inesperadas em chamadas mutáveis quando a autenticação estiver baseada em cookies.
@@ -22,16 +22,20 @@ import java.util.stream.Collectors;
 @Component
 public class TrustedOriginFilter extends OncePerRequestFilter {
 
-    private final Set<String> allowedOrigins;
+    private final CorsConfiguration corsConfiguration;
 
     public TrustedOriginFilter(
             @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173}")
             String allowedOrigins
     ) {
-        this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+        List<String> allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))
                 .map(TrustedOriginFilter::normalizeOrigin)
                 .filter(origin -> !origin.isBlank())
-                .collect(Collectors.toSet());
+                .toList();
+
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(allowedOriginPatterns);
+        this.corsConfiguration = configuration;
     }
 
     /**
@@ -57,7 +61,9 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
         String requestOrigin = normalizeOrigin(request.getScheme() + "://" + request.getServerName()
                 + ((request.getServerPort() == 80 || request.getServerPort() == 443) ? "" : ":" + request.getServerPort()));
 
-        if (origin != null && !origin.isBlank() && !allowedOrigins.contains(origin) && !requestOrigin.equals(origin)) {
+        String matchedOrigin = origin.isBlank() ? null : corsConfiguration.checkOrigin(origin);
+
+        if (origin != null && !origin.isBlank() && matchedOrigin == null && !requestOrigin.equals(origin)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
