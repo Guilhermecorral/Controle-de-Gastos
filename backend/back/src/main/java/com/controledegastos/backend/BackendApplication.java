@@ -1,5 +1,6 @@
 package com.controledegastos.backend;
 
+import com.controledegastos.backend.config.RuntimeEnvironmentDefaults;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -7,7 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BackendApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(BackendApplication.class, args);
+		SpringApplication application = new SpringApplication(BackendApplication.class);
+		application.setDefaultProperties(RuntimeEnvironmentDefaults.resolve());
+		application.run(args);
 	}
 
 }
