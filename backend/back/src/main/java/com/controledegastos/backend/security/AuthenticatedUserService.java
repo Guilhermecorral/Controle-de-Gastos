@@ -22,9 +22,22 @@ public class AuthenticatedUserService {
      * ter sido armazenado como entidade completa ou apenas como email.
      */
     public User getAuthenticatedUser() {
+        User authenticatedUser = getAuthenticatedUserOrNull();
+
+        if (authenticatedUser == null) {
+            throw new IllegalStateException("Nao existe usuario autenticado na requisicao atual");
+        }
+
+        return authenticatedUser;
+    }
+
+    /**
+     * Tenta recuperar o usuario autenticado atual e devolve null quando a requisicao ainda nao tem sessao valida.
+     */
+    public User getAuthenticatedUserOrNull() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
-            throw new IllegalStateException("Nao existe usuario autenticado na requisicao atual");
+            return null;
         }
 
         Object principal = authentication.getPrincipal();

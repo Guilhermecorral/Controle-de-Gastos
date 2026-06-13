@@ -78,7 +78,10 @@ public class AuthController {
      */
     @GetMapping("/me")
     public ResponseEntity<AuthResponseDTO> me() {
-        return ResponseEntity.ok(authService.getCurrentUser());
+        AuthResponseDTO currentUser = authService.getCurrentUserIfAuthenticated();
+        return currentUser == null
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.ok(currentUser);
     }
 
     /**

@@ -51,6 +51,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         return
       }
 
+      if (response.status === 204) {
+        set({ user: null, isAuthenticated: false, hydrated: true })
+        return
+      }
+
       const user = (await response.json()) as AuthUser
       set({ user, isAuthenticated: true, hydrated: true })
     } catch {

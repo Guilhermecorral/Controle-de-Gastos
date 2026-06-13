@@ -128,6 +128,14 @@ public class AuthService {
     }
 
     /**
+     * Devolve o perfil autenticado quando houver sessao valida e responde vazio quando o visitante ainda nao entrou.
+     */
+    public AuthResponseDTO getCurrentUserIfAuthenticated() {
+        User user = authenticatedUserService.getAuthenticatedUserOrNull();
+        return user == null ? null : buildAuthResponse(user);
+    }
+
+    /**
      * Inicia o fluxo de redefinicao de senha e mantem a resposta neutra por seguranca.
      */
     public ForgotPasswordResponseDTO requestPasswordReset(ForgotPasswordRequestDTO dto, String remoteIp, String applicationBaseUrl) {
