@@ -1,6 +1,7 @@
 package com.controledegastos.backend.config;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,7 +29,8 @@ public final class RuntimeEnvironmentDefaults {
                 env.get("SPRING_DATASOURCE_URL"),
                 env.get("DATABASE_URL")
         );
-        String normalizedUrl = normalizePostgresJdbcUrl(dataSourceUrl);
+        ParsedJdbcSettings parsedSettings = normalizePostgresJdbcSettings(dataSourceUrl);
+        String normalizedUrl = parsedSettings.url();
 
         if (hasText(normalizedUrl)) {
             defaults.put("SPRING_DATASOURCE_URL", normalizedUrl);
@@ -37,6 +39,7 @@ public final class RuntimeEnvironmentDefaults {
 
         String username = firstNonBlank(
                 env.get("SPRING_DATASOURCE_USERNAME"),
+                parsedSettings.username(),
                 env.get("DATABASE_USERNAME"),
                 env.get("POSTGRES_USER")
         );
@@ -47,6 +50,7 @@ public final class RuntimeEnvironmentDefaults {
 
         String password = firstNonBlank(
                 env.get("SPRING_DATASOURCE_PASSWORD"),
+                parsedSettings.password(),
                 env.get("DATABASE_PASSWORD"),
                 env.get("POSTGRES_PASSWORD")
         );
@@ -83,24 +87,52 @@ public final class RuntimeEnvironmentDefaults {
         }
     }
 
-    private static String normalizePostgresJdbcUrl(String rawUrl) {
+    private static ParsedJdbcSettings normalizePostgresJdbcSettings(String rawUrl) {
         if (!hasText(rawUrl)) {
-            return rawUrl;
+            return new ParsedJdbcSettings(rawUrl, null, null);
         }
 
-        if (rawUrl.startsWith("jdbc:postgresql://")) {
-            return rawUrl;
-        }
-
+        String jdbcUrl = rawUrl;
         if (rawUrl.startsWith("postgresql://")) {
-            return "jdbc:" + rawUrl;
+            jdbcUrl = "jdbc:" + rawUrl;
+        } else if (rawUrl.startsWith("postgres://")) {
+            jdbcUrl = "jdbc:postgresql://" + rawUrl.substring("postgres://".length());
         }
 
-        if (rawUrl.startsWith("postgres://")) {
-            return "jdbc:postgresql://" + rawUrl.substring("postgres://".length());
+        return extractJdbcUserInfo(jdbcUrl);
+    }
+
+    private static ParsedJdbcSettings extractJdbcUserInfo(String jdbcUrl) {
+        if (!hasText(jdbcUrl) || !jdbcUrl.startsWith("jdbc:postgresql://")) {
+            return new ParsedJdbcSettings(jdbcUrl, null, null);
         }
 
-        return rawUrl;
+        String candidate = jdbcUrl.substring("jdbc:".length());
+        try {
+            URI uri = new URI(candidate);
+            String userInfo = uri.getUserInfo();
+            if (!hasText(userInfo)) {
+                return new ParsedJdbcSettings(jdbcUrl, null, null);
+            }
+
+            String[] credentials = userInfo.split(":", 2);
+            String username = credentials.length > 0 ? credentials[0] : null;
+            String password = credentials.length > 1 ? credentials[1] : null;
+
+            URI sanitizedUri = new URI(
+                    uri.getScheme(),
+                    null,
+                    uri.getHost(),
+                    uri.getPort(),
+                    uri.getPath(),
+                    uri.getQuery(),
+                    uri.getFragment()
+            );
+
+            return new ParsedJdbcSettings("jdbc:" + sanitizedUri, username, password);
+        } catch (URISyntaxException ignored) {
+            return new ParsedJdbcSettings(jdbcUrl, null, null);
+        }
     }
 
     private static String firstNonBlank(String... values) {
@@ -114,5 +146,8 @@ public final class RuntimeEnvironmentDefaults {
 
     private static boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private record ParsedJdbcSettings(String url, String username, String password) {
     }
 }
