@@ -24,6 +24,15 @@ public final class RuntimeEnvironmentDefaults {
         return defaults;
     }
 
+    public static void applyToSystemProperties() {
+        Map<String, Object> resolved = resolve();
+        resolved.forEach((key, value) -> {
+            if (value != null) {
+                System.setProperty(key, value.toString());
+            }
+        });
+    }
+
     private static void applyDataSourceDefaults(Map<String, String> env, Map<String, Object> defaults) {
         String dataSourceUrl = resolvePreferredDataSourceUrl(env);
         ParsedJdbcSettings parsedSettings = normalizePostgresJdbcSettings(dataSourceUrl);

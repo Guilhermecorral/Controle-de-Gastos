@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class BackendApplication {
 
 	public static void main(String[] args) {
+		RuntimeEnvironmentDefaults.applyToSystemProperties();
 		SpringApplication application = new SpringApplication(BackendApplication.class);
 		application.setDefaultProperties(RuntimeEnvironmentDefaults.resolve());
 		application.run(args);
