@@ -83,11 +83,14 @@ public final class RuntimeEnvironmentDefaults {
 
     private static void applyRedisDefaults(Map<String, String> env, Map<String, Object> defaults) {
         if (hasText(env.get("SPRING_DATA_REDIS_HOST")) && hasText(env.get("SPRING_DATA_REDIS_PORT"))) {
+            defaults.put("management.health.redis.enabled", "true");
             return;
         }
 
         String redisUrl = env.get("REDIS_URL");
         if (!hasText(redisUrl)) {
+            defaults.put("management.health.redis.enabled", "false");
+            defaults.putIfAbsent("app.security.auth-rate-limit.redis-enabled", "false");
             return;
         }
 
@@ -103,6 +106,8 @@ public final class RuntimeEnvironmentDefaults {
                 defaults.put("SPRING_DATA_REDIS_PORT", Integer.toString(port));
                 defaults.put("spring.data.redis.port", Integer.toString(port));
             }
+
+            defaults.put("management.health.redis.enabled", "true");
         } catch (IllegalArgumentException ignored) {
             // Se a URL do Redis vier malformada, deixamos a falha aparecer no startup.
         }

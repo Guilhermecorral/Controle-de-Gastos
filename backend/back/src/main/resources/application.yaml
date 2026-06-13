@@ -93,6 +93,6 @@ management:
       show-details: never
 
 server:
-  port: 8080
+  port: ${PORT:8080}
   forward-headers-strategy: framework
   shutdown: graceful
