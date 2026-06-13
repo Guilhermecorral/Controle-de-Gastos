@@ -79,6 +79,7 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<AuthResponseDTO> me() {
         AuthResponseDTO currentUser = authService.getCurrentUserIfAuthenticated();
+        log.info("Consulta de sessao atual concluida: autenticado={}", currentUser != null);
         return currentUser == null
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.ok(currentUser);

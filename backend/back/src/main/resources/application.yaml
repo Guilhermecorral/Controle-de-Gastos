@@ -63,6 +63,8 @@ app:
       domain: ${APP_COOKIES_DOMAIN}
     cors:
       allowed-origins: ${APP_ALLOWED_ORIGINS}
+    request-debug:
+      enabled: ${APP_SECURITY_REQUEST_DEBUG_ENABLED:false}
     auth-rate-limit:
       window-seconds: ${APP_AUTH_RATE_LIMIT_WINDOW_SECONDS}
       max-attempts: ${APP_AUTH_RATE_LIMIT_MAX_ATTEMPTS}

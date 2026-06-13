@@ -1,6 +1,7 @@
 package com.controledegastos.backend.config;
 
 import com.controledegastos.backend.security.AuthRateLimitFilter;
+import com.controledegastos.backend.security.SecurityRequestDebugFilter;
 import com.controledegastos.backend.security.JwtAuthenticationFilter;
 import com.controledegastos.backend.security.TrustedOriginFilter;
 import com.controledegastos.backend.user.Repository.UserRepository;
@@ -10,6 +11,7 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,12 +44,14 @@ import java.util.Locale;
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
 
     @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://farolfinanceiro.duckdns.org,https://project-niqqo-farolfinanceiro.vercel.app}")
     private String allowedOrigins;
 
     private final AuthRateLimitFilter authRateLimitFilter;
+    private final SecurityRequestDebugFilter securityRequestDebugFilter;
     private final TrustedOriginFilter trustedOriginFilter;
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserRepository userRepository;
@@ -94,8 +98,9 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .addFilterBefore(securityRequestDebugFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-                //.addFilterBefore(trustedOriginFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(trustedOriginFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -185,8 +190,16 @@ public class SecurityConfig {
      */
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) ->
+        return (request, response, authException) -> {
+                log.warn(
+                        "[SECURITY] 401 method={} uri={} origin={} message={}",
+                        request.getMethod(),
+                        request.getRequestURI(),
+                        request.getHeader("Origin"),
+                        authException.getMessage()
+                );
                 response.sendError(401, "Autenticacao necessaria para acessar este recurso");
+        };
     }
 
     /**
@@ -194,7 +207,15 @@ public class SecurityConfig {
      */
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) ->
+        return (request, response, accessDeniedException) -> {
+                log.warn(
+                        "[SECURITY] 403 method={} uri={} origin={} message={}",
+                        request.getMethod(),
+                        request.getRequestURI(),
+                        request.getHeader("Origin"),
+                        accessDeniedException.getMessage()
+                );
                 response.sendError(403, "Voce nao tem permissao para acessar este recurso");
+        };
     }
 }
