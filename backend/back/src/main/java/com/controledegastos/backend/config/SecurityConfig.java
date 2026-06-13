@@ -1,7 +1,9 @@
 package com.controledegastos.backend.config;
 
 import com.controledegastos.backend.security.AuthRateLimitFilter;
+import com.controledegastos.backend.security.ApiCorsFilter;
 import com.controledegastos.backend.security.SecurityRequestDebugFilter;
+import com.controledegastos.backend.security.CorsHeaderService;
 import com.controledegastos.backend.security.JwtAuthenticationFilter;
 import com.controledegastos.backend.security.TrustedOriginFilter;
 import com.controledegastos.backend.user.Repository.UserRepository;
@@ -37,6 +39,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
  * Centraliza a configuracao de seguranca, JWT e Swagger da aplicacao.
@@ -51,7 +54,9 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     private final AuthRateLimitFilter authRateLimitFilter;
+    private final ApiCorsFilter apiCorsFilter;
     private final SecurityRequestDebugFilter securityRequestDebugFilter;
+    private final CorsHeaderService corsHeaderService;
     private final TrustedOriginFilter trustedOriginFilter;
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserRepository userRepository;
@@ -63,7 +68,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .headers(headers -> headers
                         .contentTypeOptions(Customizer.withDefaults())
                         .frameOptions(frame -> frame.deny())
@@ -98,6 +103,7 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .addFilterBefore(apiCorsFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(securityRequestDebugFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(trustedOriginFilter, UsernamePasswordAuthenticationFilter.class)
@@ -111,13 +117,13 @@ public class SecurityConfig {
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        List<String> configuredOrigins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .collect(Collectors.toList());
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "https://farolfinanceiro.duckdns.org",
-                "https://project-niqqo-farolfinanceiro.vercel.app",
-                "http://localhost:5173",
-                "http://127.0.0.1:5173"
-        ));
+        configuration.setAllowedOriginPatterns(configuredOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Origin", "Accept"));
         configuration.setAllowCredentials(true);
@@ -126,6 +132,14 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * Registra no boot quais origens de frontend ficaram liberadas para acelerar diagnosticos em producao.
+     */
+    @Bean
+    public org.springframework.boot.CommandLineRunner corsOriginsStartupLog() {
+        return args -> log.info("[SECURITY] CORS allowed origins configured={}", allowedOrigins);
     }
 
     private static String normalizeOriginValue(String origin) {
@@ -191,6 +205,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint() {
         return (request, response, authException) -> {
+                corsHeaderService.applyIfAllowed(request, response);
                 log.warn(
                         "[SECURITY] 401 method={} uri={} origin={} message={}",
                         request.getMethod(),
@@ -208,6 +223,7 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
+                corsHeaderService.applyIfAllowed(request, response);
                 log.warn(
                         "[SECURITY] 403 method={} uri={} origin={} message={}",
                         request.getMethod(),

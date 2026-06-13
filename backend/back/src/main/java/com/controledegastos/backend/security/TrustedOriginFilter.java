@@ -23,11 +23,14 @@ import java.util.Locale;
 public class TrustedOriginFilter extends OncePerRequestFilter {
 
     private final CorsConfiguration corsConfiguration;
+    private final CorsHeaderService corsHeaderService;
 
     public TrustedOriginFilter(
-            @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173}")
+            CorsHeaderService corsHeaderService,
+            @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://farolfinanceiro.duckdns.org,https://project-niqqo-farolfinanceiro.vercel.app}")
             String allowedOrigins
     ) {
+        this.corsHeaderService = corsHeaderService;
         List<String> allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))
                 .map(TrustedOriginFilter::normalizeOrigin)
                 .filter(origin -> !origin.isBlank())
@@ -64,6 +67,7 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
         String matchedOrigin = origin.isBlank() ? null : corsConfiguration.checkOrigin(origin);
 
         if (origin != null && !origin.isBlank() && matchedOrigin == null && !requestOrigin.equals(origin)) {
+            corsHeaderService.applyIfAllowed(request, response);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");

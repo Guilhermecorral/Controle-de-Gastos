@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -23,11 +24,17 @@ import java.util.Map;
 public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private final AuthRateLimitService authRateLimitService;
+    private final CorsHeaderService corsHeaderService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Environment environment;
 
-    public AuthRateLimitFilter(AuthRateLimitService authRateLimitService, Environment environment) {
+    public AuthRateLimitFilter(
+            AuthRateLimitService authRateLimitService,
+            CorsHeaderService corsHeaderService,
+            Environment environment
+    ) {
         this.authRateLimitService = authRateLimitService;
+        this.corsHeaderService = corsHeaderService;
         this.environment = environment;
     }
 
@@ -37,13 +44,15 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !(
+        boolean isAuthPath = (
                 "/api/auth/login".equals(path)
                         || "/api/auth/register".equals(path)
                         || "/api/auth/forgot-password".equals(path)
                         || "/api/auth/reset-password".equals(path)
                         || "/api/auth/refresh".equals(path)
         );
+
+        return HttpMethod.OPTIONS.matches(request.getMethod()) || !isAuthPath;
     }
 
     /**
@@ -84,6 +93,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
      * Devolve um JSON consistente para o frontend quando o rate limit bloquear a chamada.
      */
     private void writeRateLimitResponse(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        corsHeaderService.applyIfAllowed(request, response);
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
