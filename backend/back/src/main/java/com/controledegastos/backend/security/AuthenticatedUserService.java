@@ -32,7 +32,13 @@ public class AuthenticatedUserService {
                 ? user.getEmail()
                 : principal.toString();
 
-        return userRepository.findByEmail(email)
+        User authenticatedUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalStateException("Usuario autenticado nao foi encontrado na base"));
+
+        if (!authenticatedUser.isActive()) {
+            throw new IllegalStateException("Esta conta esta suspensa no momento");
+        }
+
+        return authenticatedUser;
     }
 }

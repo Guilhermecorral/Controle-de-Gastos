@@ -2,6 +2,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from './api'
 import {
+  AdminOverviewResponse,
+  AdminUserPasswordResetRequest,
+  AdminUserResponse,
+  AdminUserRoleUpdateRequest,
+  AdminUserStatusUpdateRequest,
   AuthResponse,
   DisableTwoFactorRequest,
   DashboardResponse,
@@ -31,6 +36,71 @@ import {
   WishlistStatus,
   WishlistSummaryResponse,
 } from '../types'
+
+export function useAdminOverviewQuery(enabled = true) {
+  return useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: async () => (await api.get<AdminOverviewResponse>('/admin/overview')).data,
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
+export function useAdminUsersQuery(enabled = true) {
+  return useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: async () => (await api.get<AdminUserResponse[]>('/admin/users')).data,
+    enabled,
+    staleTime: 15_000,
+  })
+}
+
+export function useAdminUpdateUserStatusMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: AdminUserStatusUpdateRequest }) =>
+      (await api.patch<AdminUserResponse>(`/admin/users/${id}/status`, data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
+    },
+  })
+}
+
+export function useAdminUpdateUserRoleMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: AdminUserRoleUpdateRequest }) =>
+      (await api.patch<AdminUserResponse>(`/admin/users/${id}/role`, data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
+    },
+  })
+}
+
+export function useAdminResetUserPasswordMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: AdminUserPasswordResetRequest }) =>
+      (await api.post<AdminUserResponse>(`/admin/users/${id}/reset-password`, data)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
+    },
+  })
+}
+
+export function useAdminResetUserTwoFactorMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: number) => (await api.post<AdminUserResponse>(`/admin/users/${id}/reset-two-factor`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
+    },
+  })
+}
 
 export function useLoginMutation() {
   return useMutation({

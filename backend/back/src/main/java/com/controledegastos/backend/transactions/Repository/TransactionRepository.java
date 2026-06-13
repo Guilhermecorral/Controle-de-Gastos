@@ -61,7 +61,19 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
             @Param("type") Transaction.TransactionType type
     );
 
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.type = :type")
+    BigDecimal sumAmountByType(@Param("type") Transaction.TransactionType type);
+
     List<Transaction> findTop5ByUserOrderByTransactionDateDescCreatedAtDesc(User user);
+
+    long countByUser(User user);
+
+    @Query("""
+            SELECT MAX(t.transactionDate)
+            FROM Transaction t
+            WHERE t.user = :user
+            """)
+    LocalDate findLastTransactionDateByUser(@Param("user") User user);
 
     @Query("""
             SELECT t.category AS category, SUM(t.amount) AS totalAmount

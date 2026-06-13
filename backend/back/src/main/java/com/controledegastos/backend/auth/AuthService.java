@@ -72,6 +72,10 @@ public class AuthService {
         User user = userRepository.findByEmail(dto.email())
                 .orElseThrow(() -> new BadCredentialsException("Credenciais invalidas"));
 
+        if (!user.isActive()) {
+            throw new IllegalStateException("Esta conta esta suspensa no momento");
+        }
+
         if (!passwordEncoder.matches(dto.password(), user.getPassword())) {
             throw new BadCredentialsException("Credenciais invalidas");
         }
@@ -103,6 +107,10 @@ public class AuthService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Sessao expirada"));
+
+        if (!user.isActive()) {
+            throw new IllegalStateException("Esta conta esta suspensa no momento");
+        }
 
         if (!jwtService.isRefreshTokenValid(refreshToken, user)) {
             throw new BadCredentialsException("Sessao expirada");

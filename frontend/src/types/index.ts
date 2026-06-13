@@ -84,6 +84,40 @@ export interface ForgotPasswordResponse {
   message: string;
 }
 
+export interface AdminOverviewResponse {
+  totalUsuarios: number;
+  usuariosAtivos: number;
+  administradores: number;
+  totalReceitas: number;
+  totalDespesas: number;
+  saldoGlobal: number;
+}
+
+export interface AdminUserResponse {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  active: boolean;
+  twoFactorEnabled: boolean;
+  createdAt: string;
+  suspendedAt: string | null;
+  totalTransactions: number;
+  lastTransactionDate: string | null;
+}
+
+export interface AdminUserStatusUpdateRequest {
+  active: boolean;
+}
+
+export interface AdminUserRoleUpdateRequest {
+  role: Role;
+}
+
+export interface AdminUserPasswordResetRequest {
+  newPassword: string;
+}
+
 export interface UpdateProfileRequest {
   name: string;
   email: string;

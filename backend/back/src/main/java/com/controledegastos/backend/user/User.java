@@ -38,6 +38,10 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean twoFactorEnabled = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
+
     @Column(length = 512)
     private String twoFactorSecretEncrypted;
 
@@ -45,6 +49,8 @@ public class User implements UserDetails {
     private String twoFactorPendingSecretEncrypted;
 
     private LocalDateTime twoFactorEnabledAt;
+
+    private LocalDateTime suspendedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

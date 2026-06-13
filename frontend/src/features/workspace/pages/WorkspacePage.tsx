@@ -23,6 +23,7 @@ import {
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { useAuthStore } from '../../../store/auth';
+import AdminPage from '../../admin/pages/AdminPage';
 import DashboardPage from '../../dashboard/pages/DashboardPage';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
 import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
@@ -96,6 +97,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
     installments: 1,
     firstInstallmentNextMonth: false,
   });
+  const isAdmin = user?.role === 'ADMIN';
 
   const dashboardQuery = useDashboardQuery(dashboardYear, dashboardMonth);
   const allTransactionsQuery = useTransactionsQuery({ enabled: true });
@@ -214,9 +216,19 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
     () => wishlistItems.find((item) => item.id === purchaseModalItemId) ?? null,
     [purchaseModalItemId, wishlistItems],
   );
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => item.id !== 'admin' || isAdmin),
+    [isAdmin],
+  );
 
   const purchaseModalHistory = purchaseHistoryQuery.data ?? [];
   const selectedWishlistHistory = wishlistHistoryQuery.data ?? [];
+
+  useEffect(() => {
+    if (currentView === 'admin' && !isAdmin) {
+      setCurrentView('painel');
+    }
+  }, [currentView, isAdmin]);
 
   const pushToast = (message: string, tone: ToastTone = 'success') => {
     setToasts((currentValue) => [...currentValue, { id: Date.now() + Math.random(), message, tone }]);
@@ -621,7 +633,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         <aside className="glass-panel rounded-[28px] p-5">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Navegação</p>
           <nav className="mt-4 grid gap-2">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <button
                 key={item.id}
                 className={`card-lift rounded-[22px] px-4 py-4 text-left transition ${
@@ -770,6 +782,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               onDownloadReceipt={handleDownloadReceipt}
             />
           )}
+
+          {currentView === 'admin' && isAdmin && <AdminPage />}
 
           {currentView === 'configuracoes' && <SettingsPage onLogout={onLogout} user={user} />}
         </main>
