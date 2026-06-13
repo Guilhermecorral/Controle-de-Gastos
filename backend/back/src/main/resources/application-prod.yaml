@@ -40,14 +40,6 @@ logging:
     root: INFO
     org.springframework.security: INFO
     org.springframework.web: INFO
-  file:
-    name: ${APP_LOG_FILE:logs/farol-financeiro.log}
-  logback:
-    rollingpolicy:
-      max-file-size: ${APP_LOG_MAX_FILE_SIZE:10MB}
-      max-history: ${APP_LOG_MAX_HISTORY:14}
-      total-size-cap: ${APP_LOG_TOTAL_SIZE_CAP:512MB}
-      clean-history-on-start: true
 
 springdoc:
   api-docs:
