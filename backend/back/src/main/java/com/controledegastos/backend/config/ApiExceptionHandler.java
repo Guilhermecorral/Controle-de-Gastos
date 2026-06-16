@@ -90,6 +90,13 @@ public class ApiExceptionHandler {
             IllegalArgumentException exception,
             HttpServletRequest request
     ) {
+        log.warn(
+                "Regra de negocio invalida em {} {}: {}",
+                request.getMethod(),
+                request.getRequestURI(),
+                exception.getMessage()
+        );
+
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 exception.getMessage(),
@@ -122,6 +129,13 @@ public class ApiExceptionHandler {
             IllegalStateException exception,
             HttpServletRequest request
     ) {
+        log.warn(
+                "Infraestrutura ou dependencia indisponivel em {} {}: {}",
+                request.getMethod(),
+                request.getRequestURI(),
+                exception.getMessage()
+        );
+
         return buildResponse(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 exception.getMessage(),

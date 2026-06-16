@@ -2,6 +2,8 @@ package com.controledegastos.backend.security;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ import java.util.List;
  */
 @Service
 public class CaptchaVerificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(CaptchaVerificationService.class);
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -45,10 +49,12 @@ public class CaptchaVerificationService {
         }
 
         if (secretKey == null || secretKey.isBlank()) {
+            log.warn("Captcha habilitado sem APP_CAPTCHA_SECRET_KEY configurada para a acao={}", action);
             throw new IllegalStateException("A chave secreta do captcha precisa estar configurada");
         }
 
         if (captchaToken == null || captchaToken.isBlank()) {
+            log.warn("Captcha ausente para a acao={} e ip={}", action, remoteIp);
             throw new IllegalArgumentException("A verificacao anti-bot e obrigatoria para continuar");
         }
 
@@ -66,19 +72,45 @@ public class CaptchaVerificationService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             CaptchaVerifyResponse payload = objectMapper.readValue(response.body(), CaptchaVerifyResponse.class);
 
+            if (response.statusCode() >= 400) {
+                log.warn(
+                        "Captcha respondeu HTTP {} para a acao={} com body={}",
+                        response.statusCode(),
+                        action,
+                        abbreviate(response.body(), 300)
+                );
+                throw new IllegalStateException("Nao foi possivel validar o captcha no momento");
+            }
+
             if (!payload.success()) {
+                log.warn(
+                        "Captcha recusado para a acao={} ip={} errorCodes={}",
+                        action,
+                        remoteIp,
+                        payload.errorCodes()
+                );
                 throw new IllegalArgumentException("Nao foi possivel validar o desafio anti-bot para " + action);
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
+            log.warn("Captcha interrompido para a acao={} ip={}", action, remoteIp, exception);
             throw new IllegalStateException("Nao foi possivel validar o captcha no momento");
         } catch (IOException exception) {
+            log.warn("Falha de IO ao validar captcha para a acao={} ip={}", action, remoteIp, exception);
             throw new IllegalStateException("Nao foi possivel validar o captcha no momento");
         }
     }
 
     private String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+
+        return value.substring(0, maxLength - 3) + "...";
     }
 
     /**
