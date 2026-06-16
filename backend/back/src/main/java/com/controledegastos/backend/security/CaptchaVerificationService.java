@@ -49,7 +49,9 @@ public class CaptchaVerificationService {
             return;
         }
 
-        if (secretKey == null || secretKey.isBlank()) {
+        String normalizedSecretKey = normalizeSecretKey(secretKey);
+
+        if (normalizedSecretKey.isBlank()) {
             log.warn("Captcha habilitado sem APP_CAPTCHA_SECRET_KEY configurada para a acao={}", action);
             throw new IllegalStateException("A chave secreta do captcha precisa estar configurada");
         }
@@ -59,7 +61,7 @@ public class CaptchaVerificationService {
             throw new IllegalArgumentException("A verificacao anti-bot e obrigatoria para continuar");
         }
 
-        String requestBody = "secret=" + encode(secretKey)
+        String requestBody = "secret=" + encode(normalizedSecretKey)
                 + "&response=" + encode(captchaToken)
                 + "&remoteip=" + encode(remoteIp == null ? "" : remoteIp);
 
@@ -74,6 +76,13 @@ public class CaptchaVerificationService {
             CaptchaVerifyResponse payload = objectMapper.readValue(response.body(), CaptchaVerifyResponse.class);
 
             if (response.statusCode() >= 400) {
+                if (payload.errorCodes() != null && payload.errorCodes().contains("invalid-input-secret")) {
+                    log.warn(
+                            "APP_CAPTCHA_SECRET_KEY invalida para a acao={}. Revise a Secret Key do widget Turnstile no Render. " +
+                                    "O valor do frontend deve ficar em VITE_TURNSTILE_SITE_KEY e o valor do backend em APP_CAPTCHA_SECRET_KEY.",
+                            action
+                    );
+                }
                 log.warn(
                         "Captcha respondeu HTTP {} para a acao={} com body={}",
                         response.statusCode(),
@@ -104,6 +113,21 @@ public class CaptchaVerificationService {
 
     private String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    private String normalizeSecretKey(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String normalized = value.trim();
+
+        if ((normalized.startsWith("\"") && normalized.endsWith("\""))
+                || (normalized.startsWith("'") && normalized.endsWith("'"))) {
+            normalized = normalized.substring(1, normalized.length() - 1).trim();
+        }
+
+        return normalized;
     }
 
     private String abbreviate(String value, int maxLength) {
