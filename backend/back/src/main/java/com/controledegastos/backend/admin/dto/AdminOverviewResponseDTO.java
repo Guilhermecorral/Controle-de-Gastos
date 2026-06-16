@@ -9,8 +9,11 @@ public record AdminOverviewResponseDTO(
         long totalUsuarios,
         long usuariosAtivos,
         long administradores,
+        long usuariosComDoisFatores,
+        long emailsPermitidosParaAdmin,
         BigDecimal totalReceitas,
         BigDecimal totalDespesas,
-        BigDecimal saldoGlobal
+        BigDecimal saldoGlobal,
+        String statusApi
 ) {
 }

@@ -19,4 +19,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByActiveTrue();
 
     long countByRole(User.Role role);
+
+    long countByTwoFactorEnabledTrue();
 }

@@ -88,9 +88,12 @@ export interface AdminOverviewResponse {
   totalUsuarios: number;
   usuariosAtivos: number;
   administradores: number;
+  usuariosComDoisFatores: number;
+  emailsPermitidosParaAdmin: number;
   totalReceitas: number;
   totalDespesas: number;
   saldoGlobal: number;
+  statusApi: string;
 }
 
 export interface AdminUserResponse {
@@ -100,6 +103,9 @@ export interface AdminUserResponse {
   role: Role;
   active: boolean;
   twoFactorEnabled: boolean;
+  adminPromotionAllowed: boolean;
+  protectedAdmin: boolean;
+  currentSessionUser: boolean;
   createdAt: string;
   suspendedAt: string | null;
   totalTransactions: number;

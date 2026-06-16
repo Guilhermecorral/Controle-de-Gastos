@@ -45,6 +45,7 @@ public class AdminService {
      */
     @Transactional(readOnly = true)
     public AdminOverviewResponseDTO getOverview() {
+        Set<String> allowedAdminWhitelist = resolveAllowedAdminWhitelist();
         BigDecimal totalReceitas = transactionRepository.sumAmountByType(Transaction.TransactionType.RECEITA);
         BigDecimal totalDespesas = transactionRepository.sumAmountByType(Transaction.TransactionType.DESPESA);
 
@@ -52,9 +53,12 @@ public class AdminService {
                 userRepository.count(),
                 userRepository.countByActiveTrue(),
                 userRepository.countByRole(User.Role.ADMIN),
+                userRepository.countByTwoFactorEnabledTrue(),
+                allowedAdminWhitelist.size(),
                 totalReceitas,
                 totalDespesas,
-                totalReceitas.subtract(totalDespesas)
+                totalReceitas.subtract(totalDespesas),
+                "SAUDAVEL"
         );
     }
 
@@ -144,6 +148,9 @@ public class AdminService {
     }
 
     private AdminUserResponseDTO toAdminUserResponse(User user) {
+        User currentAdmin = authenticatedUserService.getAuthenticatedUser();
+        boolean adminPromotionAllowed = isAdminPromotionAllowed(user.getEmail());
+
         return new AdminUserResponseDTO(
                 user.getId(),
                 user.getName(),
@@ -151,6 +158,9 @@ public class AdminService {
                 user.getRole().name(),
                 user.isActive(),
                 user.isTwoFactorEnabled(),
+                adminPromotionAllowed,
+                user.getRole() == User.Role.ADMIN && adminPromotionAllowed,
+                currentAdmin.getId().equals(user.getId()),
                 user.getCreatedAt(),
                 user.getSuspendedAt(),
                 transactionRepository.countByUser(user),
@@ -169,16 +179,20 @@ public class AdminService {
     }
 
     private boolean isAdminPromotionAllowed(String email) {
-        Set<String> whitelist = Arrays.stream(allowedAdminEmails.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .collect(Collectors.toSet());
+        Set<String> whitelist = resolveAllowedAdminWhitelist();
 
         if (whitelist.isEmpty()) {
             return false;
         }
 
         return whitelist.contains(email.toLowerCase(Locale.ROOT));
+    }
+
+    private Set<String> resolveAllowedAdminWhitelist() {
+        return Arrays.stream(allowedAdminEmails.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     }
 }
