@@ -16,7 +16,7 @@ function isTwoFactorChallengeResponse(response: unknown): response is { requires
 export default function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAuthenticated, login, logout, user } = useAuthStore();
+  const { isAuthenticated, hydrate, logout, user } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [captchaToken, setCaptchaToken] = useState('');
@@ -40,7 +40,7 @@ export default function LoginPage() {
         twoFactorCode: twoFactorCode || undefined,
       },
       {
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
           if (isTwoFactorChallengeResponse(response) && response.requiresTwoFactor) {
             setRequiresTwoFactor(true);
             setTwoFactorMessage(response.message);
@@ -53,7 +53,13 @@ export default function LoginPage() {
           }
 
           queryClient.clear();
-          login(response);
+          const authenticated = await hydrate();
+
+          if (!authenticated) {
+            setErrorMessage('Sua sessão não conseguiu ser confirmada no navegador. Revise os cookies do ambiente e tente novamente.');
+            return;
+          }
+
           navigate('/app', { replace: true });
         },
         onError: (error) => {

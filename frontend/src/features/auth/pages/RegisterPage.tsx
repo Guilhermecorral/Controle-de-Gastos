@@ -13,7 +13,7 @@ import PasswordStrengthCard from '../components/PasswordStrengthCard';
 export default function RegisterPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAuthenticated, login, logout, user } = useAuthStore();
+  const { isAuthenticated, hydrate, logout, user } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
@@ -26,9 +26,17 @@ export default function RegisterPage() {
   const loginMutation = useLoginMutation();
   const logoutMutation = useLogoutMutation();
 
-  function finishAuthentication(nameValue: string, emailValue: string, roleValue: string, twoFactorEnabledValue: boolean) {
+  async function finishAuthentication() {
     queryClient.clear();
-    login({ name: nameValue, email: emailValue, role: roleValue, twoFactorEnabled: twoFactorEnabledValue });
+
+    const authenticated = await hydrate();
+
+    if (!authenticated) {
+      submitLockRef.current = false;
+      setErrorMessage('Sua sessão ainda não ficou estável no navegador. Revise os cookies do ambiente e tente entrar pela tela de login.');
+      return;
+    }
+
     navigate('/app', { replace: true });
   }
 
@@ -40,7 +48,7 @@ export default function RegisterPage() {
         captchaToken: captchaToken || undefined,
       },
       {
-        onSuccess: (response) => {
+        onSuccess: async (response) => {
           if ('requiresTwoFactor' in response) {
             submitLockRef.current = false;
             setErrorMessage('Sua conta exige autenticação em dois fatores. Entre pela tela de login para concluir com o código do autenticador.');
@@ -48,7 +56,7 @@ export default function RegisterPage() {
             return;
           }
 
-          finishAuthentication(response.name, response.email, response.role, response.twoFactorEnabled);
+          await finishAuthentication();
         },
         onError: () => {
           submitLockRef.current = false;
@@ -95,8 +103,8 @@ export default function RegisterPage() {
           registerMutation.mutate(
             { name, email, password, captchaToken: captchaToken || undefined },
             {
-              onSuccess: (response) => {
-                finishAuthentication(response.name, response.email, response.role, response.twoFactorEnabled);
+              onSuccess: async () => {
+                await finishAuthentication();
               },
               onError: (error) => {
                 handleRegisterFailure(error);

@@ -6,7 +6,7 @@ type AuthState = {
   user: AuthUser | null
   isAuthenticated: boolean
   hydrated: boolean
-  hydrate: () => Promise<void>
+  hydrate: () => Promise<boolean>
   login: (data: AuthResponse) => void
   updateUser: (data: AuthResponse) => void
   logout: () => void
@@ -48,18 +48,20 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (!response.ok) {
         set({ user: null, isAuthenticated: false, hydrated: true })
-        return
+        return false
       }
 
       if (response.status === 204) {
         set({ user: null, isAuthenticated: false, hydrated: true })
-        return
+        return false
       }
 
       const user = (await response.json()) as AuthUser
       set({ user, isAuthenticated: true, hydrated: true })
+      return true
     } catch {
       set({ user: null, isAuthenticated: false, hydrated: true })
+      return false
     }
   },
   login: (data) => {
