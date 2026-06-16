@@ -90,6 +90,7 @@ export interface AdminOverviewResponse {
   administradores: number;
   usuariosComDoisFatores: number;
   emailsPermitidosParaAdmin: number;
+  adminWhitelist: string[];
   totalReceitas: number;
   totalDespesas: number;
   saldoGlobal: number;

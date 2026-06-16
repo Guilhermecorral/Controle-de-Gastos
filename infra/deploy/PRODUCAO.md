@@ -97,6 +97,12 @@ Exemplo de cron diário às 2h:
 
 ## 7. Smoke test pós-deploy
 
+Você pode rodar primeiro a checagem técnica automatizada:
+
+```powershell
+pwsh ./infra/deploy/SMOKE_TEST_PROD.ps1
+```
+
 Teste:
 
 1. Cadastro

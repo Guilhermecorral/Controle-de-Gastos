@@ -70,7 +70,11 @@ export default function AdminPage() {
 
   const nextRole = selectedUser?.role === 'ADMIN' ? 'USER' : 'ADMIN';
   const canPromoteSelectedUser = selectedUser ? selectedUser.adminPromotionAllowed : false;
-  const roleActionDisabled = !selectedUser || (nextRole === 'ADMIN' && !canPromoteSelectedUser);
+  const statusActionDisabled = !!selectedUser?.protectedAdmin && !!selectedUser?.active;
+  const roleActionDisabled =
+    !selectedUser
+    || (!!selectedUser.protectedAdmin && selectedUser.role === 'ADMIN' && nextRole === 'USER')
+    || (nextRole === 'ADMIN' && !canPromoteSelectedUser);
 
   return (
     <div className="space-y-6">
@@ -133,6 +137,17 @@ export default function AdminPage() {
             acesso administrativo. A interface já reflete essa trava para reduzir erro humano, mas a decisão final continua
             protegida pelo backend.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(overview?.adminWhitelist ?? []).length > 0 ? (
+              (overview?.adminWhitelist ?? []).map((email) => (
+                <Tag key={email} tone="positive">
+                  {email}
+                </Tag>
+              ))
+            ) : (
+              <Tag tone="warning">Whitelist ainda não configurada</Tag>
+            )}
+          </div>
         </div>
       </SectionCard>
 
@@ -278,7 +293,7 @@ export default function AdminPage() {
 
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-600">
                 {selectedUser.protectedAdmin
-                  ? 'Esta conta está dentro da whitelist administrativa e pode manter papel de admin.'
+                  ? 'Esta conta está dentro da whitelist administrativa e permanece protegida contra suspensão ou rebaixamento por este fluxo.'
                   : 'Esta conta só pode virar admin se o e-mail for adicionado explicitamente à whitelist de produção.'}
               </div>
 
@@ -286,6 +301,7 @@ export default function AdminPage() {
                 <ActionButton
                   label={selectedUser.active ? 'Suspender conta' : 'Reativar conta'}
                   tone={selectedUser.active ? 'danger' : 'default'}
+                  disabled={statusActionDisabled}
                   onClick={() => {
                     const actionLabel = selectedUser.active ? 'suspender' : 'reativar';
                     const confirmation = window.prompt(`Digite o e-mail da conta para confirmar ${actionLabel}:`);
@@ -309,6 +325,12 @@ export default function AdminPage() {
                     );
                   }}
                 />
+
+                {statusActionDisabled && (
+                  <p className="text-sm leading-7 text-amber-700">
+                    Suspensão indisponível: esta conta está protegida pela whitelist administrativa.
+                  </p>
+                )}
 
                 <ActionButton
                   label={selectedUser.role === 'ADMIN' ? 'Transformar em usuário comum' : 'Promover para admin'}
@@ -341,6 +363,12 @@ export default function AdminPage() {
                 {roleActionDisabled && nextRole === 'ADMIN' && (
                   <p className="text-sm leading-7 text-amber-700">
                     Promoção indisponível: o e-mail desta conta ainda não está na whitelist de admins autorizados.
+                  </p>
+                )}
+
+                {selectedUser.protectedAdmin && selectedUser.role === 'ADMIN' && nextRole === 'USER' && (
+                  <p className="text-sm leading-7 text-amber-700">
+                    Rebaixamento indisponível: esta conta é uma administradora protegida pela whitelist.
                   </p>
                 )}
               </div>

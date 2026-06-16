@@ -604,6 +604,18 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                     <p className="mt-1 text-xs leading-6 text-slate-500">{user?.email ?? 'sem e-mail carregado'}</p>
                   </div>
                   <div className="mt-3 grid gap-2">
+                    {isAdmin && (
+                      <button
+                        className="rounded-[18px] bg-white px-4 py-3 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                        onClick={() => {
+                          setCurrentView('admin');
+                          setUserMenuOpen(false);
+                        }}
+                        type="button"
+                      >
+                        Painel admin
+                      </button>
+                    )}
                     <button
                       className="rounded-[18px] bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                       onClick={() => {

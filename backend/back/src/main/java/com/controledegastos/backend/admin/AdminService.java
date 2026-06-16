@@ -13,6 +13,7 @@ import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,7 @@ public class AdminService {
      */
     @Transactional(readOnly = true)
     public AdminOverviewResponseDTO getOverview() {
+        assertCurrentAdminAllowed();
         Set<String> allowedAdminWhitelist = resolveAllowedAdminWhitelist();
         BigDecimal totalReceitas = transactionRepository.sumAmountByType(Transaction.TransactionType.RECEITA);
         BigDecimal totalDespesas = transactionRepository.sumAmountByType(Transaction.TransactionType.DESPESA);
@@ -55,6 +57,7 @@ public class AdminService {
                 userRepository.countByRole(User.Role.ADMIN),
                 userRepository.countByTwoFactorEnabledTrue(),
                 allowedAdminWhitelist.size(),
+                allowedAdminWhitelist.stream().sorted().toList(),
                 totalReceitas,
                 totalDespesas,
                 totalReceitas.subtract(totalDespesas),
@@ -67,6 +70,7 @@ public class AdminService {
      */
     @Transactional(readOnly = true)
     public List<AdminUserResponseDTO> listUsers() {
+        assertCurrentAdminAllowed();
         return userRepository.findAll()
                 .stream()
                 .sorted(Comparator.comparing(User::getCreatedAt).reversed())
@@ -79,11 +83,16 @@ public class AdminService {
      */
     @Transactional
     public AdminUserResponseDTO updateUserStatus(Long userId, AdminUserStatusUpdateRequestDTO dto) {
+        assertCurrentAdminAllowed();
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
         User targetUser = findUser(userId);
 
         if (currentAdmin.getId().equals(targetUser.getId()) && !dto.active()) {
             throw new IllegalArgumentException("Voce nao pode suspender a propria conta administradora");
+        }
+
+        if (isProtectedAdmin(targetUser) && !dto.active()) {
+            throw new IllegalArgumentException("Esta conta administradora protegida nao pode ser suspensa por este fluxo");
         }
 
         targetUser.setActive(dto.active());
@@ -96,6 +105,7 @@ public class AdminService {
      */
     @Transactional
     public AdminUserResponseDTO updateUserRole(Long userId, AdminUserRoleUpdateRequestDTO dto) {
+        assertCurrentAdminAllowed();
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
         User targetUser = findUser(userId);
         User.Role newRole;
@@ -108,6 +118,10 @@ public class AdminService {
 
         if (currentAdmin.getId().equals(targetUser.getId()) && newRole != User.Role.ADMIN) {
             throw new IllegalArgumentException("Voce nao pode remover o proprio acesso administrativo");
+        }
+
+        if (isProtectedAdmin(targetUser) && newRole != User.Role.ADMIN) {
+            throw new IllegalArgumentException("Esta conta administradora protegida nao pode perder a role ADMIN por este fluxo");
         }
 
         if (newRole == User.Role.ADMIN && !isAdminPromotionAllowed(targetUser.getEmail())) {
@@ -123,6 +137,7 @@ public class AdminService {
      */
     @Transactional
     public AdminUserResponseDTO resetUserPassword(Long userId, AdminUserPasswordResetRequestDTO dto) {
+        assertCurrentAdminAllowed();
         User targetUser = findUser(userId);
         validatePasswordStrength(dto.newPassword());
         targetUser.setPassword(passwordEncoder.encode(dto.newPassword()));
@@ -134,6 +149,7 @@ public class AdminService {
      */
     @Transactional
     public AdminUserResponseDTO resetUserTwoFactor(Long userId) {
+        assertCurrentAdminAllowed();
         User targetUser = findUser(userId);
         targetUser.setTwoFactorEnabled(false);
         targetUser.setTwoFactorEnabledAt(null);
@@ -145,6 +161,14 @@ public class AdminService {
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+    }
+
+    private void assertCurrentAdminAllowed() {
+        User currentAdmin = authenticatedUserService.getAuthenticatedUser();
+
+        if (currentAdmin.getRole() != User.Role.ADMIN || !isAdminPromotionAllowed(currentAdmin.getEmail())) {
+            throw new AccessDeniedException("Seu acesso administrativo nao esta autorizado pela whitelist atual");
+        }
     }
 
     private AdminUserResponseDTO toAdminUserResponse(User user) {
@@ -186,6 +210,10 @@ public class AdminService {
         }
 
         return whitelist.contains(email.toLowerCase(Locale.ROOT));
+    }
+
+    private boolean isProtectedAdmin(User user) {
+        return user.getRole() == User.Role.ADMIN && isAdminPromotionAllowed(user.getEmail());
     }
 
     private Set<String> resolveAllowedAdminWhitelist() {
