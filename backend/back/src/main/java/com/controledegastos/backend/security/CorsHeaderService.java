@@ -7,9 +7,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.cors.CorsConfiguration;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Reaplica os headers CORS em respostas de erro para que o navegador consiga enxergar a causa real da falha.
@@ -23,10 +21,7 @@ public class CorsHeaderService {
             @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://farolfinanceiro.online,https://www.farolfinanceiro.online}")
             String allowedOrigins
     ) {
-        List<String> allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))
-                .map(CorsHeaderService::normalizeOrigin)
-                .filter(origin -> !origin.isBlank())
-                .toList();
+        List<String> allowedOriginPatterns = AllowedOriginPatterns.expand(allowedOrigins);
 
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(allowedOriginPatterns);
@@ -67,10 +62,6 @@ public class CorsHeaderService {
     }
 
     private static String normalizeOrigin(String origin) {
-        String normalized = origin == null ? "" : origin.trim();
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized.toLowerCase(Locale.ROOT);
+        return AllowedOriginPatterns.normalize(origin);
     }
 }

@@ -67,9 +67,15 @@ public class AuthService {
      * Valida as credenciais informadas e devolve novos tokens para o usuario.
      */
     public LoginAttemptResult login(LoginRequestDTO dto, String remoteIp) {
-        captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "login");
+        User preloadedUser = userRepository.findByEmail(dto.email()).orElse(null);
 
-        User user = userRepository.findByEmail(dto.email())
+        if (shouldValidateCaptchaForLogin(dto, preloadedUser)) {
+            captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "login");
+        }
+
+        User user = preloadedUser != null
+                ? preloadedUser
+                : userRepository.findByEmail(dto.email())
                 .orElseThrow(() -> new BadCredentialsException("Credenciais invalidas"));
 
         if (!user.isActive()) {
@@ -89,6 +95,14 @@ public class AuthService {
         }
 
         return LoginAttemptResult.success(buildAuthenticationSession(user));
+    }
+
+    /**
+     * Mantem captcha na entrada inicial, mas evita reutilizar o mesmo token quando o login segue para a etapa de 2FA.
+     */
+    private boolean shouldValidateCaptchaForLogin(LoginRequestDTO dto, User preloadedUser) {
+        boolean hasTwoFactorCode = dto.twoFactorCode() != null && !dto.twoFactorCode().isBlank();
+        return !hasTwoFactorCode || preloadedUser == null || !preloadedUser.isTwoFactorEnabled();
     }
 
     /**

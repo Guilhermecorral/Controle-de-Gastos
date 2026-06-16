@@ -12,9 +12,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Rejeita origens inesperadas em chamadas mutáveis quando a autenticação estiver baseada em cookies.
@@ -31,10 +29,7 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
             String allowedOrigins
     ) {
         this.corsHeaderService = corsHeaderService;
-        List<String> allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))
-                .map(TrustedOriginFilter::normalizeOrigin)
-                .filter(origin -> !origin.isBlank())
-                .toList();
+        List<String> allowedOriginPatterns = AllowedOriginPatterns.expand(allowedOrigins);
 
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(allowedOriginPatterns);
@@ -81,10 +76,6 @@ public class TrustedOriginFilter extends OncePerRequestFilter {
     }
 
     private static String normalizeOrigin(String origin) {
-        String normalized = origin == null ? "" : origin.trim();
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized.toLowerCase(Locale.ROOT);
+        return AllowedOriginPatterns.normalize(origin);
     }
 }

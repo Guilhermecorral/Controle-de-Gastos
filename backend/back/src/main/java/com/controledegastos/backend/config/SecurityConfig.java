@@ -6,6 +6,7 @@ import com.controledegastos.backend.security.SecurityRequestDebugFilter;
 import com.controledegastos.backend.security.CorsHeaderService;
 import com.controledegastos.backend.security.JwtAuthenticationFilter;
 import com.controledegastos.backend.security.TrustedOriginFilter;
+import com.controledegastos.backend.security.AllowedOriginPatterns;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -39,7 +40,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
 
 /**
  * Centraliza a configuracao de seguranca, JWT e Swagger da aplicacao.
@@ -117,10 +117,7 @@ public class SecurityConfig {
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        List<String> configuredOrigins = Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(origin -> !origin.isBlank())
-                .collect(Collectors.toList());
+        List<String> configuredOrigins = AllowedOriginPatterns.expand(allowedOrigins);
 
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(configuredOrigins);
@@ -139,15 +136,15 @@ public class SecurityConfig {
      */
     @Bean
     public org.springframework.boot.CommandLineRunner corsOriginsStartupLog() {
-        return args -> log.info("[SECURITY] CORS allowed origins configured={}", allowedOrigins);
+        return args -> log.info(
+                "[SECURITY] CORS allowed origins configured={} expanded={}",
+                allowedOrigins,
+                AllowedOriginPatterns.expand(allowedOrigins)
+        );
     }
 
     private static String normalizeOriginValue(String origin) {
-        String normalized = origin == null ? "" : origin.trim();
-        while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return normalized.toLowerCase(Locale.ROOT);
+        return AllowedOriginPatterns.normalize(origin);
     }
 
     /**
