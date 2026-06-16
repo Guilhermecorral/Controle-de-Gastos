@@ -20,7 +20,7 @@ public class CorsHeaderService {
     private final CorsConfiguration corsConfiguration;
 
     public CorsHeaderService(
-            @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://farolfinanceiro.duckdns.org,https://project-niqqo-farolfinanceiro.vercel.app}")
+            @Value("${app.security.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,https://farolfinanceiro.online,https://www.farolfinanceiro.online}")
             String allowedOrigins
     ) {
         List<String> allowedOriginPatterns = Arrays.stream(allowedOrigins.split(","))

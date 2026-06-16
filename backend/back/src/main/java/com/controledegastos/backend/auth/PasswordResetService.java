@@ -36,7 +36,7 @@ public class PasswordResetService {
     @Value("${app.security.password-reset.token-expiration-minutes:30}")
     private long tokenExpirationMinutes;
 
-    @Value("${app.security.password-reset.frontend-url:http://localhost:5173/redefinir-senha}")
+    @Value("${app.security.password-reset.frontend-url:https://farolfinanceiro.online/redefinir-senha}")
     private String frontendResetUrl;
 
     /**

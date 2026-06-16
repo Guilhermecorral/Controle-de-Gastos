@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = {
-        "app.security.cors.allowed-origins=https://farolfinanceiro.duckdns.org,https://project-niqqo-farolfinanceiro.vercel.app",
+        "app.security.cors.allowed-origins=https://farolfinanceiro.online,https://www.farolfinanceiro.online",
         "app.security.request-debug.enabled=true"
 })
 class CorsConfigurationIntegrationTest {
@@ -30,7 +30,7 @@ class CorsConfigurationIntegrationTest {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/auth/register"))
                 .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
-                .header("Origin", "https://farolfinanceiro.duckdns.org")
+                .header("Origin", "https://farolfinanceiro.online")
                 .header("Access-Control-Request-Method", "POST")
                 .header("Access-Control-Request-Headers", "content-type")
                 .build();
@@ -40,7 +40,7 @@ class CorsConfigurationIntegrationTest {
 
         assertThat(response.statusCode()).isEqualTo(200);
         assertThat(response.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
-                .isEqualTo("https://farolfinanceiro.duckdns.org");
+                .isEqualTo("https://farolfinanceiro.online");
         assertThat(response.headers().firstValue("Access-Control-Allow-Credentials").orElse(null))
                 .isEqualTo("true");
     }
