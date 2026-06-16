@@ -182,6 +182,22 @@ class WishlistServiceTest {
         assertEquals(WishlistHistoryEntry.ActionType.MOVED, history.get(0).actionType());
     }
 
+    @Test
+    void shouldCreateDefaultListWhenListingAndSummarizingWithoutAnyExistingList() {
+        authenticateDefaultUser();
+
+        List<WishlistListResponseDTO> lists = wishlistService.findAllLists();
+        WishlistSummaryDTO summary = wishlistService.getSummary();
+
+        assertEquals(1, lists.size());
+        assertTrue(lists.get(0).isDefault());
+        assertEquals("Lista Principal", lists.get(0).name());
+        assertEquals(0L, summary.quantidadeItensDesejados());
+        assertEquals(0L, summary.quantidadeItensComprados());
+        assertEquals(new BigDecimal("0"), summary.valorTotalDesejados());
+        assertEquals(new BigDecimal("0"), summary.valorTotalComprados());
+    }
+
     private User authenticateDefaultUser() {
         User authenticatedUser = userRepository.save(User.builder()
                 .name("Jorge")

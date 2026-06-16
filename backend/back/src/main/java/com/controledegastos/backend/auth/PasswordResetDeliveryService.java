@@ -22,6 +22,9 @@ public class PasswordResetDeliveryService {
     @Value("${app.security.password-reset.mail-from:no-reply@farolfinanceiro.local}")
     private String mailFrom;
 
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
     /**
      * Encaminha o link de redefinicao por e-mail e falha explicitamente quando o SMTP nao estiver pronto.
      */
@@ -32,8 +35,37 @@ public class PasswordResetDeliveryService {
             throw new IllegalStateException("O envio de e-mail nao esta configurado no ambiente atual");
         }
 
+        try {
+            mailSender.send(buildMessage(email, resetLink, resolveSenderAddress()));
+            log.info("E-mail de redefinicao enviado com sucesso para {}", maskEmail(email));
+        } catch (MailException exception) {
+            String fallbackSender = normalize(mailUsername);
+
+            if (!fallbackSender.isBlank() && !fallbackSender.equalsIgnoreCase(resolveSenderAddress())) {
+                log.warn(
+                        "Falha ao enviar o e-mail de redefinicao com remetente {}. Tentando novamente com o usuario SMTP.",
+                        resolveSenderAddress(),
+                        exception
+                );
+
+                try {
+                    mailSender.send(buildMessage(email, resetLink, fallbackSender));
+                    log.info("E-mail de redefinicao enviado com sucesso para {} usando o usuario SMTP como remetente", maskEmail(email));
+                    return;
+                } catch (MailException fallbackException) {
+                    log.error("Nao foi possivel enviar o e-mail de redefinicao nem com o remetente alternativo", fallbackException);
+                }
+            } else {
+                log.error("Nao foi possivel enviar o e-mail de redefinicao", exception);
+            }
+
+            throw new IllegalStateException("Nao foi possivel enviar o e-mail de recuperacao agora");
+        }
+    }
+
+    private SimpleMailMessage buildMessage(String email, String resetLink, String senderAddress) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(mailFrom);
+        message.setFrom(senderAddress);
         message.setTo(email);
         message.setSubject("Redefinicao de senha - Farol Financeiro");
         message.setText("""
@@ -44,12 +76,31 @@ public class PasswordResetDeliveryService {
 
                 Se voce nao pediu essa troca, ignore este e-mail.
                 """.formatted(resetLink));
+        return message;
+    }
 
-        try {
-            mailSender.send(message);
-        } catch (MailException exception) {
-            log.error("Nao foi possivel enviar o e-mail de redefinicao", exception);
-            throw new IllegalStateException("Nao foi possivel enviar o e-mail de recuperacao agora");
+    private String resolveSenderAddress() {
+        String configuredSender = normalize(mailFrom);
+        String smtpUsername = normalize(mailUsername);
+
+        if (configuredSender.isBlank() || configuredSender.endsWith("@farolfinanceiro.local")) {
+            return smtpUsername.isBlank() ? "no-reply@farolfinanceiro.local" : smtpUsername;
         }
+
+        return configuredSender;
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private String maskEmail(String email) {
+        int atIndex = email.indexOf('@');
+
+        if (atIndex <= 1) {
+            return "***";
+        }
+
+        return email.charAt(0) + "***" + email.substring(atIndex);
     }
 }

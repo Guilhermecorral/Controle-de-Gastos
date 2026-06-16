@@ -7,6 +7,7 @@ import com.controledegastos.backend.security.CaptchaVerificationService;
 import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.util.UUID;
  * Orquestra o fluxo seguro de esqueci minha senha sem vazar se um email existe ou nao.
  */
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PasswordResetService {
 
@@ -66,6 +68,9 @@ public class PasswordResetService {
                     .build()
                     .toUriString();
             passwordResetDeliveryService.deliverResetLink(user.getEmail(), resetLink);
+            log.info("Fluxo de redefinicao preparado para {}", maskEmail(user.getEmail()));
+        } else {
+            log.info("Pedido de redefinicao recebido para email nao cadastrado");
         }
 
         return new ForgotPasswordResponseDTO("Se o email existir, enviaremos um link de redefinicao em instantes");
@@ -126,5 +131,15 @@ public class PasswordResetService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("Nao foi possivel proteger o token de redefinicao", exception);
         }
+    }
+
+    private String maskEmail(String email) {
+        int atIndex = email.indexOf('@');
+
+        if (atIndex <= 1) {
+            return "***";
+        }
+
+        return email.charAt(0) + "***" + email.substring(atIndex);
     }
 }

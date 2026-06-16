@@ -359,7 +359,7 @@ public class WishlistService {
     /**
      * Lista todas as listas da wishlist do usuario, sempre incluindo a lista padrao.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public List<WishlistListResponseDTO> findAllLists() {
         User user = getAuthenticatedUser();
         getOrCreateDefaultList(user);
@@ -481,7 +481,7 @@ public class WishlistService {
     /**
      * Calcula o resumo principal exibido na visao agregada da wishlist.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public WishlistSummaryDTO getSummary() {
         User user = getAuthenticatedUser();
         getOrCreateDefaultList(user);
