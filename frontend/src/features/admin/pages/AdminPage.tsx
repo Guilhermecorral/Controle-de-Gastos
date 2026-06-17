@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useAdminOverviewQuery,
   useAdminResetUserPasswordMutation,
@@ -64,6 +64,22 @@ export default function AdminPage() {
     });
   }, [searchTerm, userFilter, users]);
 
+  useEffect(() => {
+    if (filteredUsers.length === 0) {
+      setSelectedUser(null);
+      return;
+    }
+
+    setSelectedUser((currentValue) => {
+      if (!currentValue) {
+        return filteredUsers[0];
+      }
+
+      const updatedSelection = filteredUsers.find((user) => user.id === currentValue.id);
+      return updatedSelection ?? filteredUsers[0];
+    });
+  }, [filteredUsers]);
+
   const syncSelectedUser = (updatedUser: AdminUserResponse) => {
     setSelectedUser((currentValue) => (currentValue?.id === updatedUser.id ? updatedUser : currentValue));
   };
@@ -75,18 +91,30 @@ export default function AdminPage() {
     !selectedUser
     || (!!selectedUser.protectedAdmin && selectedUser.role === 'ADMIN' && nextRole === 'USER')
     || (nextRole === 'ADMIN' && !canPromoteSelectedUser);
+  const actionPending =
+    updateStatusMutation.isPending
+    || updateRoleMutation.isPending
+    || resetPasswordMutation.isPending
+    || resetTwoFactorMutation.isPending;
+
+  const selectUser = (user: AdminUserResponse) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setFeedbackMessage('');
+    setFeedbackError('');
+  };
 
   return (
     <div className="space-y-6">
       <SectionCard title="Sala de comando do admin">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <MetricCard
-            label="Usuários no produto"
+            label="Usuarios no produto"
             value={String(overview?.totalUsuarios ?? users.length)}
             helper="Base total cadastrada."
           />
           <MetricCard
-            label="Usuários ativos"
+            label="Usuarios ativos"
             value={String(overview?.usuariosAtivos ?? activeUsers.length)}
             helper="Contas que conseguem operar agora."
           />
@@ -107,8 +135,8 @@ export default function AdminPage() {
           />
           <MetricCard
             label="Status da API"
-            value={overview?.statusApi === 'SAUDAVEL' ? 'Saudável' : overview?.statusApi ?? 'Indefinido'}
-            helper="Leitura operacional para confirmar que o painel está estável."
+            value={overview?.statusApi === 'SAUDAVEL' ? 'Saudavel' : overview?.statusApi ?? 'Indefinido'}
+            helper="Leitura operacional para confirmar que o painel esta estavel."
           />
         </div>
 
@@ -121,20 +149,20 @@ export default function AdminPage() {
           <MetricCard
             label="Despesas totais"
             value={formatCurrency(overview?.totalDespesas ?? 0)}
-            helper="Volume agregado de saídas."
+            helper="Volume agregado de saidas."
           />
           <MetricCard
             label="Saldo global"
             value={formatCurrency(overview?.saldoGlobal ?? 0)}
-            helper="Diferença consolidada entre entradas e saídas."
+            helper="Diferenca consolidada entre entradas e saidas."
           />
         </div>
 
         <div className="mt-4 rounded-[24px] border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-sm leading-7 text-emerald-800">
-          <p className="font-semibold">Regra sensível de produção</p>
+          <p className="font-semibold">Regra sensivel de producao</p>
           <p className="mt-2">
-            Só e-mails presentes em <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> podem receber ou manter
-            acesso administrativo. A interface já reflete essa trava para reduzir erro humano, mas a decisão final continua
+            So e-mails presentes em <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> podem receber ou manter
+            acesso administrativo. A interface ja reflete essa trava para reduzir erro humano, mas a decisao final continua
             protegida pelo backend.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -145,7 +173,7 @@ export default function AdminPage() {
                 </Tag>
               ))
             ) : (
-              <Tag tone="warning">Whitelist ainda não configurada</Tag>
+              <Tag tone="warning">Whitelist ainda nao configurada</Tag>
             )}
           </div>
         </div>
@@ -163,8 +191,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_400px]">
-        <SectionCard title="Gestão de contas">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_460px]">
+        <SectionCard title="Gestao de contas">
           <div className="mb-4 grid gap-3 md:grid-cols-3">
             <InfoPill label="Ativos" value={String(activeUsers.length)} />
             <InfoPill label="Suspensos" value={String(suspendedUsers.length)} />
@@ -197,73 +225,88 @@ export default function AdminPage() {
             </Field>
           </div>
 
-          <div className="overflow-hidden rounded-[24px] border border-slate-100">
-            <div className="hidden grid-cols-[1.5fr_1.2fr_0.95fr_0.95fr_0.85fr] gap-4 bg-slate-50 px-5 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 lg:grid">
-              <span>Conta</span>
-              <span>Perfil</span>
-              <span>Status</span>
-              <span>Proteção</span>
-              <span>Ações</span>
-            </div>
+          <div className="overflow-x-auto rounded-[24px] border border-slate-100">
+            <div className="min-w-[980px]">
+              <div className="grid grid-cols-[2.2fr_1.25fr_1fr_1.05fr_1fr_120px] gap-4 bg-slate-50 px-5 py-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <span>Conta</span>
+                <span>Perfil</span>
+                <span>Status</span>
+                <span>Protecao</span>
+                <span>Movimento</span>
+                <span>Acao</span>
+              </div>
 
-            <div className="divide-y divide-slate-100">
-              {filteredUsers.length === 0 && (
-                <div className="px-5 py-8 text-sm leading-7 text-slate-500">
-                  Nenhuma conta combinou com a busca atual. Tente outro nome, e-mail ou filtro.
-                </div>
-              )}
-
-              {filteredUsers.map((user) => (
-                <article key={user.id} className="grid gap-3 px-5 py-4 lg:grid-cols-[1.5fr_1.2fr_0.95fr_0.95fr_0.85fr] lg:items-center">
-                  <div>
-                    <p className="font-semibold text-slate-900">{user.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{user.email}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {user.currentSessionUser && <Tag tone="neutral">SESSÃO ATUAL</Tag>}
-                      {user.protectedAdmin && <Tag tone="warning">ADMIN PROTEGIDO</Tag>}
-                      {!user.adminPromotionAllowed && user.role !== 'ADMIN' && <Tag tone="negative">FORA DA WHITELIST</Tag>}
-                    </div>
+              <div className="divide-y divide-slate-100">
+                {filteredUsers.length === 0 && (
+                  <div className="px-5 py-8 text-sm leading-7 text-slate-500">
+                    Nenhuma conta combinou com a busca atual. Tente outro nome, e-mail ou filtro.
                   </div>
+                )}
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Tag tone={user.role === 'ADMIN' ? 'warning' : 'neutral'}>{user.role}</Tag>
-                    <Tag tone={user.active ? 'positive' : 'negative'}>{user.active ? 'ATIVO' : 'SUSPENSO'}</Tag>
-                  </div>
+                {filteredUsers.map((user) => {
+                  const isSelected = selectedUser?.id === user.id;
 
-                  <div>
-                    <span className={`text-sm font-semibold ${user.active ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {user.active ? 'Liberado' : 'Bloqueado'}
-                    </span>
-                    <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
-                      {user.totalTransactions} transação(ões)
-                    </p>
-                  </div>
-
-                  <div>
-                    <span className={`text-sm font-semibold ${user.twoFactorEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
-                      {user.twoFactorEnabled ? '2FA ativo' : 'Sem 2FA'}
-                    </span>
-                    <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
-                      {user.lastTransactionDate ? `Última em ${formatDate(user.lastTransactionDate)}` : 'Sem histórico'}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
+                  return (
                     <button
-                      className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setNewPassword('');
-                        setFeedbackMessage('');
-                        setFeedbackError('');
-                      }}
+                      key={user.id}
+                      className={`grid w-full grid-cols-[2.2fr_1.25fr_1fr_1.05fr_1fr_120px] gap-4 px-5 py-4 text-left transition ${
+                        isSelected ? 'bg-emerald-50/70' : 'bg-white hover:bg-slate-50'
+                      }`}
+                      onClick={() => selectUser(user)}
                       type="button"
                     >
-                      Gerenciar
+                      <div>
+                        <p className="font-semibold text-slate-900">{user.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">{user.email}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {user.currentSessionUser && <Tag tone="neutral">Sessao atual</Tag>}
+                          {user.protectedAdmin && <Tag tone="warning">Admin protegido</Tag>}
+                          {!user.adminPromotionAllowed && user.role !== 'ADMIN' && <Tag tone="negative">Fora da whitelist</Tag>}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap content-start items-center gap-2">
+                        <Tag tone={user.role === 'ADMIN' ? 'warning' : 'neutral'}>{user.role}</Tag>
+                      </div>
+
+                      <div>
+                        <span className={`text-sm font-semibold ${user.active ? 'text-emerald-700' : 'text-rose-700'}`}>
+                          {user.active ? 'Liberado' : 'Bloqueado'}
+                        </span>
+                        <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
+                          {user.active ? 'Conta ativa' : 'Conta suspensa'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className={`text-sm font-semibold ${user.twoFactorEnabled ? 'text-emerald-700' : 'text-slate-500'}`}>
+                          {user.twoFactorEnabled ? '2FA ativo' : 'Sem 2FA'}
+                        </span>
+                        <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
+                          {user.protectedAdmin ? 'Whitelist protegida' : 'Fluxo padrao'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{user.totalTransactions} transacao(oes)</p>
+                        <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
+                          {user.lastTransactionDate ? `Ultima em ${formatDate(user.lastTransactionDate)}` : 'Sem historico'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-start justify-end">
+                        <span
+                          className={`rounded-full px-3 py-2 text-xs font-semibold ${
+                            isSelected ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-700'
+                          }`}
+                        >
+                          {isSelected ? 'Selecionada' : 'Selecionar'}
+                        </span>
+                      </div>
                     </button>
-                  </div>
-                </article>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </SectionCard>
@@ -271,37 +314,57 @@ export default function AdminPage() {
         <SectionCard title={selectedUser ? `Comando da conta #${selectedUser.id}` : 'Selecione uma conta'}>
           {!selectedUser ? (
             <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-sm leading-7 text-slate-500">
-              Escolha uma conta na lista para revisar perfil, alterar permissões, redefinir senha ou resetar o autenticador.
+              Escolha uma conta na lista para revisar perfil, alterar permissoes, redefinir senha ou resetar o autenticador.
             </div>
           ) : (
             <div className="space-y-5">
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
-                <p className="font-semibold text-slate-900">{selectedUser.name}</p>
-                <p className="mt-1 text-sm text-slate-500">{selectedUser.email}</p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">{selectedUser.name}</p>
+                    <p className="mt-1 text-sm text-slate-500">{selectedUser.email}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Tag tone={selectedUser.role === 'ADMIN' ? 'warning' : 'neutral'}>{selectedUser.role}</Tag>
+                    <Tag tone={selectedUser.active ? 'positive' : 'negative'}>
+                      {selectedUser.active ? 'Ativo' : 'Suspenso'}
+                    </Tag>
+                  </div>
+                </div>
+
                 <p className="mt-3 text-sm leading-7 text-slate-600">
                   Criada em {formatDateTime(selectedUser.createdAt)}
                   {selectedUser.suspendedAt ? ` • suspensa em ${formatDateTime(selectedUser.suspendedAt)}` : ''}
                 </p>
+
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedUser.currentSessionUser && <Tag tone="neutral">VOCÊ ESTÁ AQUI</Tag>}
-                  {selectedUser.protectedAdmin && <Tag tone="warning">E-MAIL ADMIN AUTORIZADO</Tag>}
+                  {selectedUser.currentSessionUser && <Tag tone="neutral">Voce esta aqui</Tag>}
+                  {selectedUser.protectedAdmin && <Tag tone="warning">E-mail admin autorizado</Tag>}
                   {!selectedUser.adminPromotionAllowed && selectedUser.role !== 'ADMIN' && (
-                    <Tag tone="negative">PROMOÇÃO BLOQUEADA</Tag>
+                    <Tag tone="negative">Promocao bloqueada</Tag>
                   )}
                 </div>
               </div>
 
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MiniStat label="Historico total" value={`${selectedUser.totalTransactions} transacao(oes)`} />
+                <MiniStat
+                  label="Ultima atividade"
+                  value={selectedUser.lastTransactionDate ? formatDate(selectedUser.lastTransactionDate) : 'Sem historico'}
+                />
+              </div>
+
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-600">
                 {selectedUser.protectedAdmin
-                  ? 'Esta conta está dentro da whitelist administrativa e permanece protegida contra suspensão ou rebaixamento por este fluxo.'
-                  : 'Esta conta só pode virar admin se o e-mail for adicionado explicitamente à whitelist de produção.'}
+                  ? 'Esta conta esta dentro da whitelist administrativa e permanece protegida contra suspensao ou rebaixamento por este fluxo.'
+                  : 'Esta conta so pode virar admin se o e-mail for adicionado explicitamente a whitelist de producao.'}
               </div>
 
               <div className="grid gap-3">
                 <ActionButton
                   label={selectedUser.active ? 'Suspender conta' : 'Reativar conta'}
                   tone={selectedUser.active ? 'danger' : 'default'}
-                  disabled={statusActionDisabled}
+                  disabled={statusActionDisabled || actionPending}
                   onClick={() => {
                     const actionLabel = selectedUser.active ? 'suspender' : 'reativar';
                     const confirmation = window.prompt(`Digite o e-mail da conta para confirmar ${actionLabel}:`);
@@ -319,7 +382,7 @@ export default function AdminPage() {
                           setFeedbackMessage(selectedUser.active ? 'Conta suspensa com sucesso.' : 'Conta reativada com sucesso.');
                         },
                         onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível atualizar o status da conta agora.'));
+                          setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel atualizar o status da conta agora.'));
                         },
                       },
                     );
@@ -328,14 +391,14 @@ export default function AdminPage() {
 
                 {statusActionDisabled && (
                   <p className="text-sm leading-7 text-amber-700">
-                    Suspensão indisponível: esta conta está protegida pela whitelist administrativa.
+                    Suspensao indisponivel: esta conta esta protegida pela whitelist administrativa.
                   </p>
                 )}
 
                 <ActionButton
-                  label={selectedUser.role === 'ADMIN' ? 'Transformar em usuário comum' : 'Promover para admin'}
+                  label={selectedUser.role === 'ADMIN' ? 'Transformar em usuario comum' : 'Promover para admin'}
                   tone="default"
-                  disabled={roleActionDisabled}
+                  disabled={roleActionDisabled || actionPending}
                   onClick={() => {
                     const targetRole: Role = selectedUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
                     const confirmation = window.prompt(`Digite o e-mail da conta para confirmar a role ${targetRole}:`);
@@ -350,10 +413,10 @@ export default function AdminPage() {
                       {
                         onSuccess: (response) => {
                           syncSelectedUser(response);
-                          setFeedbackMessage(`Permissão atualizada para ${targetRole}.`);
+                          setFeedbackMessage(`Permissao atualizada para ${targetRole}.`);
                         },
                         onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível atualizar a role agora.'));
+                          setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel atualizar a role agora.'));
                         },
                       },
                     );
@@ -362,19 +425,19 @@ export default function AdminPage() {
 
                 {roleActionDisabled && nextRole === 'ADMIN' && (
                   <p className="text-sm leading-7 text-amber-700">
-                    Promoção indisponível: o e-mail desta conta ainda não está na whitelist de admins autorizados.
+                    Promocao indisponivel: o e-mail desta conta ainda nao esta na whitelist de admins autorizados.
                   </p>
                 )}
 
                 {selectedUser.protectedAdmin && selectedUser.role === 'ADMIN' && nextRole === 'USER' && (
                   <p className="text-sm leading-7 text-amber-700">
-                    Rebaixamento indisponível: esta conta é uma administradora protegida pela whitelist.
+                    Rebaixamento indisponivel: esta conta e uma administradora protegida pela whitelist.
                   </p>
                 )}
               </div>
 
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
-                <Field label="Nova senha temporária">
+                <Field label="Nova senha temporaria">
                   <input
                     autoComplete="new-password"
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 outline-none transition focus:border-emerald-400"
@@ -387,9 +450,9 @@ export default function AdminPage() {
 
                 <button
                   className="mt-4 rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                  disabled={resetPasswordMutation.isPending || !newPassword.trim()}
+                  disabled={resetPasswordMutation.isPending || actionPending || !newPassword.trim()}
                   onClick={() => {
-                    const confirmation = window.prompt('Digite o e-mail da conta para confirmar a redefinição da senha:');
+                    const confirmation = window.prompt('Digite o e-mail da conta para confirmar a redefinicao da senha:');
                     if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
                       return;
                     }
@@ -405,7 +468,7 @@ export default function AdminPage() {
                           setFeedbackMessage('Senha redefinida com sucesso.');
                         },
                         onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível redefinir a senha agora.'));
+                          setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel redefinir a senha agora.'));
                         },
                       },
                     );
@@ -419,6 +482,7 @@ export default function AdminPage() {
               <ActionButton
                 label="Resetar autenticador (2FA)"
                 tone="default"
+                disabled={actionPending}
                 onClick={() => {
                   const confirmation = window.prompt('Digite o e-mail da conta para confirmar o reset do autenticador:');
                   if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
@@ -433,7 +497,7 @@ export default function AdminPage() {
                       setFeedbackMessage('Segundo fator removido com sucesso.');
                     },
                     onError: (error) => {
-                      setFeedbackError(getApiErrorMessage(error, 'Não foi possível resetar o autenticador agora.'));
+                      setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel resetar o autenticador agora.'));
                     },
                   });
                 }}
@@ -453,6 +517,15 @@ function MetricCard({ label, value, helper }: { label: string; value: string; he
       <p className="mt-4 text-3xl font-semibold text-slate-900">{value}</p>
       <p className="mt-2 text-sm leading-7 text-slate-500">{helper}</p>
     </article>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-slate-100 bg-slate-50 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className="mt-2 text-base font-semibold text-slate-900">{value}</p>
+    </div>
   );
 }
 

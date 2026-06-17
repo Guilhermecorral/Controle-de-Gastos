@@ -32,7 +32,7 @@ public class SecurityRequestDebugFilter extends OncePerRequestFilter {
         }
 
         String uri = request.getRequestURI();
-        return !(uri.startsWith("/api/auth") || uri.startsWith("/api/admin") || uri.equals("/actuator/health"));
+        return !(uri.startsWith("/api/auth") || uri.startsWith("/api/admin") || uri.equals("/actuator/health") || uri.equals("/ping"));
     }
 
     @Override
