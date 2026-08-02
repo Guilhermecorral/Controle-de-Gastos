@@ -67,12 +67,12 @@ public final class RuntimeEnvironmentDefaults {
     }
 
     private static String resolvePreferredDataSourceUrl(Map<String, String> env) {
-        String configuredUrl = firstNonBlank(
+        String configuredUrl = sanitizeConnectionCandidate(firstNonBlank(
                 env.get("SPRING_DATASOURCE_URL"),
                 env.get("DATABASE_URL"),
                 env.get("SUPABASE_DATABASE_URL")
-        );
-        String supabasePoolerUrl = env.get("SUPABASE_POOLER_URL");
+        ));
+        String supabasePoolerUrl = sanitizeConnectionCandidate(env.get("SUPABASE_POOLER_URL"));
 
         if (hasText(supabasePoolerUrl) && shouldPreferSupabasePooler(configuredUrl)) {
             return supabasePoolerUrl;
@@ -114,15 +114,16 @@ public final class RuntimeEnvironmentDefaults {
     }
 
     private static ParsedJdbcSettings normalizePostgresJdbcSettings(String rawUrl) {
-        if (!hasText(rawUrl)) {
-            return new ParsedJdbcSettings(rawUrl, null, null);
+        String sanitizedRawUrl = sanitizeConnectionCandidate(rawUrl);
+        if (!hasText(sanitizedRawUrl)) {
+            return new ParsedJdbcSettings(sanitizedRawUrl, null, null);
         }
 
-        String jdbcUrl = rawUrl;
-        if (rawUrl.startsWith("postgresql://")) {
-            jdbcUrl = "jdbc:" + rawUrl;
-        } else if (rawUrl.startsWith("postgres://")) {
-            jdbcUrl = "jdbc:postgresql://" + rawUrl.substring("postgres://".length());
+        String jdbcUrl = sanitizedRawUrl;
+        if (sanitizedRawUrl.startsWith("postgresql://")) {
+            jdbcUrl = "jdbc:" + sanitizedRawUrl;
+        } else if (sanitizedRawUrl.startsWith("postgres://")) {
+            jdbcUrl = "jdbc:postgresql://" + sanitizedRawUrl.substring("postgres://".length());
         }
 
         ParsedJdbcSettings parsed = extractJdbcUserInfo(jdbcUrl);
@@ -174,6 +175,28 @@ public final class RuntimeEnvironmentDefaults {
 
     private static boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private static String sanitizeConnectionCandidate(String value) {
+        if (!hasText(value)) {
+            return value;
+        }
+
+        String sanitized = value.trim()
+                .replace("`", "")
+                .replace("\"", "")
+                .replace("'", "");
+
+        while ((sanitized.startsWith("[") && sanitized.endsWith("]"))
+                || (sanitized.startsWith("(") && sanitized.endsWith(")"))) {
+            sanitized = sanitized.substring(1, sanitized.length() - 1).trim();
+        }
+
+        if (sanitized.startsWith("[") || sanitized.endsWith("]")) {
+            sanitized = sanitized.replace("[", "").replace("]", "");
+        }
+
+        return sanitized;
     }
 
     private static boolean shouldPreferSupabasePooler(String configuredUrl) {
