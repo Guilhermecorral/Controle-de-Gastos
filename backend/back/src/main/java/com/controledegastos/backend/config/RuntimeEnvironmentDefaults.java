@@ -83,6 +83,12 @@ public final class RuntimeEnvironmentDefaults {
             boolean supabasePoolerConnection
     ) {
         if (hasText(parsedSettings.username())) {
+            if (supabasePoolerConnection && "postgres".equalsIgnoreCase(parsedSettings.username().trim())) {
+                String supabaseProjectRef = resolveSupabaseProjectRef(env, normalizedUrl);
+                if (hasText(supabaseProjectRef)) {
+                    return "postgres." + supabaseProjectRef;
+                }
+            }
             return parsedSettings.username();
         }
 
