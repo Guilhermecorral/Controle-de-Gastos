@@ -37,29 +37,20 @@ public final class RuntimeEnvironmentDefaults {
         String dataSourceUrl = resolvePreferredDataSourceUrl(env);
         ParsedJdbcSettings parsedSettings = normalizePostgresJdbcSettings(dataSourceUrl);
         String normalizedUrl = parsedSettings.url();
+        boolean supabasePoolerConnection = isSupabasePoolerUrl(normalizedUrl);
 
         if (hasText(normalizedUrl)) {
             defaults.put("SPRING_DATASOURCE_URL", normalizedUrl);
             defaults.put("spring.datasource.url", normalizedUrl);
         }
 
-        String username = firstNonBlank(
-                env.get("SPRING_DATASOURCE_USERNAME"),
-                parsedSettings.username(),
-                env.get("DATABASE_USERNAME"),
-                env.get("POSTGRES_USER")
-        );
+        String username = resolveDataSourceUsername(env, parsedSettings, normalizedUrl, supabasePoolerConnection);
         if (hasText(username)) {
             defaults.put("SPRING_DATASOURCE_USERNAME", username);
             defaults.put("spring.datasource.username", username);
         }
 
-        String password = firstNonBlank(
-                env.get("SPRING_DATASOURCE_PASSWORD"),
-                parsedSettings.password(),
-                env.get("DATABASE_PASSWORD"),
-                env.get("POSTGRES_PASSWORD")
-        );
+        String password = resolveDataSourcePassword(env, parsedSettings, supabasePoolerConnection);
         if (hasText(password)) {
             defaults.put("SPRING_DATASOURCE_PASSWORD", password);
             defaults.put("spring.datasource.password", password);
@@ -69,8 +60,12 @@ public final class RuntimeEnvironmentDefaults {
     private static String resolvePreferredDataSourceUrl(Map<String, String> env) {
         String configuredUrl = sanitizeConnectionCandidate(firstNonBlank(
                 env.get("SPRING_DATASOURCE_URL"),
+                env.get("DATASOURCE_URL"),
                 env.get("DATABASE_URL"),
-                env.get("SUPABASE_DATABASE_URL")
+                env.get("SUPABASE_DATABASE_URL"),
+                env.get("SUPABASE_URL"),
+                env.get("PROJECT_URL"),
+                env.get("SUPABASE_PROJECT_URL")
         ));
         String supabasePoolerUrl = sanitizeConnectionCandidate(env.get("SUPABASE_POOLER_URL"));
 
@@ -79,6 +74,74 @@ public final class RuntimeEnvironmentDefaults {
         }
 
         return hasText(configuredUrl) ? configuredUrl : supabasePoolerUrl;
+    }
+
+    private static String resolveDataSourceUsername(
+            Map<String, String> env,
+            ParsedJdbcSettings parsedSettings,
+            String normalizedUrl,
+            boolean supabasePoolerConnection
+    ) {
+        if (hasText(parsedSettings.username())) {
+            return parsedSettings.username();
+        }
+
+        if (supabasePoolerConnection) {
+            String explicitSupabaseUsername = firstNonBlank(
+                    env.get("SPRING_DATASOURCE_USERNAME"),
+                    env.get("DATASOURCE_USERNAME"),
+                    env.get("SUPABASE_DB_USERNAME"),
+                    env.get("SUPABASE_DATABASE_USERNAME"),
+                    env.get("SUPABASE_POOLER_USERNAME"),
+                    env.get("SUPABASE_POOLER_USER")
+            );
+            if (hasText(explicitSupabaseUsername)) {
+                return explicitSupabaseUsername;
+            }
+
+            String supabaseProjectRef = resolveSupabaseProjectRef(env, normalizedUrl);
+            if (hasText(supabaseProjectRef)) {
+                return "postgres." + supabaseProjectRef;
+            }
+            return null;
+        }
+
+        return firstNonBlank(
+                env.get("SPRING_DATASOURCE_USERNAME"),
+                env.get("DATASOURCE_USERNAME"),
+                env.get("DATABASE_USERNAME"),
+                env.get("POSTGRES_USER")
+        );
+    }
+
+    private static String resolveDataSourcePassword(
+            Map<String, String> env,
+            ParsedJdbcSettings parsedSettings,
+            boolean supabasePoolerConnection
+    ) {
+        if (hasText(parsedSettings.password())) {
+            return parsedSettings.password();
+        }
+
+        if (supabasePoolerConnection) {
+            return firstNonBlank(
+                    env.get("SPRING_DATASOURCE_PASSWORD"),
+                    env.get("DATASOURCE_PASSWORD"),
+                    env.get("SUPABASE_DB_PASSWORD"),
+                    env.get("SUPABASE_DATABASE_PASSWORD"),
+                    env.get("SUPABASE_POOLER_PASSWORD"),
+                    env.get("SUPABASE_POOLER_PASS"),
+                    env.get("DATABASE_PASSWORD"),
+                    env.get("POSTGRES_PASSWORD")
+            );
+        }
+
+        return firstNonBlank(
+                env.get("SPRING_DATASOURCE_PASSWORD"),
+                env.get("DATASOURCE_PASSWORD"),
+                env.get("DATABASE_PASSWORD"),
+                env.get("POSTGRES_PASSWORD")
+        );
     }
 
     private static void applyRedisDefaults(Map<String, String> env, Map<String, Object> defaults) {
@@ -206,6 +269,90 @@ public final class RuntimeEnvironmentDefaults {
 
         String normalizedUrl = configuredUrl.toLowerCase();
         return normalizedUrl.contains("supabase.co") && !normalizedUrl.contains("pooler.supabase.com");
+    }
+
+    private static boolean isSupabasePoolerUrl(String jdbcUrl) {
+        if (!hasText(jdbcUrl) || !jdbcUrl.startsWith("jdbc:postgresql://")) {
+            return false;
+        }
+
+        String host = extractJdbcHost(jdbcUrl);
+        return hasText(host) && host.contains("pooler.supabase.com");
+    }
+
+    private static String resolveSupabaseProjectRef(Map<String, String> env, String jdbcUrl) {
+        String explicitProjectRef = firstNonBlank(
+                env.get("SUPABASE_PROJECT_REF"),
+                env.get("PROJECT_REF")
+        );
+        if (hasText(explicitProjectRef)) {
+            return sanitizeSupabaseProjectRef(explicitProjectRef);
+        }
+
+        String supabaseProjectUrl = firstNonBlank(
+                env.get("SUPABASE_URL"),
+                env.get("PROJECT_URL"),
+                env.get("SUPABASE_PROJECT_URL")
+        );
+        if (hasText(supabaseProjectUrl)) {
+            String extracted = extractProjectRefFromSupabaseUrl(sanitizeConnectionCandidate(supabaseProjectUrl));
+            if (hasText(extracted)) {
+                return extracted;
+            }
+        }
+
+        String jdbcHost = extractJdbcHost(jdbcUrl);
+        if (hasText(jdbcHost) && jdbcHost.startsWith("db.") && jdbcHost.endsWith(".supabase.co")) {
+            return jdbcHost.substring("db.".length(), jdbcHost.length() - ".supabase.co".length());
+        }
+
+        return null;
+    }
+
+    private static String extractProjectRefFromSupabaseUrl(String url) {
+        if (!hasText(url)) {
+            return null;
+        }
+
+        try {
+            URI uri = URI.create(url.contains("://") ? url : "https://" + url);
+            String host = uri.getHost();
+            if (!hasText(host)) {
+                return null;
+            }
+
+            if (host.endsWith(".supabase.co")) {
+                return sanitizeSupabaseProjectRef(host.substring(0, host.length() - ".supabase.co".length()));
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Se a URL estiver malformada, apenas tentamos o fallback manual.
+        }
+
+        return null;
+    }
+
+    private static String extractJdbcHost(String jdbcUrl) {
+        if (!hasText(jdbcUrl) || !jdbcUrl.startsWith("jdbc:postgresql://")) {
+            return null;
+        }
+
+        try {
+            URI uri = new URI(jdbcUrl.substring("jdbc:".length()));
+            return uri.getHost();
+        } catch (URISyntaxException ignored) {
+            return null;
+        }
+    }
+
+    private static String sanitizeSupabaseProjectRef(String value) {
+        String sanitized = sanitizeConnectionCandidate(value);
+        if (!hasText(sanitized)) {
+            return sanitized;
+        }
+
+        return sanitized.replace("postgres.", "")
+                .replace("https://", "")
+                .replace("http://", "");
     }
 
     private static String ensureSupabaseSslMode(String jdbcUrl) {
