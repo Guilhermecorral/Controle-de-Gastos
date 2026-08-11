@@ -114,13 +114,7 @@ public class PasswordResetService {
     }
 
     private void validatePasswordStrength(String password) {
-        boolean hasUppercase = password.chars().anyMatch(Character::isUpperCase);
-        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
-        boolean hasSpecial = password.chars().anyMatch(character -> !Character.isLetterOrDigit(character));
-
-        if (!hasUppercase || !hasDigit || !hasSpecial || password.length() < 8) {
-            throw new IllegalArgumentException("A senha precisa ter pelo menos 8 caracteres, letra maiuscula, numero e caractere especial");
-        }
+         PasswordValidator.validate(password);
     }
 
     private String hashToken(String token) {

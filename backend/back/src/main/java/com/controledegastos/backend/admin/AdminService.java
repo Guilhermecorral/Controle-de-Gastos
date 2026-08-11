@@ -7,6 +7,7 @@ import com.controledegastos.backend.admin.dto.AdminUserRoleUpdateRequestDTO;
 import com.controledegastos.backend.admin.dto.AdminUserStatusUpdateRequestDTO;
 import com.controledegastos.backend.config.ResourceNotFoundException;
 import com.controledegastos.backend.security.AuthenticatedUserService;
+import com.controledegastos.backend.security.util.PasswordValidator;
 import com.controledegastos.backend.transactions.Repository.TransactionRepository;
 import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.Repository.UserRepository;
@@ -17,6 +18,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Collections;
+
+
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -41,6 +45,8 @@ public class AdminService {
     @Value("${app.admin.allowed-emails:}")
     private String allowedAdminEmails;
 
+    private static final String STATUS_HEALTHY = "SAUDAVEL";
+
     /**
      * Resume os numeros principais do produto sem expor detalhes individuais desnecessarios.
      */
@@ -61,7 +67,7 @@ public class AdminService {
                 totalReceitas,
                 totalDespesas,
                 totalReceitas.subtract(totalDespesas),
-                "SAUDAVEL"
+                STATUS_HEALTHY
         );
     }
 
@@ -171,6 +177,14 @@ public class AdminService {
         }
     }
 
+    private void ensureCurrentAdminIsAuthorized() {
+        User currentAdmin = authenticatedUserService.getAuthenticatedUser();
+
+        if (currentAdmin.getRole() != User.Role.ADMIN || !isAdminPromotionAllowed(currentAdmin.getEmail())) {
+            throw new AccessDeniedException("Seu acesso administrativo nao esta autorizado pela whitelist atual");
+        }
+    }
+
     private AdminUserResponseDTO toAdminUserResponse(User user) {
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
         boolean adminPromotionAllowed = isAdminPromotionAllowed(user.getEmail());
@@ -193,13 +207,7 @@ public class AdminService {
     }
 
     private void validatePasswordStrength(String password) {
-        boolean hasUppercase = password.chars().anyMatch(Character::isUpperCase);
-        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
-        boolean hasSpecial = password.chars().anyMatch(character -> !Character.isLetterOrDigit(character));
-
-        if (!hasUppercase || !hasDigit || !hasSpecial || password.length() < 8) {
-            throw new IllegalArgumentException("A senha precisa ter pelo menos 8 caracteres, letra maiuscula, numero e caractere especial");
-        }
+         PasswordValidator.validate(password);
     }
 
     private boolean isAdminPromotionAllowed(String email) {
