@@ -169,10 +169,10 @@
 							<version>5.8</version>
 						</dependency>
 						<dependency>
-							<groupId>net.sf.ofx4j</groupId>
-							<artifactId>ofx4j</artifactId>
-							<version>1.6</version>
-						</dependency>
+									<groupId>com.webcohesion.ofx4j</groupId>
+									<artifactId>ofx4j</artifactId>
+									<version>1.8.0</version>
+								</dependency>
 			</dependencies>
 
 	<build>

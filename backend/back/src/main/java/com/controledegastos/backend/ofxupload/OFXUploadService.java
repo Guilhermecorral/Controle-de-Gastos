@@ -4,17 +4,17 @@ import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
 import com.controledegastos.backend.transactions.Transaction;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
-import org.ofx4j.OFXParser;
-import org.ofx4j.impl.OFXParserImpl;
-import org.ofx4j.io.AggregateUnmarshaller;
-import org.ofx4j.io.StreamParserException;
-import org.ofx4j.meta.CurrencyUnit;
-import org.ofx4j.meta.ONE;
-import org.ofx4j.meta.StringMeta;
-import org.ofx4j.net.OFXSignonResponse;
-import org.ofx4j.transaction.BankTransaction;
-import org.ofx4j.transaction.BankTransactionResponse;
-import org.ofx4j.transaction.impl.BankTransactionResponseImpl;
+import com.webcohesion.ofx4j.io.AggregateUnmarshaller;
+import com.webcohesion.ofx4j.io.OFXParser;
+import com.webcohesion.ofx4j.io.OFXParserImpl;
+import com.webcohesion.ofx4j.io.StreamParserException;
+import com.webcohesion.ofx4j.meta.CurrencyUnit;
+import com.webcohesion.ofx4j.meta.ONE;
+import com.webcohesion.ofx4j.meta.StringMeta;
+import com.webcohesion.ofx4j.net.OFXSignonResponse;
+import com.webcohesion.ofx4j.domain.data.banking.BankTransaction;
+import com.webcohesion.ofx4j.domain.data.banking.BankTransactionResponse;
+import com.webcohesion.ofx4j.domain.data.banking.impl.BankTransactionResponseImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -98,8 +98,8 @@ public class OFXUploadService {
     private TransactionRequestDTO convertBankTransactionToDTO(BankTransaction bankTransaction) {
         try {
             // Map OFX fields to our DTO
-            StringMemo fitid = bankTransaction.getFitid();
-            StringMemo memo = bankTransaction.getMemo();
+            StringMeta fitid = bankTransaction.getFitid();
+            StringMeta memo = bankTransaction.getMemo();
             CurrencyUnit transactionAmount = bankTransaction.getTransactionAmount();
             ONE<LocalDate> datePosted = bankTransaction.getDatePosted();
             // Note: OFX does not have all the fields we need, so we set defaults or leave null for some.
