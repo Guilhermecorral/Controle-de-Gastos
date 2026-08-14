@@ -158,11 +158,22 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-	</dependencies>
+					<groupId>com.h2database</groupId>
+					<artifactId>h2</artifactId>
+					<scope>runtime</scope>
+				</dependency>
+
+				<dependency>
+					<groupId>com.opencsv</groupId>
+					<artifactId>opencsv</artifactId>
+					<version>5.8</version>
+				</dependency>
+				<dependency>
+					<groupId>org.ofx4j</groupId>
+					<artifactId>ofx4j</artifactId>
+					<version>1.0.0</version>
+				</dependency>
+			</dependencies>
 
 	<build>
 		<plugins>

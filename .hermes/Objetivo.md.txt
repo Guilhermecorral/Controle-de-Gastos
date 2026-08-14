@@ -1,0 +1,63 @@
+# MAPA DE EXECUÇÃO (ORDEM ESTRITA DE TRABALHO)
+
+Você deve seguir as fases abaixo em ordem. Não pule para a Fase 5 sem ter completado as anteriores.
+
+### 🔍 FASE 1: Imersão e Compreensão Total (Deep Scan)
+1. Leia e analise arquivo por arquivo do repositório atual.
+2. Construa um mapa mental da arquitetura, fluxo de dados e integrações.
+3. Não faça nenhuma alteração no código agora. Sua única tarefa aqui é entender o ecossistema atual.
+4. Quando terminar traga as informações e diga ok, podemos prosseguir?
+
+### 🧹 FASE 2: Auditoria de Qualidade de Código (Clean Code)
+1. Analise o código em busca de débitos técnicos, falta de padronização, ou arquivos desnecessariamente acoplados.
+2. O código precisa ser limpo, bem documentado e perfeitamente fatorado para não termos retrabalho no futuro.
+3. Se encontrar problemas estruturais, me apresente um plano rápido de refatoração antes de mexer no código.
+4. Quando terminar traga as informações e diga o que foi feito e alterado detalhe por detalhe. Posterior diga ok, podemos prosseguir?
+
+### 🛡️ FASE 3: Auditoria de Segurança (Pentest e Whitebox)
+1. Analise todo o código-fonte em busca de vulnerabilidades comuns (OWASP Top 10, vazamento de tokens, falhas de CORS, autenticação fraca).
+2. Tente ativamente achar brechas. Como um teste de segurança, avalie e tente "invadir/burlar" as lógicas expostas da web (`farolfinanceiro.online`), focando especialmente nas validações JWT e no banco de dados.
+3. Reporte qualquer vulnerabilidade encontrada e proponha a correção imediata.
+4. Quando terminar traga as informações e diga o que precisa de segurança, o que já está bem seguro. Posterior diga ok, podemos prosseguir?
+
+### 🛠️ FASE 4: Mapeamento e Correção de Bugs Atuais
+1. Após analisar tudo, aguarde. Eu lhe passarei alguns erros específicos que precisam ser atualizados e melhorados.
+2. Você corrigirá esses bugs usando a base de conhecimento adquirida nas Fases 1 e 2.
+3. Quando chegar a esse momento diga o que devemos fazer? E eu direi tudo.
+4. Quando terminar traga as informações e diga ok, podemos prosseguir?
+
+### 🚀 FASE 5: Bloco B - As Grandes Atualizações (Novas Features)
+Após concluirmos as Fases de 1 a 4, iniciaremos a implementação das novas features. Quero começar EXCLUSIVAMENTE pela Feature 3.
+
+#### 🟢 START AQUI: Feature 3 - Entrada de Dados "Lazy User" (Automação)
+Precisamos arquitetar a entrada facilitada de extratos (.OFX ou .CSV). Funcionalidade 100% focada em UX e Segurança máxima.
+
+* **UX:**
+  - **Zona de Drop Fácil:** Área de Drag and Drop no pop-up.
+  - **Pré-visualização:** Mostrar tabela com dados lidos *antes* de injetar no banco para o usuário ajustar.
+  - **Sugestão Inteligente:** Mapeamento automático de strings (Ex: "UBER" -> "Transporte").
+
+* **Segurança (Backend Spring Boot):**
+  - **Educação do Usuário:** Aviso claro que não guardamos senhas ou chaves PIX.
+  - **Zero Storage:** Ao receber o `MultipartFile`, processe em memória, salve no banco e DELETE o arquivo físico instantaneamente.
+  - **Sanitização:** Ignorar linhas com CPF, agência ou número de conta real.
+  - **Vínculo Seguro (JWT):** Atrelar inserção ao ID do usuário. Validação estrita de token para impedir vazamento cruzado.
+  - **Ferramentas:** `.OFX` usar `ofx4j`; `.CSV` usar `OpenCSV` ou leitor nativo.
+
+## 🟡 PAUSADO
+
+## 🟡 BLOCO B - BACKLOG PAUSADO (AGUARDANDO VALIDAÇÃO DA FEATURE 3)
+
+⚠️ ATENÇÃO AGENTE: As funcionalidades abaixo estão estritamente PAUSADAS. Você NÃO deve criar classes, componentes ou migrations para estas features no momento. Elas servem apenas para o seu conhecimento de arquitetura futura.
+
+### 🟡 Feature 1: Grupos e Divisão de Gastos (Módulo "Split")
+- **Conceito:** Separação entre Caixa Pessoal vs. Caixa do Grupo.
+- **Backend (Spring Boot):** Algoritmo de minimização de transações (fluxo/grafos) para calcular saldo líquido e otimizar pagamentos Pix no grupo.
+- **Database (Supabase):** Tabelas `grupos`, `membros_grupo`, `transacoes_grupo` e `saldos_consolidados` (atualizada via trigger/serviço para performance).
+- **Frontend:** Feed do grupo, cards de débito/crédito e botões de ação rápida ("Quitar dívida").
+
+### 🟡 Feature 2: Módulo de Investimentos (Dashboard e BFF)
+- **Conceito:** Acompanhamento de Renda Fixa, RV e Cripto.
+- **Backend (Spring Boot):** Atuar como BFF para consumir APIs financeiras externas (Brapi, CoinGecko) sem expor chaves no client. Implementar Cache em Memória das cotações. Motor de cálculo para Dividend Yield (DY) e benchmark de meta a 12% a.a.
+- **Database (Supabase):** Tabelas `ativos`, `carteiras_usuario` e `transacoes_investimento`.
+- **Frontend:** Dashboard com gráficos de distribuição de carteira, evolução patrimonial e KPIs de rentabilidade.

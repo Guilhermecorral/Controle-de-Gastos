@@ -1,0 +1,4 @@
+- **Arquivo fonte:** D:\Guilherme\Programming\IntelliJ\IdeaProjects\IdeaProjects\Controle-de-Gastos
+- **Github:** (https://github.com/Guilhermecorral/Controle-de-Gastos)
+- **Site:** (https://farolfinanceiro.online) ou (https://www.farolfinanceiro.online)
+- **Hospedagem:** (Vercel), (Render), (Supabase)

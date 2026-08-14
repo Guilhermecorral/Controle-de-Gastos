@@ -1,0 +1,13 @@
+# CONTEXTO DO PROJETO: CONTROLE DE GASTOS
+
+## 🎯 Visão Geral
+Projeto em andamento de gestão financeira.
+Repositório: `Guilhermecorral/Controle-de-Gastos`
+
+## 🏗️ Infraestrutura de Produção
+* **Frontend:** Vercel
+* **Backend:** Render (Spring Boot)
+* **Banco de Dados:** Supabase
+* **Domínio de Produção:** `farolfinanceiro.online`
+* **Local do projeto:**  "D:\Guilherme\Programming\IntelliJ\IdeaProjects\IdeaProjects\Controle-de-Gastos\Controle-de-Gastos"
+* **Local das informações:** "D:\Guilherme\Programming\IntelliJ\IdeaProjects\IdeaProjects\Controle-de-Gastos\Controle-de-Gastos\.Hermes"
