@@ -1,0 +1,15 @@
+name: Keep Render Awake
+
+on:
+  schedule:
+    # Roda a cada 14 minutos para evitar o sleep de 15 minutos do Render
+    - cron: "*/14 * * * *"
+  workflow_dispatch: # Permite rodar o script manualmente se precisar
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Farol Financeiro
+        # Substitua a URL abaixo pela rota da sua API no Render
+        run: curl -s https://farol-financeiro-msx9.onrender.com/ping
