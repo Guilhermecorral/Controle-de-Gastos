@@ -8,7 +8,7 @@ type AppErrorBoundaryState = {
   hasError: boolean
 }
 
-// Protege a aplicacao contra tela branca total quando um componente quebra em producao.
+// Protege a aplicação contra tela branca total quando um componente quebra em produção.
 export default class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
   constructor(props: AppErrorBoundaryProps) {
     super(props)
@@ -43,7 +43,7 @@ export default class AppErrorBoundary extends Component<AppErrorBoundaryProps, A
               Algo saiu do esperado nesta tela.
             </h1>
             <p className="mt-4 text-base leading-8 text-slate-300">
-              A sessao continua protegida, mas esta area precisa ser carregada novamente para voltar ao fluxo normal.
+              A sessão continua protegida, mas esta área precisa ser carregada novamente para voltar ao fluxo normal.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
               <button

@@ -1,4 +1,4 @@
-// Centraliza as chamadas HTTP e usa cookies HttpOnly para a sessÃ£o, sem expor tokens Ã  aplicaÃ§Ã£o.
+// Centraliza as chamadas HTTP e usa cookies HttpOnly para a sessão, sem expor tokens à aplicação.
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/auth'
 

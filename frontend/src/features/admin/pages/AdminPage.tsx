@@ -96,6 +96,8 @@ export default function AdminPage() {
     || updateRoleMutation.isPending
     || resetPasswordMutation.isPending
     || resetTwoFactorMutation.isPending;
+  const adminQueryPending = overviewQuery.isPending || usersQuery.isPending;
+  const adminQueryError = overviewQuery.error ?? usersQuery.error;
 
   const selectUser = (user: AdminUserResponse) => {
     setSelectedUser(user);
@@ -106,15 +108,40 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
+      {adminQueryPending && (
+        <div className="rounded-[22px] border border-sky-100 bg-sky-50 px-5 py-4 text-sm leading-7 text-sky-800">
+          Carregando contas e indicadores administrativos...
+        </div>
+      )}
+
+      {adminQueryError && (
+        <div className="flex flex-col gap-4 rounded-[22px] border border-rose-100 bg-rose-50 px-5 py-4 text-sm leading-7 text-rose-800 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="font-semibold">Não foi possível carregar o painel administrativo.</p>
+            <p>{getApiErrorMessage(adminQueryError, 'A API recusou ou não concluiu a consulta administrativa.')}</p>
+          </div>
+          <button
+            className="shrink-0 rounded-full bg-rose-700 px-4 py-2 font-semibold text-white transition hover:bg-rose-800"
+            onClick={() => {
+              overviewQuery.refetch();
+              usersQuery.refetch();
+            }}
+            type="button"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       <SectionCard title="Sala de comando do admin">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <MetricCard
-            label="Usuarios no produto"
+            label="Usuários no produto"
             value={String(overview?.totalUsuarios ?? users.length)}
             helper="Base total cadastrada."
           />
           <MetricCard
-            label="Usuarios ativos"
+            label="Usuários ativos"
             value={String(overview?.usuariosAtivos ?? activeUsers.length)}
             helper="Contas que conseguem operar agora."
           />
@@ -135,8 +162,8 @@ export default function AdminPage() {
           />
           <MetricCard
             label="Status da API"
-            value={overview?.statusApi === 'SAUDAVEL' ? 'Saudavel' : overview?.statusApi ?? 'Indefinido'}
-            helper="Leitura operacional para confirmar que o painel esta estavel."
+            value={overview?.statusApi === 'SAUDAVEL' ? 'Saudável' : overview?.statusApi ?? 'Indefinido'}
+            helper="Leitura operacional para confirmar que o painel está estável."
           />
         </div>
 
@@ -149,21 +176,21 @@ export default function AdminPage() {
           <MetricCard
             label="Despesas totais"
             value={formatCurrency(overview?.totalDespesas ?? 0)}
-            helper="Volume agregado de saidas."
+            helper="Volume agregado de saídas."
           />
           <MetricCard
             label="Saldo global"
             value={formatCurrency(overview?.saldoGlobal ?? 0)}
-            helper="Diferenca consolidada entre entradas e saidas."
+            helper="Diferença consolidada entre entradas e saídas."
           />
         </div>
 
         <div className="mt-4 rounded-[24px] border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-sm leading-7 text-emerald-800">
-          <p className="font-semibold">Regra sensivel de producao</p>
+          <p className="font-semibold">Regra sensível de produção</p>
           <p className="mt-2">
-            So e-mails presentes em <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> podem receber ou manter
-            acesso administrativo. A interface ja reflete essa trava para reduzir erro humano, mas a decisao final continua
-            protegida pelo backend.
+            Só e-mails presentes em <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> ou no e-mail de bootstrap
+            podem receber ou manter acesso administrativo. A interface já reflete essa trava para reduzir erro humano, mas a
+            decisão final continua protegida pelo backend.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {(overview?.adminWhitelist ?? []).length > 0 ? (
@@ -173,7 +200,7 @@ export default function AdminPage() {
                 </Tag>
               ))
             ) : (
-              <Tag tone="warning">Whitelist ainda nao configurada</Tag>
+              <Tag tone="warning">Whitelist administrativa não configurada</Tag>
             )}
           </div>
         </div>
@@ -191,8 +218,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_460px]">
-        <SectionCard title="Gestao de contas">
+      <div className="space-y-6">
+        <SectionCard title="Gestão de contas">
           <div className="mb-4 grid gap-3 md:grid-cols-3">
             <InfoPill label="Ativos" value={String(activeUsers.length)} />
             <InfoPill label="Suspensos" value={String(suspendedUsers.length)} />
@@ -231,9 +258,9 @@ export default function AdminPage() {
                 <span>Conta</span>
                 <span>Perfil</span>
                 <span>Status</span>
-                <span>Protecao</span>
+                <span>Proteção</span>
                 <span>Movimento</span>
-                <span>Acao</span>
+                <span>Ação</span>
               </div>
 
               <div className="divide-y divide-slate-100">
@@ -259,7 +286,7 @@ export default function AdminPage() {
                         <p className="font-semibold text-slate-900">{user.name}</p>
                         <p className="mt-1 text-sm text-slate-500">{user.email}</p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {user.currentSessionUser && <Tag tone="neutral">Sessao atual</Tag>}
+                          {user.currentSessionUser && <Tag tone="neutral">Sessão atual</Tag>}
                           {user.protectedAdmin && <Tag tone="warning">Admin protegido</Tag>}
                           {!user.adminPromotionAllowed && user.role !== 'ADMIN' && <Tag tone="negative">Fora da whitelist</Tag>}
                         </div>
@@ -283,14 +310,14 @@ export default function AdminPage() {
                           {user.twoFactorEnabled ? '2FA ativo' : 'Sem 2FA'}
                         </span>
                         <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
-                          {user.protectedAdmin ? 'Whitelist protegida' : 'Fluxo padrao'}
+                          {user.protectedAdmin ? 'Whitelist protegida' : 'Fluxo padrão'}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{user.totalTransactions} transacao(oes)</p>
+                        <p className="text-sm font-semibold text-slate-900">{formatTransactionCount(user.totalTransactions)}</p>
                         <p className="mt-2 text-xs uppercase tracking-[0.14em] text-slate-400">
-                          {user.lastTransactionDate ? `Ultima em ${formatDate(user.lastTransactionDate)}` : 'Sem historico'}
+                          {user.lastTransactionDate ? `Última em ${formatDate(user.lastTransactionDate)}` : 'Sem histórico'}
                         </p>
                       </div>
 
@@ -314,7 +341,7 @@ export default function AdminPage() {
         <SectionCard title={selectedUser ? `Comando da conta #${selectedUser.id}` : 'Selecione uma conta'}>
           {!selectedUser ? (
             <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-5 py-6 text-sm leading-7 text-slate-500">
-              Escolha uma conta na lista para revisar perfil, alterar permissoes, redefinir senha ou resetar o autenticador.
+              Escolha uma conta na lista para revisar o perfil, alterar permissões, redefinir a senha ou resetar o autenticador.
             </div>
           ) : (
             <div className="space-y-5">
@@ -338,26 +365,26 @@ export default function AdminPage() {
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedUser.currentSessionUser && <Tag tone="neutral">Voce esta aqui</Tag>}
+                  {selectedUser.currentSessionUser && <Tag tone="neutral">Você está aqui</Tag>}
                   {selectedUser.protectedAdmin && <Tag tone="warning">E-mail admin autorizado</Tag>}
                   {!selectedUser.adminPromotionAllowed && selectedUser.role !== 'ADMIN' && (
-                    <Tag tone="negative">Promocao bloqueada</Tag>
+                    <Tag tone="negative">Promoção bloqueada</Tag>
                   )}
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <MiniStat label="Historico total" value={`${selectedUser.totalTransactions} transacao(oes)`} />
+                <MiniStat label="Histórico total" value={formatTransactionCount(selectedUser.totalTransactions)} />
                 <MiniStat
-                  label="Ultima atividade"
-                  value={selectedUser.lastTransactionDate ? formatDate(selectedUser.lastTransactionDate) : 'Sem historico'}
+                  label="Última atividade"
+                  value={selectedUser.lastTransactionDate ? formatDate(selectedUser.lastTransactionDate) : 'Sem histórico'}
                 />
               </div>
 
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-7 text-slate-600">
                 {selectedUser.protectedAdmin
-                  ? 'Esta conta esta dentro da whitelist administrativa e permanece protegida contra suspensao ou rebaixamento por este fluxo.'
-                  : 'Esta conta so pode virar admin se o e-mail for adicionado explicitamente a whitelist de producao.'}
+                  ? 'Esta conta está dentro da whitelist administrativa e permanece protegida contra suspensão ou rebaixamento por este fluxo.'
+                  : 'Esta conta só pode virar admin se o e-mail for adicionado explicitamente à whitelist de produção.'}
               </div>
 
               <div className="grid gap-3">
@@ -382,7 +409,7 @@ export default function AdminPage() {
                           setFeedbackMessage(selectedUser.active ? 'Conta suspensa com sucesso.' : 'Conta reativada com sucesso.');
                         },
                         onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel atualizar o status da conta agora.'));
+                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível atualizar o status da conta agora.'));
                         },
                       },
                     );
@@ -391,12 +418,12 @@ export default function AdminPage() {
 
                 {statusActionDisabled && (
                   <p className="text-sm leading-7 text-amber-700">
-                    Suspensao indisponivel: esta conta esta protegida pela whitelist administrativa.
+                    Suspensão indisponível: esta conta está protegida pela whitelist administrativa.
                   </p>
                 )}
 
                 <ActionButton
-                  label={selectedUser.role === 'ADMIN' ? 'Transformar em usuario comum' : 'Promover para admin'}
+                  label={selectedUser.role === 'ADMIN' ? 'Transformar em usuário comum' : 'Promover para admin'}
                   tone="default"
                   disabled={roleActionDisabled || actionPending}
                   onClick={() => {
@@ -413,10 +440,10 @@ export default function AdminPage() {
                       {
                         onSuccess: (response) => {
                           syncSelectedUser(response);
-                          setFeedbackMessage(`Permissao atualizada para ${targetRole}.`);
+                          setFeedbackMessage(`Permissão atualizada para ${targetRole}.`);
                         },
                         onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel atualizar a role agora.'));
+                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível atualizar o perfil agora.'));
                         },
                       },
                     );
@@ -425,19 +452,19 @@ export default function AdminPage() {
 
                 {roleActionDisabled && nextRole === 'ADMIN' && (
                   <p className="text-sm leading-7 text-amber-700">
-                    Promocao indisponivel: o e-mail desta conta ainda nao esta na whitelist de admins autorizados.
+                    Promoção indisponível: o e-mail desta conta ainda não está na whitelist de admins autorizados.
                   </p>
                 )}
 
                 {selectedUser.protectedAdmin && selectedUser.role === 'ADMIN' && nextRole === 'USER' && (
                   <p className="text-sm leading-7 text-amber-700">
-                    Rebaixamento indisponivel: esta conta e uma administradora protegida pela whitelist.
+                    Rebaixamento indisponível: esta conta é uma administradora protegida pela whitelist.
                   </p>
                 )}
               </div>
 
               <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
-                <Field label="Nova senha temporaria">
+                <Field label="Nova senha temporária">
                   <input
                     autoComplete="new-password"
                     className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 outline-none transition focus:border-emerald-400"
@@ -452,7 +479,7 @@ export default function AdminPage() {
                   className="mt-4 rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                   disabled={resetPasswordMutation.isPending || actionPending || !newPassword.trim()}
                   onClick={() => {
-                    const confirmation = window.prompt('Digite o e-mail da conta para confirmar a redefinicao da senha:');
+                    const confirmation = window.prompt('Digite o e-mail da conta para confirmar a redefinição da senha:');
                     if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
                       return;
                     }
@@ -468,7 +495,7 @@ export default function AdminPage() {
                           setFeedbackMessage('Senha redefinida com sucesso.');
                         },
                         onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel redefinir a senha agora.'));
+                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível redefinir a senha agora.'));
                         },
                       },
                     );
@@ -497,7 +524,7 @@ export default function AdminPage() {
                       setFeedbackMessage('Segundo fator removido com sucesso.');
                     },
                     onError: (error) => {
-                      setFeedbackError(getApiErrorMessage(error, 'Nao foi possivel resetar o autenticador agora.'));
+                      setFeedbackError(getApiErrorMessage(error, 'Não foi possível resetar o autenticador agora.'));
                     },
                   });
                 }}
@@ -583,6 +610,10 @@ function formatCurrency(value: number) {
     currency: 'BRL',
     minimumFractionDigits: 2,
   }).format(value);
+}
+
+function formatTransactionCount(value: number) {
+  return `${value} ${value === 1 ? 'transação' : 'transações'}`;
 }
 
 function formatDate(value: string) {

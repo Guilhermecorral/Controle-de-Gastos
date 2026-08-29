@@ -55,7 +55,12 @@ function toPreviewRow(transaction: UploadPreviewResponse['transactions'][number]
   };
 }
 
-const OFXUploader = () => {
+type OFXUploaderProps = {
+  compact?: boolean;
+  onImported?: (importedTransactions: number) => void;
+};
+
+const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<PreviewRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -196,7 +201,11 @@ const OFXUploader = () => {
 
       const importedCount = response.data.importedTransactions;
       resetState({ keepSuccessMessage: true });
-      setSuccessMessage(response.data.message || `${importedCount} transação(ões) importada(s) com sucesso.`);
+      setSuccessMessage(
+        response.data.message
+          || `${importedCount} ${importedCount === 1 ? 'transação importada' : 'transações importadas'} com sucesso.`,
+      );
+      onImported?.(importedCount);
     } catch (err: any) {
       const message =
         err?.response?.data?.message
@@ -209,7 +218,7 @@ const OFXUploader = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={compact ? 'space-y-4' : 'space-y-6'}>
       <div
         className={`rounded-3xl border-2 border-dashed p-6 transition ${
           dragActive ? 'border-emerald-500 bg-emerald-50' : 'border-emerald-200 bg-emerald-50/60'

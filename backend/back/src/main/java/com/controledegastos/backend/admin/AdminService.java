@@ -18,10 +18,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Collections;
-
-
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -32,7 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Centraliza os fluxos administrativos de leitura global e gestao segura de contas.
+ * Centraliza os fluxos administrativos de leitura global e gestão segura de contas.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,8 +38,12 @@ public class AdminService {
     private final TransactionRepository transactionRepository;
     private final AuthenticatedUserService authenticatedUserService;
     private final PasswordEncoder passwordEncoder;
+
     @Value("${app.admin.allowed-emails:}")
     private String allowedAdminEmails;
+
+    @Value("${app.admin.bootstrap.email:}")
+    private String bootstrapAdminEmail;
 
     private static final String STATUS_HEALTHY = "SAUDAVEL";
 
@@ -94,11 +94,11 @@ public class AdminService {
         User targetUser = findUser(userId);
 
         if (currentAdmin.getId().equals(targetUser.getId()) && !dto.active()) {
-            throw new IllegalArgumentException("Voce nao pode suspender a propria conta administradora");
+            throw new IllegalArgumentException("Você não pode suspender a própria conta administradora");
         }
 
         if (isProtectedAdmin(targetUser) && !dto.active()) {
-            throw new IllegalArgumentException("Esta conta administradora protegida nao pode ser suspensa por este fluxo");
+            throw new IllegalArgumentException("Esta conta administradora protegida não pode ser suspensa por este fluxo");
         }
 
         targetUser.setActive(dto.active());
@@ -119,19 +119,19 @@ public class AdminService {
         try {
             newRole = User.Role.valueOf(dto.role().trim().toUpperCase());
         } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("Role informada e invalida");
+            throw new IllegalArgumentException("Perfil informado é inválido");
         }
 
         if (currentAdmin.getId().equals(targetUser.getId()) && newRole != User.Role.ADMIN) {
-            throw new IllegalArgumentException("Voce nao pode remover o proprio acesso administrativo");
+            throw new IllegalArgumentException("Você não pode remover o próprio acesso administrativo");
         }
 
         if (isProtectedAdmin(targetUser) && newRole != User.Role.ADMIN) {
-            throw new IllegalArgumentException("Esta conta administradora protegida nao pode perder a role ADMIN por este fluxo");
+            throw new IllegalArgumentException("Esta conta administradora protegida não pode perder o perfil ADMIN por este fluxo");
         }
 
         if (newRole == User.Role.ADMIN && !isAdminPromotionAllowed(targetUser.getEmail())) {
-            throw new IllegalArgumentException("Este e-mail nao esta autorizado para receber acesso administrativo");
+            throw new IllegalArgumentException("Este e-mail não está autorizado para receber acesso administrativo");
         }
 
         targetUser.setRole(newRole);
@@ -166,22 +166,14 @@ public class AdminService {
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario nao encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 
     private void assertCurrentAdminAllowed() {
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
 
         if (currentAdmin.getRole() != User.Role.ADMIN || !isAdminPromotionAllowed(currentAdmin.getEmail())) {
-            throw new AccessDeniedException("Seu acesso administrativo nao esta autorizado pela whitelist atual");
-        }
-    }
-
-    private void ensureCurrentAdminIsAuthorized() {
-        User currentAdmin = authenticatedUserService.getAuthenticatedUser();
-
-        if (currentAdmin.getRole() != User.Role.ADMIN || !isAdminPromotionAllowed(currentAdmin.getEmail())) {
-            throw new AccessDeniedException("Seu acesso administrativo nao esta autorizado pela whitelist atual");
+            throw new AccessDeniedException("Seu acesso administrativo não está autorizado pela whitelist atual");
         }
     }
 
@@ -225,7 +217,7 @@ public class AdminService {
     }
 
     private Set<String> resolveAllowedAdminWhitelist() {
-        return Arrays.stream(allowedAdminEmails.split(","))
+        return Arrays.stream((allowedAdminEmails + "," + bootstrapAdminEmail).split(","))
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .map(value -> value.toLowerCase(Locale.ROOT))

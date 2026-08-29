@@ -836,6 +836,15 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         onDescriptionChange={handleTransactionDescriptionChange}
         onCategoryTouched={setTransactionCategoryTouched}
         onSubmit={handleCreateTransaction}
+        onTransactionsImported={(importedTransactions) => {
+          queryClient.invalidateQueries({ queryKey: ['transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+          queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] });
+          pushToast(
+            `${importedTransactions} ${importedTransactions === 1 ? 'transação importada' : 'transações importadas'} com sucesso.`,
+          );
+          setTransactionModalOpen(false);
+        }}
         onClose={() => {
           setTransactionReceiptFile(null);
           setTransactionModalOpen(false);

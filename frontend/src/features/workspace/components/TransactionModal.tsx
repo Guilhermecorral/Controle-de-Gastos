@@ -1,8 +1,9 @@
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { Category, PaymentMethod } from '../../../types';
 import { categoryLabels, paymentMethodLabels } from '../../../lib/mockFinance';
 import { Field, SelectField } from '../../shared/ui';
 import { TransactionDraft } from '../types';
+import OFXUploader from '../../ofx-upload/components/OFXUploader';
 
 type TransactionModalProps = {
   isOpen: boolean;
@@ -14,6 +15,7 @@ type TransactionModalProps = {
   onDescriptionChange: (value: string) => void;
   onCategoryTouched: (value: boolean) => void;
   onSubmit: () => void;
+  onTransactionsImported: (importedTransactions: number) => void;
   onClose: () => void;
 };
 
@@ -27,8 +29,17 @@ export default function TransactionModal({
   onDescriptionChange,
   onCategoryTouched,
   onSubmit,
+  onTransactionsImported,
   onClose,
 }: TransactionModalProps) {
+  const [mode, setMode] = useState<'single' | 'batch'>('single');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMode('single');
+    }
+  }, [isOpen]);
+
   if (!isOpen) {
     return null;
   }
@@ -38,16 +49,23 @@ export default function TransactionModal({
   return (
     <div className="fixed inset-0 z-40 overflow-y-auto bg-slate-950/45 p-4">
       <div className="mx-auto flex min-h-full items-center justify-center">
-        <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[32px] bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)]">
+        <div
+          className={`max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-[32px] bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.22)] transition-all ${
+            mode === 'batch' ? 'max-w-6xl' : 'max-w-2xl'
+          }`}
+        >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Lançamento rápido</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">
+              {mode === 'single' ? 'Lançamento rápido' : 'Importação em lote'}
+            </p>
             <h3 className="mt-2 text-2xl font-semibold text-slate-900">
-              {draft.type === 'RECEITA' ? 'Nova receita' : 'Nova despesa'}
+              {mode === 'single' ? (draft.type === 'RECEITA' ? 'Nova receita' : 'Nova despesa') : 'Importar extrato bancário'}
             </h3>
             <p className="mt-2 text-sm leading-7 text-slate-600">
-              Modal pensado para o usuário registrar algo sem sair do contexto, com sugestão automática de categoria,
-              opção de parcelamento e anexo fiscal já no fluxo principal.
+              {mode === 'single'
+                ? 'Registre uma movimentação com sugestão automática de categoria, parcelamento e anexo fiscal.'
+                : 'Envie um OFX ou CSV, revise cada linha e confirme apenas as movimentações que deseja importar.'}
             </p>
           </div>
           <button
@@ -58,6 +76,18 @@ export default function TransactionModal({
             Fechar
           </button>
         </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-2 rounded-[20px] bg-slate-100 p-1.5">
+          <ModeButton active={mode === 'single'} label="Lançamento único" onClick={() => setMode('single')} />
+          <ModeButton active={mode === 'batch'} label="Importar OFX/CSV" onClick={() => setMode('batch')} />
+        </div>
+
+        {mode === 'batch' ? (
+          <div className="mt-6">
+            <OFXUploader compact onImported={onTransactionsImported} />
+          </div>
+        ) : (
+          <>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <SelectField
@@ -174,8 +204,24 @@ export default function TransactionModal({
             Salvar lançamento
           </button>
         </div>
+          </>
+        )}
       </div>
     </div>
     </div>
+  );
+}
+
+function ModeButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+        active ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+      }`}
+      onClick={onClick}
+      type="button"
+    >
+      {label}
+    </button>
   );
 }
