@@ -25,6 +25,7 @@ class PasswordResetDeliveryServiceTest {
         PasswordResetDeliveryService service = new PasswordResetDeliveryService(provider);
         ReflectionTestUtils.setField(service, "mailFrom", "no-reply@farolfinanceiro.local");
         ReflectionTestUtils.setField(service, "mailUsername", "guilhermecorral.01@gmail.com");
+        ReflectionTestUtils.setField(service, "mailHost", "smtp.gmail.com");
 
         service.deliverResetLink("jorge@example.com", "https://farolfinanceiro.online/redefinir-senha?token=abc");
 
@@ -33,5 +34,26 @@ class PasswordResetDeliveryServiceTest {
 
         assertEquals("guilhermecorral.01@gmail.com", messageCaptor.getValue().getFrom());
         assertEquals("jorge@example.com", messageCaptor.getValue().getTo()[0]);
+    }
+
+    @Test
+    void shouldUseSmtpUsernameForGmailInsteadOfUnverifiedCustomSender() {
+        JavaMailSender mailSender = mock(JavaMailSender.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<JavaMailSender> provider = mock(ObjectProvider.class);
+
+        when(provider.getIfAvailable()).thenReturn(mailSender);
+
+        PasswordResetDeliveryService service = new PasswordResetDeliveryService(provider);
+        ReflectionTestUtils.setField(service, "mailFrom", "no-reply@farolfinanceiro.online");
+        ReflectionTestUtils.setField(service, "mailUsername", "guilhermecorral.01@gmail.com");
+        ReflectionTestUtils.setField(service, "mailHost", "smtp.gmail.com");
+
+        service.deliverResetLink("jorge@example.com", "https://farolfinanceiro.online/redefinir-senha?token=abc");
+
+        ArgumentCaptor<SimpleMailMessage> messageCaptor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(messageCaptor.capture());
+
+        assertEquals("guilhermecorral.01@gmail.com", messageCaptor.getValue().getFrom());
     }
 }

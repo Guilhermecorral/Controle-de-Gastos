@@ -28,6 +28,9 @@ spring:
           auth: ${SPRING_MAIL_SMTP_AUTH:true}
           starttls:
             enable: ${SPRING_MAIL_SMTP_STARTTLS:true}
+          connectiontimeout: ${SPRING_MAIL_SMTP_CONNECTION_TIMEOUT:10000}
+          timeout: ${SPRING_MAIL_SMTP_READ_TIMEOUT:10000}
+          writetimeout: ${SPRING_MAIL_SMTP_WRITE_TIMEOUT:10000}
   flyway:
     enabled: false
   servlet:
