@@ -41,6 +41,9 @@ jwt:
   refresh-expiration: ${JWT_REFRESH_EXPIRATION}
 
 app:
+  statement-import:
+    max-bytes: ${APP_STATEMENT_IMPORT_MAX_BYTES:5242880}
+    max-rows: ${APP_STATEMENT_IMPORT_MAX_ROWS:1000}
   transaction-receipts:
     storage-dir: ${APP_TRANSACTION_RECEIPTS_STORAGE_DIR:storage/transaction-receipts}
     max-bytes: ${APP_TRANSACTION_RECEIPTS_MAX_BYTES:10485760}

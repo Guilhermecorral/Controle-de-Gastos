@@ -3,6 +3,7 @@ package com.controledegastos.backend.transactions;
 import com.controledegastos.backend.config.ResourceNotFoundException;
 import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
+import com.controledegastos.backend.transactions.DTO.TransactionImportResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionReceiptResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionReceiptSummaryDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
@@ -224,6 +225,25 @@ public class TransactionService {
 
         Transaction saved = transactionRepository.save(transaction);
         return toResponseDTO(saved);
+    }
+
+    /**
+     * Persiste a selecao revisada do extrato em uma unica transacao para evitar importacoes parciais.
+     */
+    public TransactionImportResponseDTO importTransactions(List<TransactionRequestDTO> transactions) {
+        if (transactions == null || transactions.isEmpty()) {
+            throw new IllegalArgumentException("Selecione ao menos uma transacao para importar");
+        }
+
+        if (transactions.size() > 1000) {
+            throw new IllegalArgumentException("A importacao suporta no maximo 1000 transacoes por vez");
+        }
+
+        transactions.forEach(this::create);
+        return new TransactionImportResponseDTO(
+                transactions.size(),
+                transactions.size() + " transacao(oes) importada(s) com sucesso."
+        );
     }
 
     /**

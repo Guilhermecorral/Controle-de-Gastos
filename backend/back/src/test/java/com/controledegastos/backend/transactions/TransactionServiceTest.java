@@ -2,6 +2,7 @@ package com.controledegastos.backend.transactions;
 
 import com.controledegastos.backend.config.ResourceNotFoundException;
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
+import com.controledegastos.backend.transactions.DTO.TransactionImportResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionReceiptResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
 import com.controledegastos.backend.transactions.Repository.TransactionRepository;
@@ -152,6 +153,63 @@ class TransactionServiceTest {
         assertEquals(1, receipts.size());
         assertEquals(created.id(), receipts.getFirst().transactionId());
         assertEquals("nota-fiscal.pdf", receipts.getFirst().originalFilename());
+    }
+
+    @Test
+    void shouldImportReviewedTransactionsAsOneAtomicBatch() {
+        User user = authenticateDefaultUser();
+
+        TransactionImportResponseDTO response = transactionService.importTransactions(List.of(
+                new TransactionRequestDTO(
+                        Transaction.TransactionType.DESPESA,
+                        "Uber",
+                        Transaction.TransactionCategory.TRANSPORTE,
+                        new BigDecimal("42.50"),
+                        Transaction.PaymentMethod.PIX,
+                        1,
+                        LocalDate.of(2026, 8, 4)
+                ),
+                new TransactionRequestDTO(
+                        Transaction.TransactionType.RECEITA,
+                        "Salario",
+                        Transaction.TransactionCategory.OUTROS,
+                        new BigDecimal("2500.00"),
+                        Transaction.PaymentMethod.PIX,
+                        1,
+                        LocalDate.of(2026, 8, 5)
+                )
+        ));
+
+        assertEquals(2, response.importedTransactions());
+        assertEquals(2, transactionRepository.findAllByUserOrderByTransactionDateDesc(user).size());
+    }
+
+    @Test
+    void shouldRollbackTheWholeBatchWhenOneReviewedTransactionIsInvalid() {
+        User user = authenticateDefaultUser();
+
+        assertThrows(IllegalArgumentException.class, () -> transactionService.importTransactions(List.of(
+                new TransactionRequestDTO(
+                        Transaction.TransactionType.DESPESA,
+                        "Compra valida",
+                        Transaction.TransactionCategory.COMPRAS,
+                        new BigDecimal("100.00"),
+                        Transaction.PaymentMethod.PIX,
+                        1,
+                        LocalDate.of(2026, 8, 4)
+                ),
+                new TransactionRequestDTO(
+                        Transaction.TransactionType.DESPESA,
+                        "Parcelamento invalido",
+                        Transaction.TransactionCategory.COMPRAS,
+                        new BigDecimal("500.00"),
+                        Transaction.PaymentMethod.CARTAO_CREDITO_PARCELADO,
+                        1,
+                        LocalDate.of(2026, 8, 5)
+                )
+        )));
+
+        assertEquals(0, transactionRepository.findAllByUserOrderByTransactionDateDesc(user).size());
     }
 
     private User authenticateDefaultUser() {

@@ -8,6 +8,7 @@ export const navItems: Array<{ id: ViewId; label: string; description: string }>
   { id: 'analise', label: 'Analise mensal', description: 'Comparativos e tendencia' },
   { id: 'wishlist', label: 'Lista de desejos', description: 'Desejos, compras e historico' },
   { id: 'notasFiscais', label: 'Notas fiscais', description: 'Anexos por ano, mes e dia' },
+  { id: 'importacao', label: 'Importar extrato', description: 'OFX, CSV e revisao' },
   { id: 'admin', label: 'Admin', description: 'Usuarios, permissoes e comando' },
   { id: 'configuracoes', label: 'Configuracoes', description: 'Conta, privacidade e preferencias' },
 ];
@@ -29,6 +30,7 @@ export const viewMeta: Record<ViewId, { label: string; description: string }> = 
   analise: { label: 'Analise mensal', description: 'Comparativos e tendencia' },
   wishlist: { label: 'Lista de desejos', description: 'Desejos, compras e historico' },
   notasFiscais: { label: 'Notas fiscais', description: 'Anexos por ano, mes e dia' },
+  importacao: { label: 'Importar extrato', description: 'OFX, CSV e revisao' },
   admin: { label: 'Admin', description: 'Usuarios, permissoes e comando' },
   configuracoes: { label: 'Configuracoes', description: 'Conta, privacidade e preferencias' },
 };
@@ -71,6 +73,12 @@ export const viewAccentMap: Record<
     accentClass: 'text-cyan-300',
     panelClass: 'border-white/10 bg-[linear-gradient(135deg,#082f49_0%,#0f172a_100%)] text-white',
     description: 'As notas fiscais ficam organizadas por ano, mes e momento do envio para facilitar consulta futura e rotina fiscal.',
+  },
+  importacao: {
+    eyebrow: 'Automacao de entrada',
+    accentClass: 'text-cyan-300',
+    panelClass: 'border-white/10 bg-[linear-gradient(135deg,#083344_0%,#0f172a_100%)] text-white',
+    description: 'A importacao de extrato permite arrastar OFX ou CSV, revisar cada linha e confirmar tudo antes de gravar no historico.',
   },
   admin: {
     eyebrow: 'Sala de comando',

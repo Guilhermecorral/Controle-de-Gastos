@@ -6,6 +6,7 @@ type AuthState = {
   user: AuthUser | null
   isAuthenticated: boolean
   hydrated: boolean
+  bootStatus: 'checking' | 'waking' | 'ready'
   hydrate: () => Promise<boolean>
   login: (data: AuthResponse) => void
   updateUser: (data: AuthResponse) => void
@@ -13,56 +14,94 @@ type AuthState = {
 }
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '/api'
+const RENDER_WAKE_UP_DELAYS_MS = [1_000, 2_000, 3_000, 5_000, 8_000, 12_000, 15_000, 20_000]
+
+let hydrationPromise: Promise<boolean> | null = null
+
+function shouldRetryBootRequest(response: Response) {
+  return response.status === 502 || response.status === 503 || response.status === 504
+}
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds))
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
   hydrated: false,
-  hydrate: async () => {
-    try {
-      let response = await fetch(`${apiBaseUrl}/auth/me`, {
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-        },
-      })
+  bootStatus: 'checking',
+  hydrate: () => {
+    if (hydrationPromise) {
+      return hydrationPromise
+    }
 
-      if (response.status === 401) {
-        const refreshResponse = await fetch(`${apiBaseUrl}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            Accept: 'application/json',
-          },
-        })
+    hydrationPromise = (async () => {
+      try {
+        let response: Response | undefined
 
-        if (refreshResponse.ok) {
+        for (const delay of RENDER_WAKE_UP_DELAYS_MS) {
           response = await fetch(`${apiBaseUrl}/auth/me`, {
             credentials: 'include',
             headers: {
               Accept: 'application/json',
             },
           })
+
+          if (!shouldRetryBootRequest(response)) {
+            break
+          }
+
+          set({ bootStatus: 'waking' })
+          await wait(delay)
         }
-      }
 
-      if (!response.ok) {
-        set({ user: null, isAuthenticated: false, hydrated: true })
+        if (!response) {
+          set({ user: null, isAuthenticated: false, hydrated: true, bootStatus: 'ready' })
+          return false
+        }
+
+        if (response.status === 401) {
+          const refreshResponse = await fetch(`${apiBaseUrl}/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              Accept: 'application/json',
+            },
+          })
+
+          if (refreshResponse.ok) {
+            response = await fetch(`${apiBaseUrl}/auth/me`, {
+              credentials: 'include',
+              headers: {
+                Accept: 'application/json',
+              },
+            })
+          }
+        }
+
+        if (!response.ok) {
+          set({ user: null, isAuthenticated: false, hydrated: true, bootStatus: 'ready' })
+          return false
+        }
+
+        if (response.status === 204) {
+          set({ user: null, isAuthenticated: false, hydrated: true, bootStatus: 'ready' })
+          return false
+        }
+
+        const user = (await response.json()) as AuthUser
+        set({ user, isAuthenticated: true, hydrated: true, bootStatus: 'ready' })
+        return true
+      } catch {
+        set({ user: null, isAuthenticated: false, hydrated: true, bootStatus: 'ready' })
         return false
       }
+    })().finally(() => {
+      hydrationPromise = null
+    })
 
-      if (response.status === 204) {
-        set({ user: null, isAuthenticated: false, hydrated: true })
-        return false
-      }
-
-      const user = (await response.json()) as AuthUser
-      set({ user, isAuthenticated: true, hydrated: true })
-      return true
-    } catch {
-      set({ user: null, isAuthenticated: false, hydrated: true })
-      return false
-    }
+    return hydrationPromise
   },
   login: (data) => {
     set({

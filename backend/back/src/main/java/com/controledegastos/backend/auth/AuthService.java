@@ -9,6 +9,7 @@ import com.controledegastos.backend.auth.dto.ResetPasswordRequestDTO;
 import com.controledegastos.backend.security.CaptchaVerificationService;
 import com.controledegastos.backend.security.JwtService;
 import com.controledegastos.backend.security.AuthenticatedUserService;
+import com.controledegastos.backend.security.util.PasswordValidator;
 import com.controledegastos.backend.user.User;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.TwoFactorService;

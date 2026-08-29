@@ -1,6 +1,14 @@
 import { Category, PaymentMethod, WishlistPriority, WishlistHistoryResponse } from '../../types';
 
-export type ViewId = 'painel' | 'transacoes' | 'analise' | 'wishlist' | 'notasFiscais' | 'admin' | 'configuracoes';
+export type ViewId =
+  | 'painel'
+  | 'transacoes'
+  | 'analise'
+  | 'wishlist'
+  | 'notasFiscais'
+  | 'importacao'
+  | 'admin'
+  | 'configuracoes';
 
 export type TransactionDraft = {
   type: 'RECEITA' | 'DESPESA';

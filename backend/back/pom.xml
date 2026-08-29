@@ -171,7 +171,7 @@
 						<dependency>
 									<groupId>com.webcohesion.ofx4j</groupId>
 									<artifactId>ofx4j</artifactId>
-									<version>1.8.0</version>
+									<version>1.39</version>
 								</dependency>
 			</dependencies>
 

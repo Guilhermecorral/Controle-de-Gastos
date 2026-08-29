@@ -25,6 +25,7 @@ import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { useAuthStore } from '../../../store/auth';
 import AdminPage from '../../admin/pages/AdminPage';
 import DashboardPage from '../../dashboard/pages/DashboardPage';
+import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
 import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
 import SettingsPage from '../../settings/pages/SettingsPage';
@@ -588,6 +589,13 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
             >
               Nova despesa
             </button>
+            <button
+              className="button-pop rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
+              onClick={() => setCurrentView('importacao')}
+              type="button"
+            >
+              Importar extrato
+            </button>
             <div className="relative z-[70]">
               <button
                 className="button-pop flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/92 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
@@ -793,6 +801,23 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               onUploadReceipt={handleUploadReceiptFromReceiptsView}
               onDownloadReceipt={handleDownloadReceipt}
             />
+          )}
+
+          {currentView === 'importacao' && (
+            <section className="space-y-6">
+              <div className="rounded-[32px] border border-white/70 bg-white/92 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-600">Automação segura</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-slate-900">Entrada de dados com revisão antes de salvar</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    Faça upload de OFX ou CSV, revise cada linha, ajuste categoria e pagamento, e confirme só o que
+                    realmente quer importar.
+                  </p>
+                </div>
+              </div>
+
+              <OFXUploader />
+            </section>
           )}
 
           {currentView === 'admin' && isAdmin && <AdminPage />}

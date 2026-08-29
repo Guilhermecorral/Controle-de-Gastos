@@ -12,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -124,6 +125,22 @@ public class ApiExceptionHandler {
         return buildResponse(
                 HttpStatus.BAD_REQUEST,
                 exception.getMessage(),
+                request.getRequestURI(),
+                List.of()
+        );
+    }
+
+    /**
+     * Mantem a resposta de upload previsivel quando o arquivo ultrapassa o limite configurado.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(
+            MaxUploadSizeExceededException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                HttpStatus.BAD_REQUEST,
+                "O arquivo excede o tamanho maximo permitido",
                 request.getRequestURI(),
                 List.of()
         );

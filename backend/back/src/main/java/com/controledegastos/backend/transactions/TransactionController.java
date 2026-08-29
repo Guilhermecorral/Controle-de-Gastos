@@ -1,6 +1,8 @@
 package com.controledegastos.backend.transactions;
 
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
+import com.controledegastos.backend.transactions.DTO.TransactionImportRequestDTO;
+import com.controledegastos.backend.transactions.DTO.TransactionImportResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionReceiptResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
 import jakarta.validation.Valid;
@@ -34,6 +36,16 @@ public class TransactionController {
     @PostMapping
     public ResponseEntity<TransactionResponseDTO> create(@Valid @RequestBody TransactionRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.create(dto));
+    }
+
+    /**
+     * Confirma de forma atomica as linhas revisadas de um extrato OFX ou CSV.
+     */
+    @PostMapping("/import")
+    public ResponseEntity<TransactionImportResponseDTO> importTransactions(
+            @Valid @RequestBody TransactionImportRequestDTO request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.importTransactions(request.transactions()));
     }
 
     /**
