@@ -7,6 +7,7 @@
 3. Confirme Framework Preset `Vite`, Install Command `npm ci`, Build Command `npm run build` e Output Directory `dist`.
 4. Confirme que `farolfinanceiro.online` e `www.farolfinanceiro.online` pertencem ao mesmo projeto e ao ambiente Production.
 5. Em caso de build antigo, crie um deployment a partir do SHA desejado e desative o cache somente nesse redeploy.
+6. Se o check da Vercel no GitHub estiver verde, mas o domínio continuar no SHA anterior, abra o deployment novo e use **Promote to Production**. Depois, em **Project Settings > Domains**, confirme que os dois domínios estão vinculados ao ambiente Production, e não fixados em um deployment antigo após rollback.
 
 ## Prova do commit implantado
 
@@ -17,7 +18,7 @@ git rev-parse HEAD
 Invoke-RestMethod https://www.farolfinanceiro.online/build-info.json
 ```
 
-Se os SHAs divergirem, o problema está na conexão Git/Production Branch da Vercel, não no navegador.
+Se nenhum deployment tiver sido criado, revise conexão Git e Branch Tracking. Se o deployment novo existir e o domínio continuar exibindo outro SHA, o problema está na promoção/alias do domínio, não no navegador.
 
 ## Cloudflare Turnstile
 
