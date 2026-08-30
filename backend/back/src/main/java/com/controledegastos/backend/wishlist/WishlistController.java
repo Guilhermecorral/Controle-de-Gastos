@@ -9,11 +9,18 @@ import com.controledegastos.backend.wishlist.dto.WishlistResponseDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistSortBy;
 import com.controledegastos.backend.wishlist.dto.WishlistStatusFilter;
 import com.controledegastos.backend.wishlist.dto.WishlistSummaryDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistImportPreviewResponseDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistImportRequestDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistImportResponseDTO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -25,6 +32,21 @@ import java.util.List;
 public class WishlistController {
 
     private final WishlistService wishlistService;
+    private final WishlistImportService wishlistImportService;
+
+    @PostMapping(path = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<WishlistImportPreviewResponseDTO> previewImport(
+            @RequestParam("file") MultipartFile file
+    ) throws IOException {
+        return ResponseEntity.ok(wishlistImportService.preview(file));
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<WishlistImportResponseDTO> importItems(
+            @Valid @RequestBody WishlistImportRequestDTO request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(wishlistService.importItems(request.items()));
+    }
 
     /**
      * Lista todas as listas nomeadas da wishlist do usuario.

@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction, useState } from 'react';
 import { Category, WishlistHistoryResponse, WishlistItemResponse, WishlistListResponse, WishlistPriority } from '../../../types';
 import { calculateFinalPrice, categoryLabels, getSuggestedCategory, priorityLabels, formatCurrency } from '../../../lib/mockFinance';
 import { EmptyState, Field, LoadingCard, MetricCard, SectionCard, SelectField, Tag, UnavailableCard } from '../../shared/ui';
@@ -28,6 +28,7 @@ type WishlistPageProps = {
   onUndoPurchase: (itemId: number) => void;
   onOpenHistory: (itemId: number) => void;
   onOpenReceiptForItem: (item: WishlistItemResponse) => void;
+  onSetPrice: (item: WishlistItemResponse, price: number) => void;
   history: WishlistHistoryResponse[];
   setCategoryTouched: (value: boolean) => void;
 };
@@ -51,9 +52,11 @@ export default function WishlistPage({
   onUndoPurchase,
   onOpenHistory,
   onOpenReceiptForItem,
+  onSetPrice,
   history,
   setCategoryTouched,
 }: WishlistPageProps) {
+  const [priceDrafts, setPriceDrafts] = useState<Record<number, string>>({});
   if (isLoading) {
     return <LoadingCard label="Carregando lista de desejos real..." />;
   }
@@ -229,7 +232,7 @@ export default function WishlistPage({
 
                   <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 text-right">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Preço final</p>
-                    <p className="mt-2 text-xl font-semibold text-slate-900">{formatCurrency(item.finalPrice)}</p>
+                    <p className="mt-2 text-xl font-semibold text-slate-900">{item.finalPrice > 0 ? formatCurrency(item.finalPrice) : 'Preço não informado'}</p>
                     {item.discountPercent > 0 && (
                       <p className="mt-2 text-sm text-emerald-600">
                         De {formatCurrency(item.originalPrice)} para {formatCurrency(item.finalPrice)}
@@ -238,11 +241,35 @@ export default function WishlistPage({
                   </div>
                 </div>
 
+                {item.status === 'PENDENTE' && item.finalPrice <= 0 && (
+                  <div className="mt-4 flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-end">
+                    <Field label="Complete o preço antes de comprar">
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0,00"
+                        value={priceDrafts[item.id] ?? ''}
+                        onChange={(event) => setPriceDrafts((current) => ({ ...current, [item.id]: event.target.value }))}
+                        className="h-11 w-full rounded-xl border border-amber-200 bg-white px-3 outline-none focus:border-amber-400"
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      onClick={() => onSetPrice(item, Number(priceDrafts[item.id]))}
+                      className="h-11 rounded-full bg-amber-500 px-5 text-sm font-semibold text-white transition hover:bg-amber-600"
+                    >
+                      Salvar preço
+                    </button>
+                  </div>
+                )}
+
                 <div className="mt-5 flex flex-wrap gap-3">
                   {item.status === 'PENDENTE' ? (
                     <button
-                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600"
                       onClick={() => onMarkPurchased(item.id)}
+                      disabled={item.finalPrice <= 0}
+                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-300"
                       type="button"
                     >
                       Marcar como comprado

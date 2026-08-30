@@ -16,6 +16,7 @@ import com.controledegastos.backend.wishlist.dto.WishlistResponseDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistSortBy;
 import com.controledegastos.backend.wishlist.dto.WishlistStatusFilter;
 import com.controledegastos.backend.wishlist.dto.WishlistSummaryDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistImportItemDTO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -196,6 +198,29 @@ class WishlistServiceTest {
         assertEquals(0L, summary.quantidadeItensComprados());
         assertEquals(new BigDecimal("0"), summary.valorTotalDesejados());
         assertEquals(new BigDecimal("0"), summary.valorTotalComprados());
+    }
+
+    @Test
+    void shouldImportWishWithoutPriceAndRequirePriceBeforePurchase() {
+        authenticateDefaultUser();
+        WishlistListResponseDTO defaultList = wishlistService.findAllLists().getFirst();
+
+        var response = wishlistService.importItems(List.of(new WishlistImportItemDTO(
+                "Viagem para o Japao",
+                BigDecimal.ZERO,
+                WishlistItem.Priority.MEDIA,
+                WishlistItem.WishlistCategory.LAZER,
+                "Importado de TXT",
+                defaultList.id()
+        )));
+
+        assertEquals(1, response.importedItems());
+        WishlistResponseDTO imported = wishlistService.findAll(WishlistStatusFilter.TODOS, WishlistSortBy.PERSONALIZADO, null).getFirst();
+        assertEquals(BigDecimal.ZERO.setScale(2), imported.finalPrice());
+        assertThrows(IllegalArgumentException.class, () -> wishlistService.markAsPurchased(
+                imported.id(),
+                new WishlistPurchaseRequestDTO(LocalDate.now(), WishlistItem.PurchasePaymentMethod.PIX, 1, false)
+        ));
     }
 
     private User authenticateDefaultUser() {

@@ -17,6 +17,8 @@ import com.controledegastos.backend.wishlist.dto.WishlistResponseDTO;
 import com.controledegastos.backend.wishlist.dto.WishlistSortBy;
 import com.controledegastos.backend.wishlist.dto.WishlistStatusFilter;
 import com.controledegastos.backend.wishlist.dto.WishlistSummaryDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistImportItemDTO;
+import com.controledegastos.backend.wishlist.dto.WishlistImportResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -123,8 +125,8 @@ public class WishlistService {
             throw new IllegalArgumentException("Wishlist item description is required");
         }
 
-        if (dto.originalPrice() == null || dto.originalPrice().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Wishlist item original price must be greater than zero");
+        if (dto.originalPrice() == null || dto.originalPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Wishlist item original price cannot be negative");
         }
 
         if (dto.discountPercent() != null && dto.discountPercent().compareTo(BigDecimal.ZERO) < 0) {
@@ -449,6 +451,52 @@ public class WishlistService {
     }
 
     /**
+     * Importa desejos revisados em lote, inclusive quando o preco ainda nao foi informado.
+     */
+    @Transactional
+    public WishlistImportResponseDTO importItems(List<WishlistImportItemDTO> items) {
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Selecione ao menos um desejo para importar");
+        }
+        if (items.size() > 500) {
+            throw new IllegalArgumentException("Importe no maximo 500 desejos por vez");
+        }
+
+        User user = getAuthenticatedUser();
+        List<WishlistItem> pendingItems = new ArrayList<>();
+        for (WishlistImportItemDTO dto : items) {
+            if (dto.description() == null || dto.description().isBlank()) {
+                throw new IllegalArgumentException("Todo desejo importado precisa de um nome");
+            }
+            BigDecimal price = dto.originalPrice() == null ? BigDecimal.ZERO : dto.originalPrice();
+            if (price.signum() < 0) {
+                throw new IllegalArgumentException("O preco de um desejo nao pode ser negativo");
+            }
+            WishlistList targetList = resolveTargetList(dto.listId(), user);
+            WishlistItem item = WishlistItem.builder()
+                    .description(dto.description().trim())
+                    .originalPrice(price)
+                    .discountPercent(BigDecimal.ZERO)
+                    .priority(dto.priority() == null ? WishlistItem.Priority.MEDIA : dto.priority())
+                    .category(dto.category() == null ? WishlistItem.WishlistCategory.COMPRAS : dto.category())
+                    .notes(dto.notes())
+                    .status(WishlistItem.WishlistStatus.PENDENTE)
+                    .installments(1)
+                    .firstInstallmentNextMonth(false)
+                    .archivedAfterPurchase(false)
+                    .user(user)
+                    .wishlistList(targetList)
+                    .build();
+            item.calculateFinalPrice();
+            pendingItems.add(item);
+        }
+
+        List<WishlistItem> savedItems = wishlistRepository.saveAll(pendingItems);
+        savedItems.forEach(item -> registerHistory(item, WishlistHistoryEntry.ActionType.CREATED, "Item imported into wishlist"));
+        return new WishlistImportResponseDTO(savedItems.size(), savedItems.size() + " desejo(s) importado(s) com sucesso.");
+    }
+
+    /**
      * Lista os itens da wishlist com filtro de status, ordenacao e filtro opcional por lista.
      */
     @Transactional(readOnly = true)
@@ -543,6 +591,10 @@ public class WishlistService {
 
         User user = getAuthenticatedUser();
         WishlistItem item = getOwnedWishlistItem(id, user);
+
+        if (item.getFinalPrice() == null || item.getFinalPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Informe o preco do desejo antes de marcar a compra");
+        }
 
         if (item.getStatus() == WishlistItem.WishlistStatus.COMPRADO) {
             throw new IllegalArgumentException("Wishlist item is already marked as purchased");

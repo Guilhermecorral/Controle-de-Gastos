@@ -5,6 +5,7 @@ import com.controledegastos.backend.transactions.DTO.TransactionImportRequestDTO
 import com.controledegastos.backend.transactions.DTO.TransactionImportResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionReceiptResponseDTO;
 import com.controledegastos.backend.transactions.DTO.TransactionResponseDTO;
+import com.controledegastos.backend.transactions.DTO.ReceiptMatchPreviewDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -29,6 +30,7 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final ReceiptMatchingService receiptMatchingService;
 
     /**
      * Cria uma nova transacao para o usuario autenticado.
@@ -88,6 +90,13 @@ public class TransactionController {
             @RequestParam("file") MultipartFile file
     ) {
         return ResponseEntity.ok(transactionService.attachReceipt(id, file));
+    }
+
+    @PostMapping(path = "/receipts/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<List<ReceiptMatchPreviewDTO>> previewReceiptMatches(
+            @RequestParam("files") List<MultipartFile> files
+    ) {
+        return ResponseEntity.ok(receiptMatchingService.preview(files));
     }
 
     /**

@@ -36,7 +36,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
-      max-request-size: 10MB
+      max-request-size: ${APP_MULTIPART_MAX_REQUEST_SIZE:50MB}
 
 jwt:
   secret: ${JWT_SECRET}

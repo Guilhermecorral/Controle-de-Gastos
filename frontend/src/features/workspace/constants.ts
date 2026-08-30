@@ -8,7 +8,7 @@ export const navItems: Array<{ id: ViewId; label: string; description: string }>
   { id: 'analise', label: 'Análise mensal', description: 'Comparativos e tendência' },
   { id: 'wishlist', label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
   { id: 'notasFiscais', label: 'Notas fiscais', description: 'Anexos por ano, mês e dia' },
-  { id: 'importacao', label: 'Importar extrato', description: 'OFX, CSV e revisão' },
+  { id: 'importacao', label: 'Histórico financeiro', description: 'Transações, desejos e notas' },
   { id: 'admin', label: 'Admin', description: 'Usuários, permissões e comando' },
   { id: 'configuracoes', label: 'Configurações', description: 'Conta, privacidade e preferências' },
 ];
@@ -30,7 +30,7 @@ export const viewMeta: Record<ViewId, { label: string; description: string }> = 
   analise: { label: 'Análise mensal', description: 'Comparativos e tendência' },
   wishlist: { label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
   notasFiscais: { label: 'Notas fiscais', description: 'Anexos por ano, mês e dia' },
-  importacao: { label: 'Importar extrato', description: 'OFX, CSV e revisão' },
+  importacao: { label: 'Histórico financeiro', description: 'Transações, desejos e notas' },
   admin: { label: 'Admin', description: 'Usuários, permissões e comando' },
   configuracoes: { label: 'Configurações', description: 'Conta, privacidade e preferências' },
 };
@@ -78,7 +78,7 @@ export const viewAccentMap: Record<
     eyebrow: 'Automação de entrada',
     accentClass: 'text-cyan-300',
     panelClass: 'border-white/10 bg-[linear-gradient(135deg,#083344_0%,#0f172a_100%)] text-white',
-    description: 'A importação de extrato permite arrastar OFX ou CSV, revisar cada linha e confirmar tudo antes de gravar no histórico.',
+    description: 'O histórico financeiro reúne importação de transações, listas de desejos e notas fiscais, sempre com prévia e confirmação antes de salvar.',
   },
   admin: {
     eyebrow: 'Sala de comando',

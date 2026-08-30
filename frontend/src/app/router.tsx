@@ -9,7 +9,6 @@ const ForgotPasswordPage = lazy(() => import('../features/auth/pages/ForgotPassw
 const ResetPasswordPage = lazy(() => import('../features/auth/pages/ResetPasswordPage'))
 const NotFoundPage = lazy(() => import('../features/not-found/pages/NotFoundPage'))
 const WorkspacePage = lazy(() => import('../features/workspace/pages/WorkspacePage'))
-const OFXUploadPage = lazy(() => import('../features/ofx-upload/pages/OFXUploadPage'))
 
 function RouteLoader() {
   return (
@@ -36,7 +35,7 @@ export default function AppRouter() {
           path="/app"
           element={isAuthenticated ? <WorkspacePage onLogout={logout} /> : <Navigate replace to="/login" />}
         />
-        <Route path="/app/ofx-upload" element={isAuthenticated ? <OFXUploadPage /> : <Navigate replace to="/login" />} />
+        <Route path="/app/ofx-upload" element={<Navigate replace to={isAuthenticated ? '/app' : '/login'} />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>

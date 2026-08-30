@@ -16,6 +16,7 @@ import {
   useTransactionsQuery,
   useUndoWishlistPurchaseMutation,
   useUploadTransactionReceiptMutation,
+  useUpdateWishlistItemMutation,
   useWishlistHistoryQuery,
   useWishlistItemsQuery,
   useWishlistListsQuery,
@@ -26,7 +27,7 @@ import { useAuthStore } from '../../../store/auth';
 import ReleaseVersion from '../../../components/ReleaseVersion';
 import AdminPage from '../../admin/pages/AdminPage';
 import DashboardPage from '../../dashboard/pages/DashboardPage';
-import OFXUploader from '../../ofx-upload/components/OFXUploader';
+import FinancialHistoryPage from '../../financial-history/pages/FinancialHistoryPage';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
 import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
 import SettingsPage from '../../settings/pages/SettingsPage';
@@ -123,6 +124,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   const deleteTransactionMutation = useDeleteTransactionMutation();
   const uploadTransactionReceiptMutation = useUploadTransactionReceiptMutation();
   const createWishlistItemMutation = useCreateWishlistItemMutation();
+  const updateWishlistItemMutation = useUpdateWishlistItemMutation();
   const purchaseWishlistItemMutation = usePurchaseWishlistItemMutation();
   const undoWishlistPurchaseMutation = useUndoWishlistPurchaseMutation();
   const logoutMutation = useLogoutMutation();
@@ -309,6 +311,28 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
         },
       },
     );
+  };
+
+  const handleSetWishlistPrice = (item: WishlistItemResponse, price: number) => {
+    if (!Number.isFinite(price) || price <= 0) {
+      pushToast('Informe um preço maior que zero.', 'info');
+      return;
+    }
+    updateWishlistItemMutation.mutate({
+      id: item.id,
+      data: {
+        description: item.description,
+        originalPrice: price,
+        discountPercent: item.discountPercent,
+        priority: item.priority,
+        category: item.category,
+        notes: item.notes,
+        listId: item.listId,
+      },
+    }, {
+      onSuccess: () => pushToast('Preço do desejo atualizado.'),
+      onError: (error) => pushToast(getApiErrorMessage(error, 'Não foi possível atualizar o preço.'), 'info'),
+    });
   };
 
   const handleUploadReceipt = () => {
@@ -599,7 +623,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               onClick={() => setCurrentView('importacao')}
               type="button"
             >
-              Importar extrato
+              Histórico financeiro
             </button>
             <div className="relative z-[70]">
               <button
@@ -783,6 +807,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               onUndoPurchase={handleUndoPurchase}
               onOpenHistory={setHistoryItemId}
               onOpenReceiptForItem={handleOpenReceiptForWishlistItem}
+              onSetPrice={handleSetWishlistPrice}
               history={selectedWishlistHistory}
               setCategoryTouched={setWishlistCategoryTouched}
             />
@@ -811,20 +836,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
           )}
 
           {currentView === 'importacao' && (
-            <section className="space-y-6">
-              <div className="rounded-[32px] border border-white/70 bg-white/92 p-6 shadow-[0_24px_70px_rgba(15,23,42,0.12)] backdrop-blur-xl">
-                <div className="max-w-3xl">
-                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-600">Automação segura</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-slate-900">Entrada de dados com revisão antes de salvar</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">
-                    Faça upload de OFX ou CSV, revise cada linha, ajuste categoria e pagamento, e confirme só o que
-                    realmente quer importar.
-                  </p>
-                </div>
-              </div>
-
-              <OFXUploader />
-            </section>
+            <FinancialHistoryPage transactions={allTransactions} wishlistLists={wishlistLists} />
           )}
 
           {currentView === 'admin' && isAdmin && <AdminPage />}
