@@ -1,9 +1,10 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, Plugin } from 'vite'
 
-function buildMetadataPlugin(commit: string, branch: string, builtAt: string): Plugin {
+function buildMetadataPlugin(version: string, commit: string, branch: string, builtAt: string): Plugin {
   const buildInfo = {
     application: 'Farol Financeiro',
+    version,
     commit,
     branch,
     builtAt,
@@ -37,9 +38,15 @@ export default defineConfig(({ mode }) => {
   ).slice(0, 40)
   const buildBranch = process.env.VERCEL_GIT_COMMIT_REF || process.env.GITHUB_REF_NAME || 'local'
   const builtAt = new Date().toISOString()
+  const appVersion = env.VITE_APP_VERSION || process.env.npm_package_version || '1.0.0'
 
   return {
-    plugins: [react(), buildMetadataPlugin(buildCommit, buildBranch, builtAt)],
+    define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
+      __APP_BUILD_COMMIT__: JSON.stringify(buildCommit),
+      __APP_BUILD_TIME__: JSON.stringify(builtAt),
+    },
+    plugins: [react(), buildMetadataPlugin(appVersion, buildCommit, buildBranch, builtAt)],
     server: {
       host: env.VITE_HOST || '127.0.0.1',
       port: devPort,

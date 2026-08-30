@@ -1,6 +1,7 @@
 // Centraliza o estado da sessão no frontend, mas deixa os cookies sensíveis sob controle exclusivo do backend.
 import { create } from 'zustand'
 import { AuthResponse, AuthUser } from '../types'
+import { apiBaseUrl } from '../lib/runtimeConfig'
 
 type AuthState = {
   user: AuthUser | null
@@ -13,7 +14,6 @@ type AuthState = {
   logout: () => void
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() || '/api'
 const RENDER_WAKE_UP_DELAYS_MS = [1_000, 2_000, 3_000, 5_000, 8_000, 12_000, 15_000, 20_000]
 
 let hydrationPromise: Promise<boolean> | null = null

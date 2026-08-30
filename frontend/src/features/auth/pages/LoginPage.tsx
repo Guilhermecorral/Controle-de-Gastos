@@ -56,7 +56,7 @@ export default function LoginPage() {
           const authenticated = await hydrate();
 
           if (!authenticated) {
-            setErrorMessage('Sua sessão não conseguiu ser confirmada no navegador. Revise os cookies do ambiente e tente novamente.');
+            setErrorMessage('Sua sessão não conseguiu ser confirmada pela conexão segura. Recarregue a página e tente novamente. Se persistir, informe a versão exibida no rodapé.');
             return;
           }
 

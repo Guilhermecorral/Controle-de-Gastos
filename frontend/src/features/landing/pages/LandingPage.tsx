@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import ReleaseVersion from '../../../components/ReleaseVersion';
 import { formatCurrency } from '../../../lib/mockFinance';
 import { FeatureChip, LandingCard, LandingStat } from '../../shared/ui';
 
@@ -230,6 +231,7 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
             <div className="mt-12 border-t border-white/10 pt-6 text-sm leading-7 text-slate-400">
               <p>Este produto trata dados necessários para autenticação, proteção da conta, organização financeira e preferências de uso.</p>
               <p className="mt-2">Cookies opcionais e medições de uso só devem ser ativados com o seu consentimento.</p>
+              <ReleaseVersion className="mt-4 text-slate-500" />
             </div>
           </div>
         </footer>

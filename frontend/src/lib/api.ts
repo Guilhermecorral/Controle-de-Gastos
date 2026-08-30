@@ -1,6 +1,7 @@
 // Centraliza as chamadas HTTP e usa cookies HttpOnly para a sessão, sem expor tokens à aplicação.
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/auth'
+import { apiBaseUrl } from './runtimeConfig'
 
 type RetriableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean
@@ -13,7 +14,7 @@ type PendingRequest = {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL?.trim() || '/api',
+  baseURL: apiBaseUrl,
   timeout: 15000,
   withCredentials: true,
   headers: {

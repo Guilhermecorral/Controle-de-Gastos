@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import ReleaseVersion from '../../../components/ReleaseVersion';
 import { FeatureChip } from '../../shared/ui';
 
 type AuthLayoutProps = {
@@ -43,6 +44,9 @@ export default function AuthLayout({
           <h2 className="title-gradient mt-2 text-3xl font-semibold">{title}</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
           <div className="mt-6 grid gap-4">{children}</div>
+          <div className="mt-6 border-t border-slate-100 pt-4 text-right">
+            <ReleaseVersion />
+          </div>
         </section>
       </div>
     </div>

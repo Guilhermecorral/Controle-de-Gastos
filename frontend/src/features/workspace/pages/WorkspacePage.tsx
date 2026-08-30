@@ -23,6 +23,7 @@ import {
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { useAuthStore } from '../../../store/auth';
+import ReleaseVersion from '../../../components/ReleaseVersion';
 import AdminPage from '../../admin/pages/AdminPage';
 import DashboardPage from '../../dashboard/pages/DashboardPage';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
@@ -614,6 +615,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                   <div className="rounded-[18px] bg-slate-50 px-4 py-3">
                     <p className="text-sm font-semibold text-slate-900">{user?.name ?? 'Usuário'}</p>
                     <p className="mt-1 text-xs leading-6 text-slate-500">{user?.email ?? 'sem e-mail carregado'}</p>
+                    <ReleaseVersion className="mt-2" />
                   </div>
                   <div className="mt-3 grid gap-2">
                     {isAdmin && (
@@ -682,6 +684,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               Aqui você acompanha seus números, seus lançamentos e seus desejos de compra em um só lugar.
             </p>
           </div>
+          <ReleaseVersion className="mt-4 block text-center" />
         </aside>
 
         <main className="space-y-6">
