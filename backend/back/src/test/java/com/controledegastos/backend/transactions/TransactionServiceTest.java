@@ -20,6 +20,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.stream.IntStream;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -182,6 +183,58 @@ class TransactionServiceTest {
 
         assertEquals(2, response.importedTransactions());
         assertEquals(2, transactionRepository.findAllByUserOrderByTransactionDateDesc(user).size());
+    }
+
+    @Test
+    void shouldKeepHistoricalInstallmentsWithoutCreatingFutureDuplicates() {
+        User user = authenticateDefaultUser();
+
+        transactionService.importTransactions(List.of(
+                new TransactionRequestDTO(
+                        Transaction.TransactionType.DESPESA,
+                        "Notebook - Parcela 1/2",
+                        Transaction.TransactionCategory.COMPRAS,
+                        new BigDecimal("500.00"),
+                        Transaction.PaymentMethod.CARTAO_CREDITO_PARCELADO,
+                        2,
+                        LocalDate.of(2026, 7, 10)
+                ),
+                new TransactionRequestDTO(
+                        Transaction.TransactionType.DESPESA,
+                        "Notebook - Parcela 2/2",
+                        Transaction.TransactionCategory.COMPRAS,
+                        new BigDecimal("500.00"),
+                        Transaction.PaymentMethod.CARTAO_CREDITO_PARCELADO,
+                        2,
+                        LocalDate.of(2026, 8, 10)
+                )
+        ));
+
+        List<Transaction> saved = transactionRepository.findAllByUserOrderByTransactionDateDesc(user);
+        assertEquals(2, saved.size());
+        assertEquals(new BigDecimal("500.00"), saved.getFirst().getAmount());
+        assertEquals(2, saved.getFirst().getInstallments());
+    }
+
+    @Test
+    void shouldAcceptMoreThanOneThousandHistoricalRows() {
+        User user = authenticateDefaultUser();
+        List<TransactionRequestDTO> transactions = IntStream.range(0, 1001)
+                .mapToObj(index -> new TransactionRequestDTO(
+                        Transaction.TransactionType.DESPESA,
+                        "Historico " + index,
+                        Transaction.TransactionCategory.OUTROS,
+                        BigDecimal.ONE,
+                        Transaction.PaymentMethod.PIX,
+                        1,
+                        LocalDate.of(2026, 1, 1).plusDays(index)
+                ))
+                .toList();
+
+        TransactionImportResponseDTO response = transactionService.importTransactions(transactions);
+
+        assertEquals(1001, response.importedTransactions());
+        assertEquals(1001, transactionRepository.countByUser(user));
     }
 
     @Test

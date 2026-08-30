@@ -35,9 +35,12 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -82,6 +85,8 @@ public class UniversalStatementImportService {
             layouts.add(analysis.layout());
             warnings.addAll(analysis.warnings());
         }
+
+        transactions = inferHistoricalInstallmentSequences(transactions, warnings);
 
         if (transactions.isEmpty()) {
             warnings.add("Encontramos dados no arquivo, mas nao uma combinacao segura de data, descricao e valor. Revise a estrutura ou use o mapeamento assistido.");
@@ -585,7 +590,7 @@ public class UniversalStatementImportService {
 
     private PaymentMethod parsePaymentMethod(String rawPayment, String description) {
         String normalized = normalizeText(rawPayment + " " + description);
-        if (containsAny(normalized, "parcela", "parcelado")) {
+        if (normalized.contains("parcelado") || INSTALLMENT_PATTERN.matcher(normalized).find()) {
             return PaymentMethod.CARTAO_CREDITO_PARCELADO;
         }
         if (containsAny(normalized, "debito", "cartao de debito")) {
@@ -614,6 +619,183 @@ public class UniversalStatementImportService {
             return Math.max(1, Integer.parseInt(matcher.group(2)));
         }
         return 1;
+    }
+
+    /**
+     * Reconhece parcelas ja realizadas sem transformar cada linha historica em uma nova compra futura.
+     */
+    private List<ImportPreviewTransactionDTO> inferHistoricalInstallmentSequences(
+            List<ImportPreviewTransactionDTO> source,
+            List<String> warnings
+    ) {
+        List<ImportPreviewTransactionDTO> result = new ArrayList<>(source);
+        Map<String, List<IndexedPreview>> candidates = new LinkedHashMap<>();
+
+        for (int index = 0; index < result.size(); index++) {
+            ImportPreviewTransactionDTO transaction = result.get(index);
+            if (transaction.installments() != null
+                    && transaction.installments() >= 2
+                    && transaction.paymentMethod() != PaymentMethod.CARTAO_CREDITO_PARCELADO) {
+                transaction = copyPreview(
+                        transaction,
+                        transaction.description(),
+                        PaymentMethod.CARTAO_CREDITO_PARCELADO,
+                        transaction.installments(),
+                        transaction.selectedByDefault(),
+                        transaction.confidence(),
+                        transaction.rationale() + " Quantidade de parcelas informada em coluna propria."
+                );
+                result.set(index, transaction);
+            }
+
+            if (transaction.type() != TransactionType.DESPESA || transaction.transactionDate() == null) {
+                continue;
+            }
+
+            String normalizedDescription = normalizeText(transaction.description());
+            boolean explicitInstallment = isExplicitInstallmentLabel(normalizedDescription);
+            if (isAggregateInstallmentLabel(normalizedDescription)
+                    || (!explicitInstallment && isKnownRecurringExpense(normalizedDescription))) {
+                continue;
+            }
+
+            String amountKey = transaction.amount() == null
+                    ? ""
+                    : transaction.amount().stripTrailingZeros().toPlainString();
+            String key = explicitInstallment
+                    ? "explicit|" + normalizedDescription
+                    : "implicit|" + normalizedDescription + "|" + amountKey;
+            candidates.computeIfAbsent(key, ignored -> new ArrayList<>())
+                    .add(new IndexedPreview(index, transaction, explicitInstallment));
+        }
+
+        int inferredSequences = 0;
+        for (List<IndexedPreview> group : candidates.values()) {
+            group.sort(Comparator.comparing(item -> item.transaction().transactionDate()));
+            List<IndexedPreview> sequence = new ArrayList<>();
+
+            for (IndexedPreview item : group) {
+                if (!sequence.isEmpty()) {
+                    YearMonth previous = YearMonth.from(sequence.getLast().transaction().transactionDate());
+                    YearMonth current = YearMonth.from(item.transaction().transactionDate());
+                    if (!current.equals(previous.plusMonths(1))) {
+                        inferredSequences += applyInstallmentSequence(result, sequence);
+                        sequence = new ArrayList<>();
+                    }
+                }
+                sequence.add(item);
+            }
+            inferredSequences += applyInstallmentSequence(result, sequence);
+        }
+
+        for (int index = 0; index < result.size(); index++) {
+            ImportPreviewTransactionDTO transaction = result.get(index);
+            if (transaction.paymentMethod() == PaymentMethod.CARTAO_CREDITO_PARCELADO
+                    && (transaction.installments() == null || transaction.installments() < 2)) {
+                result.set(index, copyPreview(
+                        transaction,
+                        transaction.description(),
+                        PaymentMethod.CARTAO_CREDITO_AVISTA,
+                        1,
+                        false,
+                        ImportConfidence.BAIXA,
+                        transaction.rationale() + " Quantidade de parcelas nao identificada; revise antes de selecionar."
+                ));
+            }
+        }
+
+        if (inferredSequences > 0) {
+            warnings.add(inferredSequences + " sequencia(s) mensal(is) de parcelas historicas foram reconhecidas automaticamente.");
+        }
+        return result;
+    }
+
+    private int applyInstallmentSequence(List<ImportPreviewTransactionDTO> result, List<IndexedPreview> sequence) {
+        if (sequence.isEmpty()) {
+            return 0;
+        }
+
+        boolean explicit = sequence.getFirst().explicitInstallment();
+        int minimumSize = explicit ? 2 : 3;
+        if (sequence.size() < minimumSize || sequence.size() > 360) {
+            return 0;
+        }
+
+        int installments = sequence.size();
+        for (int installmentIndex = 0; installmentIndex < sequence.size(); installmentIndex++) {
+            IndexedPreview indexed = sequence.get(installmentIndex);
+            ImportPreviewTransactionDTO transaction = indexed.transaction();
+            String baseDescription = transaction.description()
+                    .replaceFirst("(?i)\\s*-?\\s*parcela\\s+\\d{1,3}\\s*/\\s*\\d{1,3}$", "")
+                    .trim();
+            String rationale = transaction.rationale()
+                    + (explicit
+                    ? " Sequencia mensal de parcelas historicas reconhecida pelo rotulo."
+                    : " Repeticao mensal de descricao e valor reconhecida como parcela historica.");
+
+            result.set(indexed.index(), copyPreview(
+                    transaction,
+                    baseDescription + " - Parcela " + (installmentIndex + 1) + "/" + installments,
+                    PaymentMethod.CARTAO_CREDITO_PARCELADO,
+                    installments,
+                    transaction.selectedByDefault(),
+                    explicit ? ImportConfidence.ALTA : ImportConfidence.MEDIA,
+                    rationale
+            ));
+        }
+        return 1;
+    }
+
+    private ImportPreviewTransactionDTO copyPreview(
+            ImportPreviewTransactionDTO source,
+            String description,
+            PaymentMethod paymentMethod,
+            int installments,
+            boolean selectedByDefault,
+            ImportConfidence confidence,
+            String rationale
+    ) {
+        return new ImportPreviewTransactionDTO(
+                source.type(),
+                description,
+                source.category(),
+                source.amount(),
+                paymentMethod,
+                installments,
+                source.transactionDate(),
+                selectedByDefault,
+                confidence,
+                source.source(),
+                rationale
+        );
+    }
+
+    private boolean isExplicitInstallmentLabel(String normalized) {
+        return Pattern.compile("(^|\\s)parcela($|\\s)").matcher(normalized).find()
+                || INSTALLMENT_PATTERN.matcher(normalized).find();
+    }
+
+    private boolean isAggregateInstallmentLabel(String normalized) {
+        return containsAny(normalized, "parcelas", "total parcelado", "fatura", "cartao parcelas");
+    }
+
+    private boolean isKnownRecurringExpense(String normalized) {
+        return containsAny(
+                normalized,
+                "aluguel",
+                "condominio",
+                "energia",
+                "luz",
+                "agua",
+                "internet",
+                "telefone",
+                "mensalidade",
+                "assinatura",
+                "streaming",
+                "mercado",
+                "custo de vida",
+                "sem categoria"
+        );
     }
 
     private LocalDate firstDate(List<String> row) {
@@ -908,6 +1090,9 @@ public class UniversalStatementImportService {
     }
 
     private record InferredType(TransactionType type, boolean confident) {
+    }
+
+    private record IndexedPreview(int index, ImportPreviewTransactionDTO transaction, boolean explicitInstallment) {
     }
 
     private record SheetAnalysis(

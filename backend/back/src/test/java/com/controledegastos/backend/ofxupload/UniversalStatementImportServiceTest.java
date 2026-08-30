@@ -1,6 +1,7 @@
 package com.controledegastos.backend.ofxupload;
 
 import com.controledegastos.backend.transactions.Transaction.TransactionCategory;
+import com.controledegastos.backend.transactions.Transaction.PaymentMethod;
 import com.controledegastos.backend.transactions.Transaction.TransactionType;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -35,6 +36,12 @@ class UniversalStatementImportServiceTest {
         assertThat(result.analysis().layout()).contains("TABELA_FINANCEIRA_MULTICOLUNA");
         assertThat(result.transactions()).hasSize(10);
         assertThat(result.transactions()).allMatch(ImportPreviewTransactionDTO::selectedByDefault);
+        assertThat(result.transactions())
+                .filteredOn(transaction -> transaction.description().contains("Parcela Casa"))
+                .allSatisfy(transaction -> {
+                    assertThat(transaction.paymentMethod()).isEqualTo(PaymentMethod.CARTAO_CREDITO_PARCELADO);
+                    assertThat(transaction.installments()).isEqualTo(2);
+                });
         assertThat(result.transactions()).extracting(ImportPreviewTransactionDTO::description)
                 .doesNotContain("Fluxo do Mês (R$)", "Patrimônio Líquido Acumulado (R$)");
         assertThat(result.transactions()).filteredOn(transaction -> transaction.transactionDate().equals(LocalDate.of(2006, 6, 6)))
@@ -84,8 +91,35 @@ class UniversalStatementImportServiceTest {
                 .containsOnly(TransactionCategory.MORADIA);
         assertThat(result.transactions())
                 .filteredOn(transaction -> transaction.description().contains("Santander_Parcelas"))
-                .extracting(ImportPreviewTransactionDTO::category)
-                .containsOnly(TransactionCategory.COMPRAS);
+                .allSatisfy(transaction -> {
+                    assertThat(transaction.category()).isEqualTo(TransactionCategory.COMPRAS);
+                    assertThat(transaction.paymentMethod()).isEqualTo(PaymentMethod.CARTAO_CREDITO_AVISTA);
+                    assertThat(transaction.installments()).isEqualTo(1);
+                });
+    }
+
+    @Test
+    void infersUnlabelledConsecutiveMonthlyInstallmentsByDescriptionAndAmount() throws Exception {
+        String csv = """
+                Data;Descrição;Valor;Tipo
+                10/06/2026;Notebook profissional;R$ 500,00;Despesa
+                10/07/2026;Notebook profissional;R$ 500,00;Despesa
+                10/08/2026;Notebook profissional;R$ 500,00;Despesa
+                """;
+
+        UniversalImportResult result = service.analyze(csvFile("parcelas-sem-rotulo.csv", csv));
+
+        assertThat(result.transactions()).hasSize(3).allSatisfy(transaction -> {
+            assertThat(transaction.paymentMethod()).isEqualTo(PaymentMethod.CARTAO_CREDITO_PARCELADO);
+            assertThat(transaction.installments()).isEqualTo(3);
+            assertThat(transaction.confidence()).isEqualTo(ImportConfidence.MEDIA);
+        });
+        assertThat(result.transactions()).extracting(ImportPreviewTransactionDTO::description)
+                .containsExactly(
+                        "Notebook profissional - Parcela 1/3",
+                        "Notebook profissional - Parcela 2/3",
+                        "Notebook profissional - Parcela 3/3"
+                );
     }
 
     @Test
@@ -137,6 +171,8 @@ class UniversalStatementImportServiceTest {
         assertThat(rafael.transactions()).hasSize(480);
         assertThat(rafael.analysis().layout())
                 .isEqualTo("TABELA_FINANCEIRA_MULTICOLUNA + MATRIZ_MENSAL");
+        assertThat(joao.transactions()).allMatch(this::hasValidInstallmentMetadata);
+        assertThat(rafael.transactions()).allMatch(this::hasValidInstallmentMetadata);
     }
 
     private MockMultipartFile csvFile(String filename, String content) {
@@ -146,5 +182,12 @@ class UniversalStatementImportServiceTest {
     private MockMultipartFile fileFromSystemProperty(String property) throws Exception {
         Path path = Path.of(System.getProperty(property));
         return new MockMultipartFile("file", path.getFileName().toString(), "text/csv", Files.readAllBytes(path));
+    }
+
+    private boolean hasValidInstallmentMetadata(ImportPreviewTransactionDTO transaction) {
+        if (transaction.paymentMethod() == PaymentMethod.CARTAO_CREDITO_PARCELADO) {
+            return transaction.installments() != null && transaction.installments() >= 2;
+        }
+        return transaction.installments() == null || transaction.installments() == 1;
     }
 }

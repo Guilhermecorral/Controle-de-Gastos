@@ -38,7 +38,7 @@ export default defineConfig(({ mode }) => {
   ).slice(0, 40)
   const buildBranch = process.env.VERCEL_GIT_COMMIT_REF || process.env.GITHUB_REF_NAME || 'local'
   const builtAt = new Date().toISOString()
-  const appVersion = process.env.npm_package_version || env.VITE_APP_VERSION || '1.1.0'
+  const appVersion = process.env.npm_package_version || env.VITE_APP_VERSION || '1.1.1'
 
   return {
     define: {

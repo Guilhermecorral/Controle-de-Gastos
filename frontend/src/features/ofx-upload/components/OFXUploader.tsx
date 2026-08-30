@@ -52,6 +52,7 @@ type ImportResponse = {
 
 const maxFileBytes = 5 * 1024 * 1024;
 const pageSize = 50;
+const importRequestTimeoutMs = 120_000;
 
 const categoryOptions = Object.keys(categoryLabels) as Category[];
 const paymentMethodOptions = Object.keys(paymentMethodLabels) as PaymentMethod[];
@@ -91,6 +92,8 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [bulkPaymentMethod, setBulkPaymentMethod] = useState<PaymentMethod>('CARTAO_CREDITO_PARCELADO');
+  const [bulkInstallments, setBulkInstallments] = useState('2');
 
   const selectedRows = useMemo(() => rows.filter((row) => row.enabled), [rows]);
   const receitasCount = useMemo(() => selectedRows.filter((row) => row.type === 'RECEITA').length, [selectedRows]);
@@ -136,7 +139,9 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await api.post<UploadPreviewResponse>('/ofx/upload', formData);
+      const response = await api.post<UploadPreviewResponse>('/ofx/upload', formData, {
+        timeout: importRequestTimeoutMs,
+      });
 
       const previewRows = response.data.transactions.map(toPreviewRow);
       setRows(previewRows);
@@ -195,6 +200,20 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
     setRows((currentRows) => currentRows.map((row) => ({ ...row, enabled })));
   };
 
+  const applyBulkInstallments = () => {
+    const installments = bulkPaymentMethod === 'CARTAO_CREDITO_PARCELADO'
+      ? Math.max(2, Number.parseInt(bulkInstallments, 10) || 2)
+      : 1;
+
+    setBulkInstallments(String(installments));
+    setRows((currentRows) => currentRows.map((row) => (
+      row.enabled
+        ? { ...row, paymentMethod: bulkPaymentMethod, installments: String(installments) }
+        : row
+    )));
+    setError(null);
+  };
+
   const handleImport = async () => {
     if (!selectedRows.length) {
       setError('Selecione ao menos uma linha para importar.');
@@ -209,7 +228,8 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
         || !Number.isFinite(amount)
         || amount <= 0
         || !Number.isInteger(installments)
-        || installments < 1;
+        || installments < 1
+        || (row.paymentMethod === 'CARTAO_CREDITO_PARCELADO' && installments < 2);
     });
 
     if (invalidRowIndex >= 0) {
@@ -232,6 +252,8 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
           installments: Number(row.installments),
           transactionDate: row.transactionDate,
         })),
+      }, {
+        timeout: importRequestTimeoutMs,
       });
 
       const importedCount = response.data.importedTransactions;
@@ -389,6 +411,45 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
           </div>
         </div>
 
+        {rows.length > 0 && (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 md:grid-cols-[1fr_160px_auto] md:items-end">
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+              Pagamento para as selecionadas
+              <select
+                value={bulkPaymentMethod}
+                onChange={(event) => setBulkPaymentMethod(event.target.value as PaymentMethod)}
+                className="mt-2 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none focus:border-emerald-400"
+              >
+                {paymentMethodOptions.map((paymentMethod) => (
+                  <option key={paymentMethod} value={paymentMethod}>
+                    {paymentMethodLabels[paymentMethod]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">
+              Total de parcelas
+              <input
+                type="number"
+                min="2"
+                step="1"
+                value={bulkInstallments}
+                disabled={bulkPaymentMethod !== 'CARTAO_CREDITO_PARCELADO'}
+                onChange={(event) => setBulkInstallments(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-2 text-sm normal-case tracking-normal text-white outline-none focus:border-emerald-400 disabled:opacity-40"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={applyBulkInstallments}
+              disabled={!selectedRows.length}
+              className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Aplicar às selecionadas
+            </button>
+          </div>
+        )}
+
         <div className="mt-4 overflow-x-auto rounded-2xl bg-white text-slate-900">
           <table className="min-w-[1320px] w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
@@ -488,7 +549,15 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
                   <td className="px-4 py-3 align-top">
                     <select
                       value={row.paymentMethod}
-                      onChange={(event) => updateRow(row.id, { paymentMethod: event.target.value as PaymentMethod })}
+                      onChange={(event) => {
+                        const paymentMethod = event.target.value as PaymentMethod;
+                        updateRow(row.id, {
+                          paymentMethod,
+                          installments: paymentMethod === 'CARTAO_CREDITO_PARCELADO'
+                            ? String(Math.max(2, Number.parseInt(row.installments, 10) || 2))
+                            : '1',
+                        });
+                      }}
                       className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 outline-none transition focus:border-emerald-500"
                     >
                       {paymentMethodOptions.map((paymentMethod) => (

@@ -235,11 +235,30 @@ public class TransactionService {
             throw new IllegalArgumentException("Selecione ao menos uma transacao para importar");
         }
 
-        if (transactions.size() > 1000) {
-            throw new IllegalArgumentException("A importacao suporta no maximo 1000 transacoes por vez");
+        if (transactions.size() > 5000) {
+            throw new IllegalArgumentException("A importacao suporta no maximo 5000 transacoes por vez");
         }
 
-        transactions.forEach(this::create);
+        User user = getAuthenticatedUser();
+        List<Transaction> historicalTransactions = transactions.stream()
+                .map(dto -> {
+                    Integer installments = normalizeInstallments(dto);
+                    return Transaction.builder()
+                            .user(user)
+                            .type(dto.type())
+                            .description(dto.description())
+                            .category(dto.category())
+                            .amount(dto.amount())
+                            .paymentMethod(dto.paymentMethod())
+                            .installments(installments)
+                            .transactionGroupId(null)
+                            .transactionDate(dto.transactionDate())
+                            .build();
+                })
+                .toList();
+
+        // Cada linha revisada representa uma ocorrencia historica; nao gere novas parcelas futuras aqui.
+        transactionRepository.saveAll(historicalTransactions);
         return new TransactionImportResponseDTO(
                 transactions.size(),
                 transactions.size() + " transacao(oes) importada(s) com sucesso."
