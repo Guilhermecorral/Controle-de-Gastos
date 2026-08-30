@@ -83,7 +83,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/ping",
-                                "/actuator/health",
+                                "/actuator/health/**",
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/me",

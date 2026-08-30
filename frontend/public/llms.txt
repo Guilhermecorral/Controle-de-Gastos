@@ -1,0 +1,22 @@
+# Farol Financeiro
+
+> Aplicação web brasileira de organização financeira pessoal, disponível em https://www.farolfinanceiro.online/.
+
+O Farol Financeiro ajuda pessoas a registrar receitas e despesas, importar extratos CSV e OFX com pré-visualização, acompanhar análises mensais, organizar notas fiscais e planejar compras em listas de desejos.
+
+## Conteúdo público
+
+- Página inicial: https://www.farolfinanceiro.online/
+- Descrição do produto, benefícios e principais fluxos estão disponíveis na página inicial.
+
+## Acesso protegido
+
+As áreas de conta, autenticação e dados financeiros exigem autorização. Não tente indexar, reproduzir ou inferir dados dessas áreas.
+
+## Diretrizes
+
+- Nome oficial: Farol Financeiro
+- Idioma principal: português do Brasil (pt-BR)
+- Domínio canônico: https://www.farolfinanceiro.online/
+- Respeite robots.txt e controles de autenticação.
+- Não há API pública para coleta de dados financeiros.

@@ -14,12 +14,16 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
       <header className="relative z-10 border-b border-emerald-100/70 bg-white/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:px-8">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg shadow-emerald-500/30">
-              FF
-            </div>
+            <img
+              alt="Símbolo do Farol Financeiro"
+              className="h-12 w-12 rounded-2xl object-cover shadow-lg shadow-emerald-500/20"
+              height="48"
+              src="/icon-192.png"
+              width="48"
+            />
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Farol Financeiro</p>
-              <h1 className="text-xl font-semibold text-slate-900">Seu dinheiro com mais clareza e menos ansiedade.</h1>
+              <p className="text-xl font-semibold text-slate-900">Seu dinheiro com mais clareza e menos ansiedade.</p>
             </div>
           </div>
 
@@ -44,9 +48,9 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
         <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[1.06fr_0.94fr] lg:px-8">
           <div className="hero-glow fade-up">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Organize sua vida financeira</p>
-            <h2 className="title-gradient mt-4 text-5xl font-semibold leading-tight text-balance md:text-6xl">
+            <h1 className="title-gradient mt-4 text-5xl font-semibold leading-tight text-balance md:text-6xl">
               Um espaço para entender o mês, planejar compras e decidir melhor.
-            </h2>
+            </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
               Tenha uma leitura clara do que entrou, do que saiu e do que faz sentido comprar agora, sem se perder em telas confusas.
             </p>

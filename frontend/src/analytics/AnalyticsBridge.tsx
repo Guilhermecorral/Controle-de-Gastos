@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-const googleAnalyticsMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim() || '';
+const googleAnalyticsMeasurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim() || 'G-XHGPTH2GXP';
 
 export default function AnalyticsBridge() {
   const location = useLocation();

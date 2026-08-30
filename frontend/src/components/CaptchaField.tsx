@@ -24,15 +24,23 @@ type CaptchaFieldProps = {
 };
 
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() || '';
+const turnstileAllowedHosts = new Set(
+  (import.meta.env.VITE_TURNSTILE_ALLOWED_HOSTS || 'farolfinanceiro.online,www.farolfinanceiro.online')
+    .split(',')
+    .map((hostname: string) => hostname.trim().toLowerCase())
+    .filter(Boolean),
+);
 let turnstileScriptPromise: Promise<void> | null = null;
 
 // Renderiza o desafio anti-bot quando o ambiente possuir uma chave pública configurada.
 export default function CaptchaField({ value, onChange }: CaptchaFieldProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const currentHostname = window.location.hostname.toLowerCase();
+  const isAuthorizedHostname = import.meta.env.DEV || turnstileAllowedHosts.has(currentHostname);
 
   useEffect(() => {
-    if (!turnstileSiteKey || !containerRef.current) {
+    if (!turnstileSiteKey || !isAuthorizedHostname || !containerRef.current) {
       return;
     }
 
@@ -62,13 +70,29 @@ export default function CaptchaField({ value, onChange }: CaptchaFieldProps) {
         widgetIdRef.current = null;
       }
     };
-  }, [onChange]);
+  }, [isAuthorizedHostname, onChange]);
 
   if (!turnstileSiteKey) {
     return (
       <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-500">
         <p className="font-semibold text-slate-900">Proteção contra abuso</p>
         <p className="mt-2">Esta etapa será ativada quando a proteção automática estiver ligada neste ambiente.</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorizedHostname) {
+    const officialUrl = `https://farolfinanceiro.online${window.location.pathname}`;
+
+    return (
+      <div className="rounded-[22px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-900">
+        <p className="font-semibold">Ambiente de preview não homologado</p>
+        <p className="mt-2">
+          A verificação anti-bot só funciona no domínio oficial. Isso evita o uso indevido da chave de segurança em endereços temporários.
+        </p>
+        <a className="mt-3 inline-flex font-semibold underline underline-offset-4" href={officialUrl}>
+          Continuar em farolfinanceiro.online
+        </a>
       </div>
     );
   }

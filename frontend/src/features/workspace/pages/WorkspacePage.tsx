@@ -555,9 +555,13 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
       <div className="relative z-40 border-b border-emerald-100 bg-white/82 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-lg font-bold text-white shadow-lg shadow-emerald-500/30">
-              FF
-            </div>
+            <img
+              alt="Símbolo do Farol Financeiro"
+              className="h-12 w-12 rounded-2xl object-cover shadow-lg shadow-emerald-500/20"
+              height="48"
+              src="/icon-192.png"
+              width="48"
+            />
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Farol Financeiro</p>
               <h1 className="text-xl font-semibold text-slate-900">Seu ambiente financeiro</h1>

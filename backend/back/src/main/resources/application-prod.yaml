@@ -47,6 +47,8 @@ springdoc:
 
 management:
   health:
+    mail:
+      enabled: false
     redis:
       enabled: false
   endpoints:
@@ -55,4 +57,6 @@ management:
         include: health
   endpoint:
     health:
+      probes:
+        enabled: true
       show-details: never
