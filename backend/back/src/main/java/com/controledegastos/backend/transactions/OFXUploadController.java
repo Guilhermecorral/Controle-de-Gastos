@@ -2,6 +2,10 @@ package com.controledegastos.backend.transactions;
 
 import com.controledegastos.backend.ofxupload.OFXUploadResponseDTO;
 import com.controledegastos.backend.ofxupload.OFXUploadService;
+import com.controledegastos.backend.ofxupload.ImportAnalysisDTO;
+import com.controledegastos.backend.ofxupload.ImportPreviewTransactionDTO;
+import com.controledegastos.backend.ofxupload.UniversalImportResult;
+import com.controledegastos.backend.ofxupload.UniversalStatementImportService;
 import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,29 +22,30 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 /**
- * Controller for OFX and CSV file upload and parsing.
+ * Controller for safe statement and spreadsheet preview.
  */
 @RestController
 @RequestMapping("/api/ofx")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "OFX Upload", description = "Endpoints for uploading and parsing OFX and CSV files")
+@Tag(name = "Statement import", description = "Endpoints for previewing OFX, CSV, TSV and Excel files")
 public class OFXUploadController {
 
     private final OFXUploadService ofxUploadService;
+    private final UniversalStatementImportService universalStatementImportService;
 
     @Value("${app.statement-import.max-bytes:5242880}")
     private long maxFileBytes;
 
-    @Value("${app.statement-import.max-rows:1000}")
+    @Value("${app.statement-import.max-rows:5000}")
     private int maxRows;
 
     /**
-     * Upload and parse an OFX or CSV file.
-     * @param file the file to upload (OFX or CSV)
+     * Upload and parse a supported financial file.
+     * @param file the file to upload
      * @return a response containing the parsed transactions and a message
      */
-    @Operation(summary = "Upload and parse OFX or CSV file", description = "Accepts an OFX or CSV file, parses it, and returns a list of transactions for preview.")
+    @Operation(summary = "Preview a financial file", description = "Accepts OFX, CSV, TSV, XLS or XLSX and returns editable transaction suggestions with diagnostics.")
     @ApiResponse(responseCode = "200", description = "Successfully parsed the file",
             content = @Content(schema = @Schema(implementation = OFXUploadResponseDTO.class)))
     @ApiResponse(responseCode = "400", description = "Invalid file type or parsing error")
@@ -49,39 +54,66 @@ public class OFXUploadController {
         try {
             validateUpload(file);
             String filename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
-            List<TransactionRequestDTO> transactions;
+            UniversalImportResult result;
 
             if (filename.endsWith(".ofx")) {
-                transactions = ofxUploadService.parseOFX(file);
-            } else if (filename.endsWith(".csv")) {
-                transactions = ofxUploadService.parseCSV(file);
+                List<TransactionRequestDTO> parsedTransactions = ofxUploadService.parseOFX(file);
+                List<ImportPreviewTransactionDTO> previewTransactions = java.util.stream.IntStream
+                        .range(0, parsedTransactions.size())
+                        .mapToObj(index -> ImportPreviewTransactionDTO.fromOFX(parsedTransactions.get(index), index))
+                        .toList();
+                result = new UniversalImportResult(
+                        previewTransactions,
+                        new ImportAnalysisDTO(
+                                "OFX",
+                                "EXTRATO_BANCARIO",
+                                parsedTransactions.size(),
+                                parsedTransactions.size(),
+                                List.of("Extrato OFX"),
+                                List.of("Os dados estruturados do banco foram convertidos para uma prévia editável.")
+                        )
+                );
+            } else if (isSpreadsheet(filename)) {
+                result = universalStatementImportService.analyze(file);
             } else {
                 return ResponseEntity.badRequest()
-                        .body(new OFXUploadResponseDTO("Envie apenas arquivos OFX ou CSV.", List.of()));
+                        .body(errorResponse("Envie um arquivo OFX, CSV, TSV, XLS ou XLSX."));
             }
 
-            if (transactions.isEmpty()) {
+            if (result.transactions().size() > maxRows) {
                 return ResponseEntity.badRequest()
-                        .body(new OFXUploadResponseDTO("Nenhuma transacao valida foi encontrada no arquivo.", List.of()));
+                        .body(errorResponse("O arquivo ultrapassa o limite de " + maxRows + " transações por importação."));
             }
 
-            if (transactions.size() > maxRows) {
-                return ResponseEntity.badRequest()
-                        .body(new OFXUploadResponseDTO("O extrato ultrapassa o limite de " + maxRows + " transacoes por importacao.", List.of()));
-            }
-
+            String message = result.transactions().isEmpty()
+                    ? "Não encontramos transações seguras automaticamente. Consulte o diagnóstico e ajuste a estrutura do arquivo."
+                    : "Arquivo lido com sucesso. Revise " + result.transactions().size() + " transação(ões) antes de confirmar.";
             return ResponseEntity.ok(new OFXUploadResponseDTO(
-                    "Arquivo lido com sucesso. Revise " + transactions.size() + " transacao(oes) antes de confirmar.", transactions));
+                    message,
+                    result.transactions(),
+                    result.analysis()
+            ));
         } catch (Exception e) {
             log.warn("Falha ao ler extrato para pre-visualizacao. type={}", e.getClass().getSimpleName());
             return ResponseEntity.badRequest()
-                    .body(new OFXUploadResponseDTO("Nao foi possivel ler esse arquivo. Confirme o formato OFX ou CSV e tente novamente.", List.of()));
+                    .body(errorResponse("Não foi possível ler esse arquivo. Confirme o formato e tente novamente."));
         }
+    }
+
+    private boolean isSpreadsheet(String filename) {
+        return filename.endsWith(".csv")
+                || filename.endsWith(".tsv")
+                || filename.endsWith(".xls")
+                || filename.endsWith(".xlsx");
+    }
+
+    private OFXUploadResponseDTO errorResponse(String message) {
+        return new OFXUploadResponseDTO(message, List.of(), null);
     }
 
     private void validateUpload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("Selecione um arquivo OFX ou CSV para continuar.");
+            throw new IllegalArgumentException("Selecione um arquivo OFX, CSV, TSV ou Excel para continuar.");
         }
 
         if (file.getSize() > maxFileBytes) {

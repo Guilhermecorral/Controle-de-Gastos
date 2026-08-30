@@ -2,6 +2,8 @@ package com.controledegastos.backend.monthlyanalysis;
 
 import com.controledegastos.backend.dashboard.dto.DashboardCategorySummaryDTO;
 import com.controledegastos.backend.monthlyanalysis.dto.AnalysisTrend;
+import com.controledegastos.backend.monthlyanalysis.dto.FinancialInsightDTO;
+import com.controledegastos.backend.monthlyanalysis.dto.FinancialInsightSeverity;
 import com.controledegastos.backend.monthlyanalysis.dto.MonthlyAnalysisResponseDTO;
 import com.controledegastos.backend.monthlyanalysis.dto.MonthlyComparisonDTO;
 import com.controledegastos.backend.monthlyanalysis.dto.MonthlyHighestExpenseDTO;
@@ -17,9 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -96,6 +100,14 @@ public class MonthlyAnalysisService {
                 sameMonthLastYearEndDate
         );
 
+        List<FinancialInsightDTO> insights = buildInsights(
+                totalReceitas,
+                totalDespesas,
+                saldo,
+                gastosPorCategoria,
+                comparativoMesAnterior
+        );
+
         return new MonthlyAnalysisResponseDTO(
                 requestedPeriod.getYear(),
                 requestedPeriod.getMonthValue(),
@@ -108,8 +120,104 @@ public class MonthlyAnalysisService {
                 comparativoMesAnterior,
                 comparativoMesmoMesAnoAnterior,
                 acumuladoAnoAtual,
-                comparativoAcumuladoAnoAnterior
+                comparativoAcumuladoAnoAnterior,
+                insights
         );
+    }
+
+    private List<FinancialInsightDTO> buildInsights(
+            BigDecimal income,
+            BigDecimal expenses,
+            BigDecimal balance,
+            List<DashboardCategorySummaryDTO> expensesByCategory,
+            MonthlyComparisonDTO previousMonth
+    ) {
+        List<FinancialInsightDTO> insights = new ArrayList<>();
+
+        if (income.signum() == 0 && expenses.signum() == 0) {
+            return List.of(new FinancialInsightDTO(
+                    "NO_DATA",
+                    FinancialInsightSeverity.NEUTRO,
+                    "Registre o mês para receber uma leitura útil",
+                    "Ainda não há movimentações suficientes para comparar seu comportamento financeiro.",
+                    "Receitas e despesas do período estão zeradas.",
+                    null
+            ));
+        }
+
+        if (expenses.compareTo(income) > 0) {
+            insights.add(new FinancialInsightDTO(
+                    "NEGATIVE_BALANCE",
+                    FinancialInsightSeverity.CRITICO,
+                    "As despesas ultrapassaram as receitas",
+                    "Revise primeiro gastos adiáveis e compromissos recorrentes antes de assumir uma nova parcela.",
+                    "O mês fechou com saldo negativo de " + balance.abs().setScale(2, RoundingMode.HALF_UP) + ".",
+                    balance.abs().setScale(2, RoundingMode.HALF_UP)
+            ));
+        } else if (income.signum() > 0) {
+            BigDecimal expenseRatio = expenses.divide(income, 4, RoundingMode.HALF_UP);
+            if (expenseRatio.compareTo(new BigDecimal("0.90")) >= 0) {
+                insights.add(new FinancialInsightDTO(
+                        "HIGH_COMMITMENT",
+                        FinancialInsightSeverity.ATENCAO,
+                        "Pouca margem livre neste mês",
+                        "Uma margem pequena aumenta o impacto de imprevistos. Procure reduzir um gasto recorrente antes do próximo fechamento.",
+                        "As despesas consumiram " + expenseRatio.multiply(new BigDecimal("100")).setScale(1, RoundingMode.HALF_UP) + "% das receitas.",
+                        null
+                ));
+            }
+        }
+
+        BigDecimal previousExpenses = previousMonth.totalDespesas();
+        if (previousExpenses.signum() > 0 && expenses.compareTo(previousExpenses) > 0) {
+            BigDecimal increase = expenses.subtract(previousExpenses)
+                    .divide(previousExpenses, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+            if (increase.compareTo(new BigDecimal("15")) >= 0) {
+                insights.add(new FinancialInsightDTO(
+                        "EXPENSE_GROWTH",
+                        FinancialInsightSeverity.ATENCAO,
+                        "Os gastos aceleraram em relação ao mês anterior",
+                        "Compare as categorias que mais cresceram e confirme se o aumento foi pontual ou recorrente.",
+                        "As despesas aumentaram " + increase.setScale(1, RoundingMode.HALF_UP) + "% sobre o mês anterior.",
+                        expenses.subtract(previousExpenses).setScale(2, RoundingMode.HALF_UP)
+                ));
+            }
+        }
+
+        if (expenses.signum() > 0 && !expensesByCategory.isEmpty()) {
+            DashboardCategorySummaryDTO topCategory = expensesByCategory.getFirst();
+            BigDecimal share = topCategory.totalAmount()
+                    .divide(expenses, 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+            if (share.compareTo(new BigDecimal("35")) >= 0) {
+                String category = topCategory.category().name().replace('_', ' ');
+                insights.add(new FinancialInsightDTO(
+                        "CATEGORY_CONCENTRATION",
+                        FinancialInsightSeverity.ATENCAO,
+                        "Uma categoria concentra boa parte das despesas",
+                        "Abra essa categoria e procure cobranças repetidas, compras adiáveis ou valores fora do padrão.",
+                        category + " representa " + share.setScale(1, RoundingMode.HALF_UP) + "% das despesas do mês.",
+                        topCategory.totalAmount().setScale(2, RoundingMode.HALF_UP)
+                ));
+            }
+        }
+
+        if (balance.signum() > 0 && income.signum() > 0) {
+            BigDecimal suggestedReserve = income.multiply(new BigDecimal("0.10"))
+                    .min(balance)
+                    .setScale(2, RoundingMode.HALF_UP);
+            insights.add(new FinancialInsightDTO(
+                    "POSITIVE_BALANCE",
+                    FinancialInsightSeverity.POSITIVO,
+                    "Há espaço para fortalecer sua reserva",
+                    "Se as contas essenciais e dívidas caras estiverem em dia, considere separar parte do saldo antes de aumentar o consumo.",
+                    "Sugestão conservadora: até 10% da renda, limitada ao saldo disponível.",
+                    suggestedReserve
+            ));
+        }
+
+        return insights;
     }
 
     private YearMonth buildYearMonth(int year, int month) {

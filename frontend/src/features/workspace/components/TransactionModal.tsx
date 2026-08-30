@@ -65,7 +65,7 @@ export default function TransactionModal({
             <p className="mt-2 text-sm leading-7 text-slate-600">
               {mode === 'single'
                 ? 'Registre uma movimentação com sugestão automática de categoria, parcelamento e anexo fiscal.'
-                : 'Envie um OFX ou CSV, revise cada linha e confirme apenas as movimentações que deseja importar.'}
+                : 'Envie OFX, CSV, TSV ou Excel, revise cada sugestão e confirme apenas as movimentações que deseja importar.'}
             </p>
           </div>
           <button
@@ -79,7 +79,7 @@ export default function TransactionModal({
 
         <div className="mt-6 grid grid-cols-2 gap-2 rounded-[20px] bg-slate-100 p-1.5">
           <ModeButton active={mode === 'single'} label="Lançamento único" onClick={() => setMode('single')} />
-          <ModeButton active={mode === 'batch'} label="Importar OFX/CSV" onClick={() => setMode('batch')} />
+          <ModeButton active={mode === 'batch'} label="Importar planilha/OFX" onClick={() => setMode('batch')} />
         </div>
 
         {mode === 'batch' ? (

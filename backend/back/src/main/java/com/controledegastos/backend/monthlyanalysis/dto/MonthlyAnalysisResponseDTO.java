@@ -17,6 +17,7 @@ public record MonthlyAnalysisResponseDTO(
         MonthlyComparisonDTO comparativoMesAnterior,
         MonthlyComparisonDTO comparativoMesmoMesAnoAnterior,
         YearToDateSummaryDTO acumuladoAnoAtual,
-        YearToDateComparisonDTO comparativoAcumuladoAnoAnterior
+        YearToDateComparisonDTO comparativoAcumuladoAnoAnterior,
+        List<FinancialInsightDTO> insights
 ) {
 }

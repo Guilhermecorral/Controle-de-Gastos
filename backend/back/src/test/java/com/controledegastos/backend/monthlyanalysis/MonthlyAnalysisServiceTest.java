@@ -203,6 +203,7 @@ class MonthlyAnalysisServiceTest { // Declares the integration test for the mont
         assertEquals(new BigDecimal("1700.00"), response.comparativoAcumuladoAnoAnterior().diferencaReceitas()); // Confirms the year-to-date income difference is correct.
         assertEquals(new BigDecimal("-600.00"), response.comparativoAcumuladoAnoAnterior().diferencaDespesas()); // Confirms the year-to-date expense difference is correct.
         assertEquals(new BigDecimal("2300.00"), response.comparativoAcumuladoAnoAnterior().diferencaSaldo()); // Confirms the year-to-date balance difference is correct.
+        assertEquals(true, response.insights().stream().anyMatch(insight -> insight.code().equals("POSITIVE_BALANCE")));
         assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaReceitas()); // Confirms higher year-to-date revenue is interpreted as better.
         assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaDespesas()); // Confirms lower year-to-date expenses are interpreted as better.
         assertEquals(AnalysisTrend.MELHOR, response.comparativoAcumuladoAnoAnterior().tendenciaSaldo()); // Confirms a stronger year-to-date balance is interpreted as better.
@@ -246,5 +247,6 @@ class MonthlyAnalysisServiceTest { // Declares the integration test for the mont
         assertEquals(new BigDecimal("0"), response.comparativoAcumuladoAnoAnterior().anoAnterior().totalDespesas()); // Confirms the previous-year year-to-date expense total is zero when there is no data.
         assertEquals(new BigDecimal("0"), response.comparativoAcumuladoAnoAnterior().anoAnterior().saldo()); // Confirms the previous-year year-to-date balance is zero when there is no data.
         assertEquals(AnalysisTrend.IGUAL, response.comparativoAcumuladoAnoAnterior().tendenciaGeral()); // Confirms an empty year-to-date comparison is interpreted as equal.
+        assertEquals("NO_DATA", response.insights().getFirst().code());
     } // Closes the empty-month scenario.
 } // Closes the test class.

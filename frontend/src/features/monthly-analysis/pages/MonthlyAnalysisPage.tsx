@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Category, MonthlyAnalysisResponse } from '../../../types';
 import { categoryLabels, formatCurrency, formatMonthLabel } from '../../../lib/mockFinance';
 import {
@@ -45,6 +46,8 @@ export default function MonthlyAnalysisPage({
   onYearChange,
   onMonthChange,
 }: MonthlyAnalysisPageProps) {
+  const [showInsights, setShowInsights] = useState(false);
+
   if (isLoading) {
     return <LoadingCard label="Carregando análise mensal real..." />;
   }
@@ -93,6 +96,60 @@ export default function MonthlyAnalysisPage({
           <MetricCard label="Despesas do mês" tone="negative" value={formatCurrency(snapshot.totalDespesas)} />
           <MetricCard label="Saldo do mês" tone={snapshot.saldo >= 0 ? 'neutral' : 'warning'} value={formatCurrency(snapshot.saldo)} />
         </div>
+      </SectionCard>
+
+      <SectionCard>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-600">Copiloto financeiro</p>
+            <h3 className="mt-2 text-2xl font-semibold text-slate-900">Uma leitura clara dos seus próprios números</h3>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+              As dicas são calculadas no Farol com regras transparentes. Seus dados não são enviados a uma IA externa.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowInsights((current) => !current)}
+            className="rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            {showInsights ? 'Ocultar dicas' : 'Quero uma dica'}
+          </button>
+        </div>
+
+        {showInsights && (
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            {(snapshot.insights ?? []).map((insight) => (
+              <article
+                key={insight.code}
+                className={`rounded-[24px] border p-5 ${
+                  insight.severity === 'CRITICO'
+                    ? 'border-rose-200 bg-rose-50'
+                    : insight.severity === 'ATENCAO'
+                      ? 'border-amber-200 bg-amber-50'
+                      : insight.severity === 'POSITIVO'
+                        ? 'border-emerald-200 bg-emerald-50'
+                        : 'border-slate-200 bg-slate-50'
+                }`}
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{insight.severity}</p>
+                <h4 className="mt-2 text-lg font-semibold text-slate-900">{insight.title}</h4>
+                <p className="mt-3 text-sm leading-6 text-slate-700">{insight.message}</p>
+                <p className="mt-3 text-xs leading-5 text-slate-500">Base: {insight.evidence}</p>
+                {insight.suggestedAmount != null && (
+                  <p className="mt-4 text-sm font-semibold text-slate-900">
+                    Valor de referência: {formatCurrency(insight.suggestedAmount)}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+
+        {showInsights && (
+          <p className="mt-5 text-xs leading-5 text-slate-500">
+            Conteúdo educativo, não constitui recomendação de investimento, crédito ou planejamento profissional.
+          </p>
+        )}
       </SectionCard>
 
       <section className="grid gap-5 lg:grid-cols-2">

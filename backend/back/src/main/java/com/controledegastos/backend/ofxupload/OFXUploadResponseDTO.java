@@ -1,6 +1,5 @@
 package com.controledegastos.backend.ofxupload;
 
-import com.controledegastos.backend.transactions.DTO.TransactionRequestDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,5 +14,6 @@ import java.util.List;
 @NoArgsConstructor
 public class OFXUploadResponseDTO {
     private String message;
-    private List<TransactionRequestDTO> transactions;
+    private List<ImportPreviewTransactionDTO> transactions;
+    private ImportAnalysisDTO analysis;
 }

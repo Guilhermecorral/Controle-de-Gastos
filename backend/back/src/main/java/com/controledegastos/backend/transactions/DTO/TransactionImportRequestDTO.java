@@ -11,7 +11,7 @@ import java.util.List;
  */
 public record TransactionImportRequestDTO(
         @NotEmpty(message = "Selecione ao menos uma transacao para importar")
-        @Size(max = 1000, message = "A importacao suporta no maximo 1000 transacoes por vez")
+        @Size(max = 5000, message = "A importacao suporta no maximo 5000 transacoes por vez")
         List<@Valid TransactionRequestDTO> transactions
 ) {
 }

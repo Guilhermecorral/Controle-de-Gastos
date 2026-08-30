@@ -13,6 +13,18 @@ type PreviewRow = {
   paymentMethod: PaymentMethod;
   installments: string;
   transactionDate: string;
+  confidence: 'ALTA' | 'MEDIA' | 'BAIXA';
+  source: string;
+  rationale: string;
+};
+
+type ImportAnalysis = {
+  format: string;
+  layout: string;
+  processedRows: number;
+  detectedTransactions: number;
+  sheets: string[];
+  warnings: string[];
 };
 
 type UploadPreviewResponse = {
@@ -24,8 +36,13 @@ type UploadPreviewResponse = {
     amount: number | string;
     paymentMethod: PaymentMethod;
     installments: number;
-    transactionDate: string;
+    transactionDate: string | null;
+    selectedByDefault: boolean;
+    confidence: 'ALTA' | 'MEDIA' | 'BAIXA';
+    source: string;
+    rationale: string;
   }>;
+  analysis: ImportAnalysis | null;
 };
 
 type ImportResponse = {
@@ -34,6 +51,7 @@ type ImportResponse = {
 };
 
 const maxFileBytes = 5 * 1024 * 1024;
+const pageSize = 50;
 
 const categoryOptions = Object.keys(categoryLabels) as Category[];
 const paymentMethodOptions = Object.keys(paymentMethodLabels) as PaymentMethod[];
@@ -44,7 +62,7 @@ function toPreviewRow(transaction: UploadPreviewResponse['transactions'][number]
 
   return {
     id: `${Date.now()}-${index}`,
-    enabled: true,
+    enabled: transaction.selectedByDefault ?? true,
     type: transaction.type ?? 'DESPESA',
     description,
     category: smartCategory,
@@ -52,6 +70,9 @@ function toPreviewRow(transaction: UploadPreviewResponse['transactions'][number]
     paymentMethod: transaction.paymentMethod ?? 'PIX',
     installments: String(transaction.installments ?? 1),
     transactionDate: transaction.transactionDate?.slice(0, 10) ?? '',
+    confidence: transaction.confidence ?? 'ALTA',
+    source: transaction.source ?? 'Arquivo importado',
+    rationale: transaction.rationale ?? 'Campos reconhecidos no arquivo.',
   };
 }
 
@@ -63,6 +84,8 @@ type OFXUploaderProps = {
 const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<PreviewRow[]>([]);
+  const [analysis, setAnalysis] = useState<ImportAnalysis | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -76,10 +99,18 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
     () => selectedRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
     [selectedRows],
   );
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visibleRows = useMemo(
+    () => rows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, rows],
+  );
 
   const resetState = (options?: { keepSuccessMessage?: boolean }) => {
     setFile(null);
     setRows([]);
+    setAnalysis(null);
+    setPage(1);
     setError(null);
     if (!options?.keepSuccessMessage) {
       setSuccessMessage(null);
@@ -93,6 +124,7 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
     if (selectedFile.size > maxFileBytes) {
       setError('O arquivo excede o limite de 5 MB.');
       setRows([]);
+      setAnalysis(null);
       return;
     }
 
@@ -108,8 +140,10 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
 
       const previewRows = response.data.transactions.map(toPreviewRow);
       setRows(previewRows);
+      setAnalysis(response.data.analysis);
+      setPage(1);
       if (!previewRows.length) {
-        setError('Nenhuma transação válida foi encontrada no arquivo.');
+        setError(response.data.message || 'Nenhuma transação segura foi reconhecida automaticamente.');
       }
     } catch (err: any) {
       const message =
@@ -118,6 +152,7 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
         || 'Não foi possível ler o arquivo agora.';
       setError(message);
       setRows([]);
+      setAnalysis(null);
     } finally {
       setLoading(false);
     }
@@ -236,12 +271,12 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
               Entrada de dados automática
             </p>
             <h2 className="text-xl font-semibold text-slate-900">
-              Arraste OFX/CSV, revise e confirme antes de salvar
+              Arraste OFX, CSV ou Excel, revise e confirme antes de salvar
             </h2>
             <p className="max-w-2xl text-sm leading-6 text-slate-600">
               O arquivo é lido em memória, sem ficar salvo no servidor. Se aparecer
-              &quot;Uber Trip&quot;, &quot;iFood&quot; ou algo parecido, a categoria já vem
-              sugerida para você ajustar em segundos.
+              uma tabela, matriz mensal ou blocos livres, mostramos como cada valor foi
+              entendido para você ajustar em segundos.
             </p>
           </div>
 
@@ -249,7 +284,7 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
             <input
               id="ofx-upload-input"
               type="file"
-              accept=".ofx,.csv"
+              accept=".ofx,.csv,.tsv,.xls,.xlsx"
               className="hidden"
               onChange={handleFileChange}
               disabled={loading || importing}
@@ -277,6 +312,35 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
           </div>
         )}
       </div>
+
+      {analysis && (
+        <div className="rounded-3xl border border-sky-200 bg-sky-50 p-5 text-slate-700">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">Formato</p>
+              <p className="mt-2 font-semibold text-slate-900">{analysis.format}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">Estrutura detectada</p>
+              <p className="mt-2 font-semibold text-slate-900">{analysis.layout.split('_').join(' ')}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">Leitura</p>
+              <p className="mt-2 font-semibold text-slate-900">
+                {analysis.processedRows} linhas · {analysis.detectedTransactions} sugestões
+              </p>
+            </div>
+          </div>
+          {analysis.sheets.length > 0 && (
+            <p className="mt-4 text-sm"><strong>Abas:</strong> {analysis.sheets.join(', ')}</p>
+          )}
+          {analysis.warnings.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm leading-6 text-slate-600">
+              {analysis.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
@@ -326,10 +390,11 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
         </div>
 
         <div className="mt-4 overflow-x-auto rounded-2xl bg-white text-slate-900">
-          <table className="min-w-[1100px] w-full divide-y divide-slate-200 text-sm">
+          <table className="min-w-[1320px] w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-[0.2em] text-slate-500">
               <tr>
                 <th className="px-4 py-3 text-left">Usar</th>
+                <th className="px-4 py-3 text-left">Leitura</th>
                 <th className="px-4 py-3 text-left">Data</th>
                 <th className="px-4 py-3 text-left">Descrição</th>
                 <th className="px-4 py-3 text-left">Tipo</th>
@@ -341,7 +406,7 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map((row) => (
+              {visibleRows.map((row) => (
                 <tr key={row.id} className={!row.enabled ? 'opacity-55' : ''}>
                   <td className="px-4 py-3 align-top">
                     <input
@@ -350,6 +415,19 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
                       onChange={(event) => updateRow(row.id, { enabled: event.target.checked })}
                       className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                     />
+                  </td>
+                  <td className="max-w-[240px] px-4 py-3 align-top">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${
+                      row.confidence === 'ALTA'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : row.confidence === 'MEDIA'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-rose-100 text-rose-700'
+                    }`}>
+                      {row.confidence}
+                    </span>
+                    <p className="mt-2 text-xs font-semibold text-slate-700">{row.source}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{row.rationale}</p>
                   </td>
                   <td className="px-4 py-3 align-top">
                     <input
@@ -443,14 +521,40 @@ const OFXUploader = ({ compact = false, onImported }: OFXUploaderProps) => {
               ))}
               {!rows.length && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-500">
-                    Nenhum arquivo carregado ainda. Arraste um OFX/CSV ou escolha um arquivo para começar.
+                  <td colSpan={10} className="px-4 py-10 text-center text-slate-500">
+                    Nenhum arquivo carregado ainda. Arraste OFX, CSV, TSV ou Excel para começar.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {rows.length > pageSize && (
+          <div className="mt-4 flex items-center justify-between text-sm text-slate-300">
+            <span>
+              Página {currentPage} de {totalPages} · exibindo até {pageSize} sugestões por vez
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                className="rounded-full border border-white/15 px-4 py-2 disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <button
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                className="rounded-full border border-white/15 px-4 py-2 disabled:opacity-40"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <p className="text-sm text-slate-300">
