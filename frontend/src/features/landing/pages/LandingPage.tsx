@@ -23,7 +23,7 @@ export default function LandingPage({ isLoggedIn }: LandingPageProps) {
               width="48"
             />
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">JP FEIO</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-600">Farol Financeiro</p>
               <p className="text-xl font-semibold text-slate-900">Seu dinheiro com mais clareza e menos ansiedade.</p>
             </div>
           </div>
