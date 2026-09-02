@@ -20,6 +20,7 @@ import {
   InvestmentPositionRequest,
   InvestmentPositionResponse,
   InvestmentProjectionResponse,
+  InvestmentProjectionRequest,
   InvestmentMovementResponse,
   InvestmentTradeRequest,
   MonthlyAnalysisResponse,
@@ -100,7 +101,7 @@ export function useDeleteInvestmentMutation() {
 
 export function useInvestmentProjectionMutation() {
   return useMutation({
-    mutationFn: async (params: { principal: number; annualRate: number; startDate: string; maturityDate: string }) =>
+    mutationFn: async (params: InvestmentProjectionRequest) =>
       (await api.get<InvestmentProjectionResponse>('/investments/projections', { params })).data,
   })
 }
@@ -108,11 +109,11 @@ export function useInvestmentProjectionMutation() {
 export function useRecordInvestmentIncomeMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, amount, movementType }: { id: number; amount: number; movementType: 'DIVIDENDO' | 'RENDIMENTO' }) =>
+    mutationFn: async ({ id, amount, movementType, eventDate }: { id: number; amount: number; movementType: 'DIVIDENDO' | 'RENDIMENTO'; eventDate: string }) =>
       (await api.post<InvestmentMovementResponse>(`/investments/positions/${id}/income`, {
         amount,
         movementType,
-        eventDate: new Date().toISOString().slice(0, 10),
+        eventDate,
       })).data,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investments'] })

@@ -1,6 +1,8 @@
 package com.controledegastos.backend.investments;
 
 import com.controledegastos.backend.investments.InvestmentDtos.ProjectionResponse;
+import com.controledegastos.backend.investments.InvestmentDtos.RatePeriod;
+import com.controledegastos.backend.investments.InvestmentDtos.TimelinePeriod;
 import com.controledegastos.backend.investments.InvestmentDtos.TradeRequest;
 import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.Repository.TransactionRepository;
@@ -9,7 +11,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,8 +26,10 @@ class InvestmentServiceTest {
     private final InvestmentPositionRepository repository = mock(InvestmentPositionRepository.class);
     private final AuthenticatedUserService authenticatedUserService = mock(AuthenticatedUserService.class);
     private final InvestmentMovementRepository movementRepository = mock(InvestmentMovementRepository.class);
+    private final MarketQuoteService marketQuoteService = mock(MarketQuoteService.class);
+    private final InvestmentPortfolioSnapshotRepository snapshotRepository = mock(InvestmentPortfolioSnapshotRepository.class);
     private final InvestmentService service = new InvestmentService(repository, authenticatedUserService,
-            mock(MarketQuoteService.class), mock(AssetCatalogService.class), movementRepository,
+            marketQuoteService, mock(AssetCatalogService.class), movementRepository, snapshotRepository,
             mock(TransactionRepository.class));
 
     @Test
@@ -41,6 +47,66 @@ class InvestmentServiceTest {
         assertThat(result.projectedBalance()).isEqualByComparingTo("11200.00");
         assertThat(result.projectedEarnings()).isEqualByComparingTo("1200.00");
         assertThat(result.timeline()).hasSize(12);
+    }
+
+    @Test
+    void shouldProjectMonthlyContributionsAtTheEndOfEachMonth() {
+        ProjectionResponse result = service.projection(
+                BigDecimal.ZERO,
+                new BigDecimal("1000"),
+                new BigDecimal("12"),
+                RatePeriod.ANNUAL,
+                TimelinePeriod.MONTHLY,
+                LocalDate.of(2026, 1, 1),
+                LocalDate.of(2027, 1, 1)
+        );
+
+        assertThat(result.totalInvested()).isEqualByComparingTo("12000.00");
+        assertThat(result.projectedBalance()).isEqualByComparingTo("12646.50");
+        assertThat(result.projectedEarnings()).isEqualByComparingTo("646.50");
+        assertThat(result.timeline().get(0).interest()).isEqualByComparingTo("0.00");
+        assertThat(result.timeline().get(1).interest()).isEqualByComparingTo("9.49");
+    }
+
+    @Test
+    void shouldCondenseLongProjectionIntoAnnualRows() {
+        ProjectionResponse result = service.projection(
+                new BigDecimal("1000"), BigDecimal.ZERO, new BigDecimal("1"), RatePeriod.MONTHLY,
+                TimelinePeriod.YEARLY, LocalDate.of(2026, 1, 1), LocalDate.of(2028, 7, 1)
+        );
+
+        assertThat(result.months()).isEqualTo(30);
+        assertThat(result.timeline()).extracting(point -> point.month()).containsExactly(12, 24, 30);
+    }
+
+    @Test
+    void shouldSeparateCapitalGainIncomeAndTotalReturn() {
+        User user = User.builder().id(7L).name("Pessoa").email("pessoa@example.com").password("secret").build();
+        InvestmentPosition position = InvestmentPosition.builder()
+                .id(10L).user(user).assetType(InvestmentPosition.AssetType.ACAO).symbol("BBAS3")
+                .externalId("BBAS3.SA").name("Banco do Brasil ON").market("BR").exchange("B3").currency("BRL")
+                .quantity(new BigDecimal("5")).averagePrice(new BigDecimal("20"))
+                .purchaseDate(LocalDate.of(2026, 1, 2)).build();
+        InvestmentMovement income = InvestmentMovement.builder().id(1L).user(user).position(position)
+                .movementType(InvestmentMovement.MovementType.DIVIDENDO).amount(new BigDecimal("5"))
+                .eventDate(LocalDate.of(2026, 8, 1)).build();
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        when(repository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(income));
+        when(marketQuoteService.exchangeRateToBrl("BRL")).thenReturn(BigDecimal.ONE);
+        when(marketQuoteService.quote(InvestmentPosition.AssetType.ACAO, "BBAS3", "BBAS3.SA", "BR"))
+                .thenReturn(new InvestmentDtos.QuoteResponse("BBAS3", new BigDecimal("22"), BigDecimal.ZERO,
+                        null, "BRL", "TEST", Instant.now(), true));
+        when(snapshotRepository.findByUserAndSnapshotDate(user, LocalDate.now())).thenReturn(Optional.empty());
+        when(snapshotRepository.findAllByUserAndSnapshotDateGreaterThanEqualOrderBySnapshotDate(user, LocalDate.now().minusMonths(12)))
+                .thenReturn(List.of());
+
+        InvestmentDtos.PortfolioResponse result = service.portfolio();
+
+        assertThat(result.totalCapitalGain()).isEqualByComparingTo("10.00");
+        assertThat(result.totalIncome()).isEqualByComparingTo("5.00");
+        assertThat(result.totalReturn()).isEqualByComparingTo("15.00");
+        assertThat(result.totalReturnPercent()).isEqualByComparingTo("15.00");
     }
 
     @Test

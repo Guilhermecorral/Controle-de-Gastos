@@ -2,6 +2,15 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.3.2] - 2026-09-02
+
+- Painel individual do ativo com preço médio, cotação atual, ganho de capital, proventos e retorno total separados.
+- Rentabilidade consolidada corrigida para distinguir valorização da posição e renda efetivamente registrada.
+- Evolução patrimonial baseada em retratos diários reais, sem fabricar cotações anteriores ao início do acompanhamento.
+- Simulador de juros compostos com valor inicial, aporte mensal, taxa mensal ou anual e visão mensal ou anual.
+- Resultado do simulador com saldo final, total investido, juros ganhos, composição visual e tabela por período.
+- Registro de proventos redesenhado como modal integrado à identidade visual do Farol, com valor e data de recebimento.
+
 ## [1.3.1] - 2026-09-02
 
 - Busca inteligente de ações brasileiras e americanas, FIIs e criptoativos por ticker ou nome, sem exigir cadastro manual do nome oficial.

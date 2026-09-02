@@ -85,22 +85,53 @@ public final class InvestmentDtos {
             LocalDate maturityDate,
             BigDecimal investedAmount,
             BigDecimal currentValue,
-            BigDecimal returnAmount,
+            BigDecimal capitalGainAmount,
+            BigDecimal capitalGainPercent,
+            BigDecimal incomeAmount,
+            BigDecimal totalReturnAmount,
+            BigDecimal totalReturnPercent,
             QuoteResponse quote
     ) {}
 
     public record PortfolioResponse(
             BigDecimal totalInvested,
             BigDecimal currentValue,
+            BigDecimal totalCapitalGain,
+            BigDecimal totalIncome,
             BigDecimal totalReturn,
-            List<PositionResponse> positions
+            BigDecimal totalReturnPercent,
+            List<PositionResponse> positions,
+            List<PortfolioEvolutionPoint> evolution
     ) {}
 
-    public record ProjectionPoint(int month, LocalDate date, BigDecimal balance, BigDecimal earnings) {}
+    public record PortfolioEvolutionPoint(
+            LocalDate date,
+            BigDecimal investedAmount,
+            BigDecimal currentValue,
+            BigDecimal incomeAmount
+    ) {}
+
+    public enum RatePeriod { MONTHLY, ANNUAL }
+    public enum TimelinePeriod { MONTHLY, YEARLY }
+
+    public record ProjectionPoint(
+            int month,
+            LocalDate date,
+            BigDecimal contribution,
+            BigDecimal interest,
+            BigDecimal totalInvested,
+            BigDecimal totalInterest,
+            BigDecimal balance
+    ) {}
 
     public record ProjectionResponse(
-            BigDecimal principal,
-            BigDecimal annualRate,
+            BigDecimal initialAmount,
+            BigDecimal monthlyContribution,
+            BigDecimal interestRate,
+            RatePeriod ratePeriod,
+            TimelinePeriod timelinePeriod,
+            BigDecimal effectiveMonthlyRate,
+            BigDecimal totalInvested,
             BigDecimal projectedBalance,
             BigDecimal projectedEarnings,
             int months,

@@ -65,10 +65,18 @@ public class InvestmentController {
     }
 
     @GetMapping("/projections")
-    public ProjectionResponse projection(@RequestParam BigDecimal principal,
-                                         @RequestParam(required = false) BigDecimal annualRate,
+    public ProjectionResponse projection(@RequestParam(required = false) BigDecimal initialAmount,
+                                         @RequestParam(defaultValue = "0") BigDecimal monthlyContribution,
+                                         @RequestParam(required = false) BigDecimal interestRate,
+                                         @RequestParam(defaultValue = "ANNUAL") RatePeriod ratePeriod,
+                                         @RequestParam(defaultValue = "MONTHLY") TimelinePeriod timelinePeriod,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+                                         @RequestParam(required = false) BigDecimal principal,
+                                         @RequestParam(required = false) BigDecimal annualRate,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maturityDate) {
-        return investmentService.projection(principal, annualRate, startDate, maturityDate);
+        return investmentService.projection(initialAmount != null ? initialAmount : principal, monthlyContribution,
+                interestRate != null ? interestRate : annualRate, ratePeriod, timelinePeriod, startDate,
+                endDate != null ? endDate : maturityDate);
     }
 }

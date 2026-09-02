@@ -18,6 +18,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,21 +31,37 @@ public class InvestmentService {
     private final MarketQuoteService marketQuoteService;
     private final AssetCatalogService assetCatalogService;
     private final InvestmentMovementRepository movementRepository;
+    private final InvestmentPortfolioSnapshotRepository snapshotRepository;
     private final TransactionRepository transactionRepository;
 
     @Value("${app.investments.default-annual-rate:12.0}")
     private BigDecimal defaultAnnualRate;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public PortfolioResponse portfolio() {
         User user = authenticatedUserService.getAuthenticatedUser();
+        List<InvestmentMovement> movements = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user);
+        Map<Long, BigDecimal> incomeByPosition = movements.stream()
+                .filter(this::isIncome)
+                .collect(Collectors.groupingBy(movement -> movement.getPosition().getId(),
+                        Collectors.reducing(BigDecimal.ZERO, InvestmentMovement::getAmount, BigDecimal::add)));
         List<PositionResponse> positions = repository.findAllByUserOrderByCreatedAtDesc(user).stream()
                 .filter(position -> position.getAssetType() == InvestmentPosition.AssetType.RENDA_FIXA
                         || position.getQuantity() == null || position.getQuantity().signum() > 0)
-                .map(this::toResponse).toList();
+                .map(position -> toResponse(position, incomeByPosition.getOrDefault(position.getId(), ZERO))).toList();
         BigDecimal invested = positions.stream().map(PositionResponse::investedAmount).reduce(ZERO, BigDecimal::add);
         BigDecimal current = positions.stream().map(PositionResponse::currentValue).reduce(ZERO, BigDecimal::add);
-        return new PortfolioResponse(money(invested), money(current), money(current.subtract(invested)), positions);
+        BigDecimal capitalGain = current.subtract(invested);
+        BigDecimal income = positions.stream().map(PositionResponse::incomeAmount).reduce(ZERO, BigDecimal::add);
+        BigDecimal totalReturn = capitalGain.add(income);
+
+        saveDailySnapshot(user, invested, current, income);
+        List<PortfolioEvolutionPoint> evolution = snapshotRepository
+                .findAllByUserAndSnapshotDateGreaterThanEqualOrderBySnapshotDate(user, LocalDate.now().minusMonths(12))
+                .stream().map(snapshot -> new PortfolioEvolutionPoint(snapshot.getSnapshotDate(), snapshot.getInvestedAmount(),
+                        snapshot.getCurrentValue(), snapshot.getIncomeAmount())).toList();
+        return new PortfolioResponse(money(invested), money(current), money(capitalGain), money(income), money(totalReturn),
+                percentage(totalReturn, invested), positions, evolution);
     }
 
     @Transactional
@@ -52,7 +70,7 @@ public class InvestmentService {
         InvestmentPosition position = new InvestmentPosition();
         position.setUser(authenticatedUserService.getAuthenticatedUser());
         apply(position, request);
-        return toResponse(repository.save(position));
+        return toResponse(repository.save(position), ZERO);
     }
 
     @Transactional
@@ -60,7 +78,7 @@ public class InvestmentService {
         validate(request);
         InvestmentPosition position = owned(id);
         apply(position, request);
-        return toResponse(repository.save(position));
+        return toResponse(repository.save(position), ZERO);
     }
 
     @Transactional
@@ -181,43 +199,99 @@ public class InvestmentService {
                 .stream().map(this::toMovementResponse).toList();
     }
 
-    public ProjectionResponse projection(BigDecimal principal, BigDecimal annualRate, LocalDate startDate, LocalDate maturityDate) {
-        if (principal == null || principal.signum() <= 0) throw new IllegalArgumentException("O valor inicial deve ser maior que zero");
-        BigDecimal rate = annualRate == null ? defaultAnnualRate : annualRate;
-        if (rate.signum() < 0 || rate.compareTo(new BigDecimal("1000")) > 0) throw new IllegalArgumentException("A taxa anual informada é inválida");
+    public ProjectionResponse projection(BigDecimal initialAmount, BigDecimal monthlyContribution, BigDecimal interestRate,
+                                         RatePeriod ratePeriod, TimelinePeriod timelinePeriod,
+                                         LocalDate startDate, LocalDate endDate) {
+        BigDecimal initial = initialAmount == null ? BigDecimal.ZERO : initialAmount;
+        BigDecimal contribution = monthlyContribution == null ? BigDecimal.ZERO : monthlyContribution;
+        if (initial.signum() < 0 || contribution.signum() < 0 || initial.add(contribution).signum() <= 0) {
+            throw new IllegalArgumentException("Informe um valor inicial ou um aporte mensal maior que zero");
+        }
+        BigDecimal rate = interestRate == null ? defaultAnnualRate : interestRate;
+        RatePeriod selectedRatePeriod = ratePeriod == null ? RatePeriod.ANNUAL : ratePeriod;
+        TimelinePeriod selectedTimelinePeriod = timelinePeriod == null ? TimelinePeriod.MONTHLY : timelinePeriod;
+        if (rate.signum() < 0 || rate.compareTo(new BigDecimal("1000")) > 0) {
+            throw new IllegalArgumentException("A taxa informada é inválida");
+        }
         LocalDate start = startDate == null ? LocalDate.now() : startDate;
-        LocalDate end = maturityDate == null ? start.plusYears(1) : maturityDate;
-        if (!end.isAfter(start)) throw new IllegalArgumentException("O vencimento deve ser posterior à data inicial");
+        LocalDate end = endDate == null ? start.plusYears(1) : endDate;
+        if (!end.isAfter(start)) throw new IllegalArgumentException("A data final deve ser posterior à data inicial");
 
         int months = Math.max(1, (int) ChronoUnit.MONTHS.between(start.withDayOfMonth(1), end.withDayOfMonth(1)));
-        double monthlyRate = Math.pow(1 + rate.doubleValue() / 100.0, 1.0 / 12.0) - 1;
+        if (months > 1200) throw new IllegalArgumentException("O período máximo da simulação é de 100 anos");
+        double monthlyRateValue = selectedRatePeriod == RatePeriod.MONTHLY
+                ? rate.doubleValue() / 100.0
+                : Math.pow(1 + rate.doubleValue() / 100.0, 1.0 / 12.0) - 1;
+        BigDecimal monthlyRate = BigDecimal.valueOf(monthlyRateValue);
         List<ProjectionPoint> timeline = new ArrayList<>();
+        BigDecimal balance = initial;
+        BigDecimal totalInvested = initial;
+        BigDecimal totalInterest = BigDecimal.ZERO;
+        BigDecimal periodInterest = BigDecimal.ZERO;
         for (int month = 1; month <= months; month++) {
-            BigDecimal balance = BigDecimal.valueOf(principal.doubleValue() * Math.pow(1 + monthlyRate, month));
-            timeline.add(new ProjectionPoint(month, start.plusMonths(month), money(balance), money(balance.subtract(principal))));
+            BigDecimal monthInterest = balance.multiply(monthlyRate);
+            totalInterest = totalInterest.add(monthInterest);
+            periodInterest = periodInterest.add(monthInterest);
+            balance = balance.add(monthInterest).add(contribution);
+            totalInvested = totalInvested.add(contribution);
+            if (selectedTimelinePeriod == TimelinePeriod.MONTHLY || month % 12 == 0 || month == months) {
+                timeline.add(new ProjectionPoint(month, start.plusMonths(month), money(contribution), money(periodInterest),
+                        money(totalInvested), money(totalInterest), money(balance)));
+                periodInterest = BigDecimal.ZERO;
+            }
         }
-        BigDecimal projected = timeline.get(timeline.size() - 1).balance();
-        return new ProjectionResponse(money(principal), rate.setScale(2, RoundingMode.HALF_UP), projected,
-                money(projected.subtract(principal)), months, timeline,
-                "Simulação educacional com juros compostos e taxa constante; não representa garantia de rentabilidade.");
+        return new ProjectionResponse(money(initial), money(contribution), rate.setScale(4, RoundingMode.HALF_UP),
+                selectedRatePeriod, selectedTimelinePeriod,
+                monthlyRate.multiply(BigDecimal.valueOf(100)).setScale(4, RoundingMode.HALF_UP), money(totalInvested),
+                money(balance), money(totalInterest), months, timeline,
+                "Aportes são considerados no fim de cada mês. Simulação educacional com taxa constante, sem impostos ou inflação.");
     }
 
-    private PositionResponse toResponse(InvestmentPosition position) {
+    public ProjectionResponse projection(BigDecimal principal, BigDecimal annualRate, LocalDate startDate, LocalDate maturityDate) {
+        return projection(principal, BigDecimal.ZERO, annualRate, RatePeriod.ANNUAL, TimelinePeriod.MONTHLY,
+                startDate, maturityDate);
+    }
+
+    private PositionResponse toResponse(InvestmentPosition position, BigDecimal income) {
         QuoteResponse quote = marketQuoteService.quote(position.getAssetType(), position.getSymbol(), position.getExternalId(), position.getMarket());
         BigDecimal invested = investedAmount(position);
         BigDecimal current;
         if (position.getAssetType() == InvestmentPosition.AssetType.RENDA_FIXA) {
             LocalDate end = LocalDate.now().isAfter(position.getMaturityDate()) ? position.getMaturityDate() : LocalDate.now();
-            current = projection(position.getPrincipal(), position.getAnnualRate(), position.getPurchaseDate(), end.isAfter(position.getPurchaseDate()) ? end : position.getPurchaseDate().plusDays(1)).projectedBalance();
+            long elapsedDays = Math.max(0, ChronoUnit.DAYS.between(position.getPurchaseDate(), end));
+            double growthFactor = Math.pow(1 + position.getAnnualRate().doubleValue() / 100.0, elapsedDays / 365.0);
+            current = position.getPrincipal().multiply(BigDecimal.valueOf(growthFactor));
         } else {
             BigDecimal unitPrice = quote.available() && quote.price() != null ? quote.price() : position.getAveragePrice();
             String currentCurrency = quote.available() ? quote.currency() : position.getCurrency();
             current = toBrl(position.getQuantity().multiply(unitPrice), currentCurrency);
         }
+        BigDecimal capitalGain = current.subtract(invested);
+        BigDecimal totalReturn = capitalGain.add(income);
         return new PositionResponse(position.getId(), position.getAssetType(), position.getSymbol(), position.getExternalId(),
                 position.getName(), position.getMarket(), position.getExchange(), position.getCurrency(),
                 position.getQuantity(), position.getAveragePrice(), position.getPrincipal(), position.getAnnualRate(),
-                position.getPurchaseDate(), position.getMaturityDate(), money(invested), money(current), money(current.subtract(invested)), quote);
+                position.getPurchaseDate(), position.getMaturityDate(), money(invested), money(current), money(capitalGain),
+                percentage(capitalGain, invested), money(income), money(totalReturn), percentage(totalReturn, invested), quote);
+    }
+
+    private void saveDailySnapshot(User user, BigDecimal invested, BigDecimal current, BigDecimal income) {
+        LocalDate today = LocalDate.now();
+        InvestmentPortfolioSnapshot snapshot = snapshotRepository.findByUserAndSnapshotDate(user, today)
+                .orElseGet(() -> InvestmentPortfolioSnapshot.builder().user(user).snapshotDate(today).build());
+        snapshot.setInvestedAmount(money(invested));
+        snapshot.setCurrentValue(money(current));
+        snapshot.setIncomeAmount(money(income));
+        snapshotRepository.save(snapshot);
+    }
+
+    private boolean isIncome(InvestmentMovement movement) {
+        return movement.getMovementType() == InvestmentMovement.MovementType.DIVIDENDO
+                || movement.getMovementType() == InvestmentMovement.MovementType.RENDIMENTO;
+    }
+
+    private BigDecimal percentage(BigDecimal amount, BigDecimal base) {
+        return base.signum() == 0 ? ZERO : amount.multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal investedAmount(InvestmentPosition position) {

@@ -427,25 +427,56 @@ export interface InvestmentPositionResponse extends InvestmentPositionRequest {
   id: number;
   investedAmount: number;
   currentValue: number;
-  returnAmount: number;
+  capitalGainAmount: number;
+  capitalGainPercent: number;
+  incomeAmount: number;
+  totalReturnAmount: number;
+  totalReturnPercent: number;
   quote: InvestmentQuoteResponse;
 }
 
 export interface InvestmentPortfolioResponse {
   totalInvested: number;
   currentValue: number;
+  totalCapitalGain: number;
+  totalIncome: number;
   totalReturn: number;
+  totalReturnPercent: number;
   positions: InvestmentPositionResponse[];
+  evolution: Array<{ date: string; investedAmount: number; currentValue: number; incomeAmount: number }>;
 }
 
 export interface InvestmentProjectionResponse {
-  principal: number;
-  annualRate: number;
+  initialAmount: number;
+  monthlyContribution: number;
+  interestRate: number;
+  ratePeriod: 'MONTHLY' | 'ANNUAL';
+  timelinePeriod: 'MONTHLY' | 'YEARLY';
+  effectiveMonthlyRate: number;
+  totalInvested: number;
   projectedBalance: number;
   projectedEarnings: number;
   months: number;
-  timeline: Array<{ month: number; date: string; balance: number; earnings: number }>;
+  timeline: Array<{
+    month: number;
+    date: string;
+    contribution: number;
+    interest: number;
+    totalInvested: number;
+    totalInterest: number;
+    balance: number;
+  }>;
   disclaimer: string;
+}
+
+export interface InvestmentProjectionRequest {
+  initialAmount: number;
+  monthlyContribution: number;
+  interestRate: number;
+  ratePeriod: 'MONTHLY' | 'ANNUAL';
+  timelinePeriod: 'MONTHLY' | 'YEARLY';
+  startDate: string;
+  endDate: string;
 }
 
 export interface InvestmentMovementResponse {
