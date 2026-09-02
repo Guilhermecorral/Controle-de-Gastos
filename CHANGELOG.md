@@ -2,6 +2,16 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.3.1] - 2026-09-02
+
+- Busca inteligente de ações brasileiras e americanas, FIIs e criptoativos por ticker ou nome, sem exigir cadastro manual do nome oficial.
+- Catálogo com mercado, bolsa, moeda, identificador do provedor e fallback local para ativos populares.
+- Registro de compras e vendas com quantidade, preço unitário, custos e data da operação.
+- Posições e preço médio recalculados automaticamente, incluindo custos de compra e proteção contra vendas acima da custódia.
+- Conversão cambial para consolidar posições internacionais em reais, preservando preços na moeda original.
+- Migração compatível das posições variáveis existentes para movimentações iniciais automáticas.
+- Nova experiência de carteira com modal de movimentação, histórico recente e origem/horário das cotações.
+
 ## [1.3.0] - 2026-09-02
 
 - Painel administrativo recuperável para contas que já possuem role `ADMIN` quando a whitelist de ambiente estiver ausente, sem liberar novas promoções.

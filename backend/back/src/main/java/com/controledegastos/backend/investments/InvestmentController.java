@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/investments")
@@ -39,6 +40,17 @@ public class InvestmentController {
     @GetMapping("/movements")
     public java.util.List<MovementResponse> movements() { return investmentService.movements(); }
 
+    @PostMapping("/movements/trades")
+    public ResponseEntity<MovementResponse> trade(@Valid @RequestBody TradeRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.recordTrade(request));
+    }
+
+    @GetMapping("/assets/search")
+    public List<AssetSearchResponse> searchAssets(@RequestParam String query,
+                                                   @RequestParam InvestmentPosition.AssetType type) {
+        return investmentService.searchAssets(query, type);
+    }
+
     @PostMapping("/positions/{id}/income")
     public ResponseEntity<MovementResponse> recordIncome(@PathVariable Long id, @Valid @RequestBody IncomeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.recordIncome(id, request));
@@ -47,8 +59,9 @@ public class InvestmentController {
     @GetMapping("/quotes")
     public QuoteResponse quote(@RequestParam InvestmentPosition.AssetType type,
                                @RequestParam(required = false) String symbol,
-                               @RequestParam(required = false) String externalId) {
-        return investmentService.quote(type, symbol, externalId);
+                               @RequestParam(required = false) String externalId,
+                               @RequestParam(required = false, defaultValue = "BR") String market) {
+        return investmentService.quote(type, symbol, externalId, market);
     }
 
     @GetMapping("/projections")

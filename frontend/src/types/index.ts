@@ -379,6 +379,37 @@ export interface InvestmentPositionRequest {
   annualRate: number | null;
   purchaseDate: string;
   maturityDate: string | null;
+  market?: string | null;
+  exchange?: string | null;
+  currency?: string | null;
+}
+
+export interface InvestmentAssetSearchResponse {
+  assetType: InvestmentAssetType;
+  symbol: string;
+  externalId: string;
+  name: string;
+  market: 'BR' | 'US' | 'GLOBAL';
+  exchange: string;
+  currency: string;
+  currentPrice: number | null;
+  source: string;
+}
+
+export interface InvestmentTradeRequest {
+  positionId: number | null;
+  movementType: 'COMPRA' | 'VENDA';
+  assetType: Exclude<InvestmentAssetType, 'RENDA_FIXA'>;
+  symbol: string;
+  externalId: string;
+  name: string;
+  market: string;
+  exchange: string;
+  currency: string;
+  quantity: number;
+  unitPrice: number;
+  fees: number;
+  eventDate: string;
 }
 
 export interface InvestmentQuoteResponse {
@@ -421,8 +452,12 @@ export interface InvestmentMovementResponse {
   id: number;
   positionId: number;
   assetName: string;
-  movementType: 'DIVIDENDO' | 'RENDIMENTO';
+  movementType: 'COMPRA' | 'VENDA' | 'APORTE' | 'RESGATE' | 'DIVIDENDO' | 'RENDIMENTO';
   amount: number;
+  quantity: number | null;
+  unitPrice: number | null;
+  fees: number;
+  currency: string;
   eventDate: string;
   automatic: boolean;
 }

@@ -23,7 +23,38 @@ public final class InvestmentDtos {
             @DecimalMin(value = "0.01") BigDecimal principal,
             @DecimalMin(value = "0.00") BigDecimal annualRate,
             @NotNull LocalDate purchaseDate,
-            LocalDate maturityDate
+            LocalDate maturityDate,
+            @Size(max = 10) String market,
+            @Size(max = 30) String exchange,
+            @Size(max = 3) String currency
+    ) {}
+
+    public record AssetSearchResponse(
+            InvestmentPosition.AssetType assetType,
+            String symbol,
+            String externalId,
+            String name,
+            String market,
+            String exchange,
+            String currency,
+            BigDecimal currentPrice,
+            String source
+    ) {}
+
+    public record TradeRequest(
+            Long positionId,
+            @NotNull InvestmentMovement.MovementType movementType,
+            @NotNull InvestmentPosition.AssetType assetType,
+            @Size(max = 30) String symbol,
+            @Size(max = 80) String externalId,
+            @NotBlank @Size(max = 120) String name,
+            @NotBlank @Size(max = 10) String market,
+            @Size(max = 30) String exchange,
+            @NotBlank @Size(max = 3) String currency,
+            @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
+            @NotNull @DecimalMin(value = "0.000001") BigDecimal unitPrice,
+            @DecimalMin(value = "0.00") BigDecimal fees,
+            @NotNull LocalDate eventDate
     ) {}
 
     public record QuoteResponse(
@@ -43,6 +74,9 @@ public final class InvestmentDtos {
             String symbol,
             String externalId,
             String name,
+            String market,
+            String exchange,
+            String currency,
             BigDecimal quantity,
             BigDecimal averagePrice,
             BigDecimal principal,
@@ -86,6 +120,10 @@ public final class InvestmentDtos {
             String assetName,
             InvestmentMovement.MovementType movementType,
             BigDecimal amount,
+            BigDecimal quantity,
+            BigDecimal unitPrice,
+            BigDecimal fees,
+            String currency,
             LocalDate eventDate,
             boolean automatic
     ) {}

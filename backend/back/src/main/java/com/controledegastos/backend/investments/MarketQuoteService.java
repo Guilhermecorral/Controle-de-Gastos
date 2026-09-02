@@ -28,6 +28,7 @@ public class MarketQuoteService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
     private final Map<String, CachedQuote> cache = new ConcurrentHashMap<>();
+    private final Map<String, CachedRate> exchangeRateCache = new ConcurrentHashMap<>();
 
     @Value("${app.investments.brapi-base-url:https://brapi.dev}")
     private String brapiBaseUrl;
@@ -42,15 +43,15 @@ public class MarketQuoteService {
     @Value("${app.investments.quote-cache-seconds:300}")
     private long cacheSeconds;
 
-    public QuoteResponse quote(InvestmentPosition.AssetType type, String symbol, String externalId) {
+    public QuoteResponse quote(InvestmentPosition.AssetType type, String symbol, String externalId, String market) {
         if (type == InvestmentPosition.AssetType.RENDA_FIXA) return unavailable(symbol, "PROJECAO_INTERNA");
-        String key = type + ":" + (type == InvestmentPosition.AssetType.CRIPTO ? externalId : symbol);
+        String key = type + ":" + market + ":" + (externalId == null ? symbol : externalId);
         CachedQuote cached = cache.get(key);
         if (cached != null && cached.expiresAt().isAfter(Instant.now())) return cached.quote();
         try {
             QuoteResponse quote = type == InvestmentPosition.AssetType.CRIPTO
                     ? fetchCrypto(externalId)
-                    : fetchBrazilianAssetWithFallback(symbol);
+                    : fetchExchangeAssetWithFallback(symbol, externalId, market);
             cache.put(key, new CachedQuote(quote, Instant.now().plusSeconds(cacheSeconds)));
             return quote;
         } catch (Exception exception) {
@@ -59,15 +60,58 @@ public class MarketQuoteService {
         }
     }
 
-    private QuoteResponse fetchBrazilianAssetWithFallback(String symbol) throws Exception {
-        if (brapiToken != null && !brapiToken.isBlank()) {
+    public BigDecimal exchangeRateToBrl(String rawCurrency) {
+        String currency = rawCurrency == null ? "BRL" : rawCurrency.trim().toUpperCase(Locale.ROOT);
+        if (currency.equals("BRL")) return BigDecimal.ONE;
+        CachedRate cached = exchangeRateCache.get(currency);
+        if (cached != null && cached.expiresAt().isAfter(Instant.now())) return cached.rate();
+        try {
+            String pair = currency.equals("USD") ? "BRL=X" : currency + "BRL=X";
+            JsonNode meta = send(yahooBaseUrl + "/v8/finance/chart/" + encode(pair) + "?interval=1d&range=5d", null)
+                    .path("chart").path("result").path(0).path("meta");
+            BigDecimal rate = decimal(meta, "regularMarketPrice");
+            if (rate == null || rate.signum() <= 0) throw new IllegalStateException("Câmbio indisponível para " + currency);
+            exchangeRateCache.put(currency, new CachedRate(rate, Instant.now().plusSeconds(cacheSeconds)));
+            return rate;
+        } catch (Exception exception) {
+            log.warn("Câmbio {}-BRL indisponível: {}", currency, exception.getMessage());
+            return cached == null ? BigDecimal.ONE : cached.rate();
+        }
+    }
+
+    private QuoteResponse fetchExchangeAssetWithFallback(String symbol, String externalId, String market) throws Exception {
+        boolean brazilian = market == null || market.isBlank() || market.equalsIgnoreCase("BR");
+        if (brazilian && brapiToken != null && !brapiToken.isBlank()) {
             try {
                 return fetchBrazilianAsset(symbol);
             } catch (Exception exception) {
                 log.warn("Brapi indisponivel para {}; tentando fallback de mercado", symbol);
             }
         }
-        return fetchYahooAsset(symbol);
+        if (brazilian) {
+            try {
+                return fetchBrazilianAssetFromPublicList(symbol);
+            } catch (Exception exception) {
+                log.warn("Lista publica Brapi indisponivel para {}; tentando Yahoo Finance", symbol);
+            }
+        }
+        String providerSymbol = externalId == null || externalId.isBlank()
+                ? (brazilian ? symbol + ".SA" : symbol)
+                : externalId;
+        return fetchYahooAsset(symbol, providerSymbol);
+    }
+
+    private QuoteResponse fetchBrazilianAssetFromPublicList(String rawSymbol) throws Exception {
+        String symbol = required(rawSymbol, "Informe o ticker do ativo").toUpperCase(Locale.ROOT);
+        JsonNode stocks = send(brapiBaseUrl + "/api/quote/list?search=" + encode(symbol) + "&limit=10", null).path("stocks");
+        for (JsonNode item : stocks) {
+            if (!symbol.equalsIgnoreCase(item.path("stock").asText())) continue;
+            BigDecimal price = decimal(item, "close");
+            if (price == null) break;
+            return new QuoteResponse(symbol, price, decimal(item, "change"), null,
+                    "BRL", "BRAPI", Instant.now(), true);
+        }
+        throw new IllegalStateException("Ativo não encontrado na listagem pública");
     }
 
     private QuoteResponse fetchBrazilianAsset(String rawSymbol) throws Exception {
@@ -93,9 +137,10 @@ public class MarketQuoteService {
                 null, "BRL", "COINGECKO", Instant.now(), true);
     }
 
-    private QuoteResponse fetchYahooAsset(String rawSymbol) throws Exception {
+    private QuoteResponse fetchYahooAsset(String rawSymbol, String rawProviderSymbol) throws Exception {
         String symbol = required(rawSymbol, "Informe o ticker do ativo").toUpperCase(Locale.ROOT);
-        JsonNode result = send(yahooBaseUrl + "/v8/finance/chart/" + encode(symbol + ".SA") + "?interval=1d&range=1y&events=div", null)
+        String providerSymbol = required(rawProviderSymbol, "Informe o identificador de mercado do ativo");
+        JsonNode result = send(yahooBaseUrl + "/v8/finance/chart/" + encode(providerSymbol) + "?interval=1d&range=1y&events=div", null)
                 .path("chart").path("result").path(0);
         JsonNode meta = result.path("meta");
         BigDecimal price = decimal(meta, "regularMarketPrice");
@@ -135,4 +180,5 @@ public class MarketQuoteService {
     }
 
     private record CachedQuote(QuoteResponse quote, Instant expiresAt) {}
+    private record CachedRate(BigDecimal rate, Instant expiresAt) {}
 }

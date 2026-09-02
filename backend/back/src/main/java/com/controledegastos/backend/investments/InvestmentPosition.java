@@ -34,6 +34,17 @@ public class InvestmentPosition {
     @Column(name = "external_id", length = 80)
     private String externalId;
 
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private String market = "BR";
+
+    @Column(length = 30)
+    private String exchange;
+
+    @Column(nullable = false, length = 3)
+    @Builder.Default
+    private String currency = "BRL";
+
     @Column(nullable = false, length = 120)
     private String name;
 

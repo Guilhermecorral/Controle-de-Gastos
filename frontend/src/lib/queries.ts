@@ -14,11 +14,14 @@ import {
   ForgotPasswordResponse,
   ForgotPasswordRequest,
   LoginRequest,
+  InvestmentAssetSearchResponse,
+  InvestmentAssetType,
   InvestmentPortfolioResponse,
   InvestmentPositionRequest,
   InvestmentPositionResponse,
   InvestmentProjectionResponse,
   InvestmentMovementResponse,
+  InvestmentTradeRequest,
   MonthlyAnalysisResponse,
   RegisterRequest,
   ResetPasswordRequest,
@@ -47,6 +50,34 @@ export function useInvestmentPortfolioQuery() {
     queryKey: ['investments', 'portfolio'],
     queryFn: async () => (await api.get<InvestmentPortfolioResponse>('/investments/portfolio')).data,
     staleTime: 60_000,
+  })
+}
+
+export function useInvestmentMovementsQuery() {
+  return useQuery({
+    queryKey: ['investments', 'movements'],
+    queryFn: async () => (await api.get<InvestmentMovementResponse[]>('/investments/movements')).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useInvestmentAssetSearchQuery(query: string, type: Exclude<InvestmentAssetType, 'RENDA_FIXA'>, enabled = true) {
+  return useQuery({
+    queryKey: ['investments', 'assets', 'search', type, query],
+    queryFn: async () => (await api.get<InvestmentAssetSearchResponse[]>('/investments/assets/search', {
+      params: { query, type },
+    })).data,
+    enabled: enabled && query.trim().length >= 2,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useRecordInvestmentTradeMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: InvestmentTradeRequest) =>
+      (await api.post<InvestmentMovementResponse>('/investments/movements/trades', data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
   })
 }
 

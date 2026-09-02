@@ -26,6 +26,13 @@ public class InvestmentMovement {
     private MovementType movementType;
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal amount;
+    @Column(precision = 24, scale = 8)
+    private BigDecimal quantity;
+    @Column(name = "unit_price", precision = 19, scale = 6)
+    private BigDecimal unitPrice;
+    @Column(nullable = false, precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal fees = BigDecimal.ZERO;
     @Column(name = "event_date", nullable = false)
     private LocalDate eventDate;
     @Column(nullable = false)
@@ -37,5 +44,5 @@ public class InvestmentMovement {
 
     @PrePersist void onCreate() { createdAt = LocalDateTime.now(); }
 
-    public enum MovementType { APORTE, RESGATE, DIVIDENDO, RENDIMENTO }
+    public enum MovementType { COMPRA, VENDA, APORTE, RESGATE, DIVIDENDO, RENDIMENTO }
 }
