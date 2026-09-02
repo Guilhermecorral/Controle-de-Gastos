@@ -1,5 +1,6 @@
 package com.controledegastos.backend.user;
 
+import com.controledegastos.backend.admin.AdminAccessPolicy;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -8,11 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Cria ou promove a conta administradora inicial apenas quando o bootstrap foi ativado via ambiente.
@@ -32,11 +28,9 @@ public class AdminBootstrapRunner implements CommandLineRunner {
     @Value("${app.admin.bootstrap.password:}")
     private String adminPassword;
 
-    @Value("${app.admin.allowed-emails:}")
-    private String allowedAdminEmails;
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAccessPolicy adminAccessPolicy;
 
     @Override
     public void run(String... args) {
@@ -49,7 +43,7 @@ public class AdminBootstrapRunner implements CommandLineRunner {
             return;
         }
 
-        if (!isBootstrapAdminAllowed(adminEmail)) {
+        if (!adminAccessPolicy.canPromote(adminEmail)) {
             log.warn("Bootstrap de administrador bloqueado porque o e-mail informado nao esta na whitelist de admins autorizados.");
             return;
         }
@@ -69,19 +63,5 @@ public class AdminBootstrapRunner implements CommandLineRunner {
 
         userRepository.save(adminUser);
         log.info("Bootstrap da conta administradora concluido com seguranca.");
-    }
-
-    private boolean isBootstrapAdminAllowed(String email) {
-        Set<String> whitelist = Arrays.stream(allowedAdminEmails.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .collect(Collectors.toSet());
-
-        if (whitelist.isEmpty()) {
-            return false;
-        }
-
-        return whitelist.contains(email.trim().toLowerCase(Locale.ROOT));
     }
 }

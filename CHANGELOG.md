@@ -2,6 +2,14 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.3.0] - 2026-09-02
+
+- Painel administrativo recuperável para contas que já possuem role `ADMIN` quando a whitelist de ambiente estiver ausente, sem liberar novas promoções.
+- Carteira de investimentos por usuário para ações, FIIs, criptoativos e renda fixa.
+- BFF de cotações com cache, timeout, Brapi opcional, fallback Yahoo Finance e CoinGecko para cripto.
+- Simulador de renda fixa com juros compostos, taxa padrão de 12% a.a. e aviso de caráter educacional.
+- Distribuição da carteira, retorno estimado e registro de dividendos/rendimentos integrado às receitas financeiras.
+
 ## [1.1.0] - 2026-08-30
 
 - Importador universal com suporte a OFX, CSV, TSV, XLS e XLSX.

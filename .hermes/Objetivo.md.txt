@@ -44,11 +44,9 @@ Precisamos arquitetar a entrada facilitada de extratos (.OFX ou .CSV). Funcional
   - **Vínculo Seguro (JWT):** Atrelar inserção ao ID do usuário. Validação estrita de token para impedir vazamento cruzado.
   - **Ferramentas:** `.OFX` usar `ofx4j`; `.CSV` usar `OpenCSV` ou leitor nativo.
 
-## 🟡 PAUSADO
+## 🟡 BACKLOG PARCIAL
 
-## 🟡 BLOCO B - BACKLOG PAUSADO (AGUARDANDO VALIDAÇÃO DA FEATURE 3)
-
-⚠️ ATENÇÃO AGENTE: As funcionalidades abaixo estão estritamente PAUSADAS. Você NÃO deve criar classes, componentes ou migrations para estas features no momento. Elas servem apenas para o seu conhecimento de arquitetura futura.
+⚠️ ATENÇÃO AGENTE: A Feature 1 permanece pausada por decisão explícita. A Feature 2 foi liberada após a validação da Feature 3.
 
 ### 🟡 Feature 1: Grupos e Divisão de Gastos (Módulo "Split")
 - **Conceito:** Separação entre Caixa Pessoal vs. Caixa do Grupo.
@@ -56,8 +54,10 @@ Precisamos arquitetar a entrada facilitada de extratos (.OFX ou .CSV). Funcional
 - **Database (Supabase):** Tabelas `grupos`, `membros_grupo`, `transacoes_grupo` e `saldos_consolidados` (atualizada via trigger/serviço para performance).
 - **Frontend:** Feed do grupo, cards de débito/crédito e botões de ação rápida ("Quitar dívida").
 
-### 🟡 Feature 2: Módulo de Investimentos (Dashboard e BFF)
+### 🟢 Feature 2: Módulo de Investimentos (Dashboard e BFF) - MVP entregue na v1.3.0
 - **Conceito:** Acompanhamento de Renda Fixa, RV e Cripto.
 - **Backend (Spring Boot):** Atuar como BFF para consumir APIs financeiras externas (Brapi, CoinGecko) sem expor chaves no client. Implementar Cache em Memória das cotações. Motor de cálculo para Dividend Yield (DY) e benchmark de meta a 12% a.a.
 - **Database (Supabase):** Tabelas `ativos`, `carteiras_usuario` e `transacoes_investimento`.
 - **Frontend:** Dashboard com gráficos de distribuição de carteira, evolução patrimonial e KPIs de rentabilidade.
+- **Entregue:** Carteira por usuário, ações/FIIs/cripto/renda fixa, cache e fallback de cotações, distribuição, KPIs, projeção composta e proventos integrados às receitas.
+- **Evolução pendente:** Sincronização automática de datas e valores de dividendos depende da contratação ou homologação de um provedor de eventos corporativos com cobertura confiável.

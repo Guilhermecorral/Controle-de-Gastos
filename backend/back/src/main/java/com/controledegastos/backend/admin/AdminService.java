@@ -13,19 +13,15 @@ import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.User;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Centraliza os fluxos administrativos de leitura global e gestão segura de contas.
@@ -38,12 +34,7 @@ public class AdminService {
     private final TransactionRepository transactionRepository;
     private final AuthenticatedUserService authenticatedUserService;
     private final PasswordEncoder passwordEncoder;
-
-    @Value("${app.admin.allowed-emails:}")
-    private String allowedAdminEmails;
-
-    @Value("${app.admin.bootstrap.email:}")
-    private String bootstrapAdminEmail;
+    private final AdminAccessPolicy adminAccessPolicy;
 
     private static final String STATUS_HEALTHY = "SAUDAVEL";
 
@@ -53,7 +44,7 @@ public class AdminService {
     @Transactional(readOnly = true)
     public AdminOverviewResponseDTO getOverview() {
         assertCurrentAdminAllowed();
-        Set<String> allowedAdminWhitelist = resolveAllowedAdminWhitelist();
+        Set<String> allowedAdminWhitelist = adminAccessPolicy.configuredEmails();
         BigDecimal totalReceitas = transactionRepository.sumAmountByType(Transaction.TransactionType.RECEITA);
         BigDecimal totalDespesas = transactionRepository.sumAmountByType(Transaction.TransactionType.DESPESA);
 
@@ -67,7 +58,9 @@ public class AdminService {
                 totalReceitas,
                 totalDespesas,
                 totalReceitas.subtract(totalDespesas),
-                STATUS_HEALTHY
+                STATUS_HEALTHY,
+                adminAccessPolicy.isExplicitlyConfigured(),
+                adminAccessPolicy.accessMode()
         );
     }
 
@@ -130,7 +123,7 @@ public class AdminService {
             throw new IllegalArgumentException("Esta conta administradora protegida não pode perder o perfil ADMIN por este fluxo");
         }
 
-        if (newRole == User.Role.ADMIN && !isAdminPromotionAllowed(targetUser.getEmail())) {
+        if (newRole == User.Role.ADMIN && !adminAccessPolicy.canPromote(targetUser.getEmail())) {
             throw new IllegalArgumentException("Este e-mail não está autorizado para receber acesso administrativo");
         }
 
@@ -172,14 +165,14 @@ public class AdminService {
     private void assertCurrentAdminAllowed() {
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
 
-        if (currentAdmin.getRole() != User.Role.ADMIN || !isAdminPromotionAllowed(currentAdmin.getEmail())) {
+        if (!adminAccessPolicy.canAccess(currentAdmin)) {
             throw new AccessDeniedException("Seu acesso administrativo não está autorizado pela whitelist atual");
         }
     }
 
     private AdminUserResponseDTO toAdminUserResponse(User user) {
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
-        boolean adminPromotionAllowed = isAdminPromotionAllowed(user.getEmail());
+        boolean adminPromotionAllowed = adminAccessPolicy.canPromote(user.getEmail());
 
         return new AdminUserResponseDTO(
                 user.getId(),
@@ -202,25 +195,7 @@ public class AdminService {
          PasswordValidator.validate(password);
     }
 
-    private boolean isAdminPromotionAllowed(String email) {
-        Set<String> whitelist = resolveAllowedAdminWhitelist();
-
-        if (whitelist.isEmpty()) {
-            return false;
-        }
-
-        return whitelist.contains(email.toLowerCase(Locale.ROOT));
-    }
-
     private boolean isProtectedAdmin(User user) {
-        return user.getRole() == User.Role.ADMIN && isAdminPromotionAllowed(user.getEmail());
-    }
-
-    private Set<String> resolveAllowedAdminWhitelist() {
-        return Arrays.stream((allowedAdminEmails + "," + bootstrapAdminEmail).split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .collect(Collectors.toSet());
+        return adminAccessPolicy.isProtected(user);
     }
 }

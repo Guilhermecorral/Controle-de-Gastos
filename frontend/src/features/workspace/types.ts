@@ -4,6 +4,7 @@ export type ViewId =
   | 'painel'
   | 'transacoes'
   | 'analise'
+  | 'investimentos'
   | 'wishlist'
   | 'notasFiscais'
   | 'importacao'

@@ -28,6 +28,7 @@ import ReleaseVersion from '../../../components/ReleaseVersion';
 import AdminPage from '../../admin/pages/AdminPage';
 import DashboardPage from '../../dashboard/pages/DashboardPage';
 import FinancialHistoryPage from '../../financial-history/pages/FinancialHistoryPage';
+import InvestmentsPage from '../../investments/pages/InvestmentsPage';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
 import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
 import SettingsPage from '../../settings/pages/SettingsPage';
@@ -834,6 +835,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
               onDownloadReceipt={handleDownloadReceipt}
             />
           )}
+
+          {currentView === 'investimentos' && <InvestmentsPage />}
 
           {currentView === 'importacao' && (
             <FinancialHistoryPage transactions={allTransactions} wishlistLists={wishlistLists} />

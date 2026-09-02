@@ -14,6 +14,11 @@ import {
   ForgotPasswordResponse,
   ForgotPasswordRequest,
   LoginRequest,
+  InvestmentPortfolioResponse,
+  InvestmentPositionRequest,
+  InvestmentPositionResponse,
+  InvestmentProjectionResponse,
+  InvestmentMovementResponse,
   MonthlyAnalysisResponse,
   RegisterRequest,
   ResetPasswordRequest,
@@ -36,6 +41,55 @@ import {
   WishlistStatus,
   WishlistSummaryResponse,
 } from '../types'
+
+export function useInvestmentPortfolioQuery() {
+  return useQuery({
+    queryKey: ['investments', 'portfolio'],
+    queryFn: async () => (await api.get<InvestmentPortfolioResponse>('/investments/portfolio')).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useCreateInvestmentMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: InvestmentPositionRequest) =>
+      (await api.post<InvestmentPositionResponse>('/investments/positions', data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+  })
+}
+
+export function useDeleteInvestmentMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => api.delete(`/investments/positions/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+  })
+}
+
+export function useInvestmentProjectionMutation() {
+  return useMutation({
+    mutationFn: async (params: { principal: number; annualRate: number; startDate: string; maturityDate: string }) =>
+      (await api.get<InvestmentProjectionResponse>('/investments/projections', { params })).data,
+  })
+}
+
+export function useRecordInvestmentIncomeMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, amount, movementType }: { id: number; amount: number; movementType: 'DIVIDENDO' | 'RENDIMENTO' }) =>
+      (await api.post<InvestmentMovementResponse>(`/investments/positions/${id}/income`, {
+        amount,
+        movementType,
+        eventDate: new Date().toISOString().slice(0, 10),
+      })).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
 
 export function useAdminOverviewQuery(enabled = true) {
   return useQuery({

@@ -50,6 +50,14 @@ app:
   transaction-receipts:
     storage-dir: ${APP_TRANSACTION_RECEIPTS_STORAGE_DIR:storage/transaction-receipts}
     max-bytes: ${APP_TRANSACTION_RECEIPTS_MAX_BYTES:10485760}
+  investments:
+    brapi-base-url: ${APP_INVESTMENTS_BRAPI_BASE_URL:https://brapi.dev}
+    brapi-token: ${APP_INVESTMENTS_BRAPI_TOKEN:}
+    yahoo-base-url: ${APP_INVESTMENTS_YAHOO_BASE_URL:https://query1.finance.yahoo.com}
+    coingecko-base-url: ${APP_INVESTMENTS_COINGECKO_BASE_URL:https://api.coingecko.com/api/v3}
+    coingecko-api-key: ${APP_INVESTMENTS_COINGECKO_API_KEY:}
+    quote-cache-seconds: ${APP_INVESTMENTS_QUOTE_CACHE_SECONDS:300}
+    default-annual-rate: ${APP_INVESTMENTS_DEFAULT_ANNUAL_RATE:12.0}
   admin:
     bootstrap:
       enabled: ${APP_ADMIN_BOOTSTRAP_ENABLED:false}

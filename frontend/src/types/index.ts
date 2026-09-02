@@ -95,6 +95,8 @@ export interface AdminOverviewResponse {
   totalDespesas: number;
   saldoGlobal: number;
   statusApi: string;
+  whitelistConfigured: boolean;
+  adminAccessMode: 'WHITELIST' | 'RECUPERACAO';
 }
 
 export interface AdminUserResponse {
@@ -362,4 +364,65 @@ export interface WishlistHistoryResponse {
   finalPriceSnapshot: number;
   listNameSnapshot: string;
   createdAt: string;
+}
+
+export type InvestmentAssetType = 'ACAO' | 'FII' | 'CRIPTO' | 'RENDA_FIXA';
+
+export interface InvestmentPositionRequest {
+  assetType: InvestmentAssetType;
+  symbol: string | null;
+  externalId: string | null;
+  name: string;
+  quantity: number | null;
+  averagePrice: number | null;
+  principal: number | null;
+  annualRate: number | null;
+  purchaseDate: string;
+  maturityDate: string | null;
+}
+
+export interface InvestmentQuoteResponse {
+  symbol: string | null;
+  price: number | null;
+  changePercent: number | null;
+  dividendYield: number | null;
+  currency: string;
+  source: string;
+  updatedAt: string;
+  available: boolean;
+}
+
+export interface InvestmentPositionResponse extends InvestmentPositionRequest {
+  id: number;
+  investedAmount: number;
+  currentValue: number;
+  returnAmount: number;
+  quote: InvestmentQuoteResponse;
+}
+
+export interface InvestmentPortfolioResponse {
+  totalInvested: number;
+  currentValue: number;
+  totalReturn: number;
+  positions: InvestmentPositionResponse[];
+}
+
+export interface InvestmentProjectionResponse {
+  principal: number;
+  annualRate: number;
+  projectedBalance: number;
+  projectedEarnings: number;
+  months: number;
+  timeline: Array<{ month: number; date: string; balance: number; earnings: number }>;
+  disclaimer: string;
+}
+
+export interface InvestmentMovementResponse {
+  id: number;
+  positionId: number;
+  assetName: string;
+  movementType: 'DIVIDENDO' | 'RENDIMENTO';
+  amount: number;
+  eventDate: string;
+  automatic: boolean;
 }

@@ -6,7 +6,6 @@ import com.controledegastos.backend.transactions.Repository.TransactionRepositor
 import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.User;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,7 +13,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 
@@ -37,19 +35,20 @@ class AdminServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AdminAccessPolicy adminAccessPolicy;
+
     @InjectMocks
     private AdminService adminService;
-
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(adminService, "allowedAdminEmails", "");
-        ReflectionTestUtils.setField(adminService, "bootstrapAdminEmail", "admin@farolfinanceiro.online");
-    }
 
     @Test
     void shouldUseBootstrapEmailAsSecureWhitelistFallback() {
         User currentAdmin = adminUser("ADMIN@farolfinanceiro.online");
         when(authenticatedUserService.getAuthenticatedUser()).thenReturn(currentAdmin);
+        when(adminAccessPolicy.canAccess(currentAdmin)).thenReturn(true);
+        when(adminAccessPolicy.configuredEmails()).thenReturn(java.util.Set.of("admin@farolfinanceiro.online"));
+        when(adminAccessPolicy.isExplicitlyConfigured()).thenReturn(true);
+        when(adminAccessPolicy.accessMode()).thenReturn("WHITELIST");
         when(userRepository.count()).thenReturn(2L);
         when(userRepository.countByActiveTrue()).thenReturn(2L);
         when(userRepository.countByRole(User.Role.ADMIN)).thenReturn(1L);
@@ -66,7 +65,9 @@ class AdminServiceTest {
 
     @Test
     void shouldRejectAdminOutsideExplicitWhitelist() {
-        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(adminUser("intruso@farolfinanceiro.online"));
+        User intruder = adminUser("intruso@farolfinanceiro.online");
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(intruder);
+        when(adminAccessPolicy.canAccess(intruder)).thenReturn(false);
 
         assertThatThrownBy(adminService::getOverview)
                 .isInstanceOf(AccessDeniedException.class)

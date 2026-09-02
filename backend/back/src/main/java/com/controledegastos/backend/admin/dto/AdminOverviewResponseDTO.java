@@ -16,6 +16,8 @@ public record AdminOverviewResponseDTO(
         BigDecimal totalReceitas,
         BigDecimal totalDespesas,
         BigDecimal saldoGlobal,
-        String statusApi
+        String statusApi,
+        boolean whitelistConfigured,
+        String adminAccessMode
 ) {
 }

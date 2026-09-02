@@ -6,6 +6,7 @@ export const navItems: Array<{ id: ViewId; label: string; description: string }>
   { id: 'painel', label: 'Painel', description: 'Resumo do período e acumulado' },
   { id: 'transacoes', label: 'Transações', description: 'Entradas, saídas e histórico' },
   { id: 'analise', label: 'Análise mensal', description: 'Comparativos e tendência' },
+  { id: 'investimentos', label: 'Investimentos', description: 'Carteira, cotações e projeções' },
   { id: 'wishlist', label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
   { id: 'notasFiscais', label: 'Notas fiscais', description: 'Anexos por ano, mês e dia' },
   { id: 'importacao', label: 'Histórico financeiro', description: 'Transações, desejos e notas' },
@@ -28,6 +29,7 @@ export const viewMeta: Record<ViewId, { label: string; description: string }> = 
   painel: { label: 'Painel', description: 'Resumo do período e acumulado' },
   transacoes: { label: 'Transações', description: 'Entradas, saídas e histórico' },
   analise: { label: 'Análise mensal', description: 'Comparativos e tendência' },
+  investimentos: { label: 'Investimentos', description: 'Carteira, cotações e projeções' },
   wishlist: { label: 'Lista de desejos', description: 'Desejos, compras e histórico' },
   notasFiscais: { label: 'Notas fiscais', description: 'Anexos por ano, mês e dia' },
   importacao: { label: 'Histórico financeiro', description: 'Transações, desejos e notas' },
@@ -61,6 +63,12 @@ export const viewAccentMap: Record<
     accentClass: 'text-violet-300',
     panelClass: 'border-white/10 bg-[linear-gradient(135deg,#111827_0%,#312e81_100%)] text-white',
     description: 'A análise mensal foi desenhada para ler o mês atual, comparar com períodos anteriores e deixar a tendência explícita.',
+  },
+  investimentos: {
+    eyebrow: 'Patrimônio em movimento',
+    accentClass: 'text-lime-300',
+    panelClass: 'border-white/10 bg-[linear-gradient(135deg,#052e2b_0%,#132a13_100%)] text-white',
+    description: 'A carteira reúne renda variável, cripto e renda fixa com cotações de mercado, retorno estimado e projeções transparentes.',
   },
   wishlist: {
     eyebrow: 'Planejamento de compra',

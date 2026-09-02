@@ -185,13 +185,24 @@ export default function AdminPage() {
           />
         </div>
 
-        <div className="mt-4 rounded-[24px] border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-sm leading-7 text-emerald-800">
+        <div className={`mt-4 rounded-[24px] border px-5 py-4 text-sm leading-7 ${
+          overview?.whitelistConfigured
+            ? 'border-emerald-100 bg-emerald-50/70 text-emerald-800'
+            : 'border-amber-200 bg-amber-50 text-amber-900'
+        }`}>
           <p className="font-semibold">Regra sensível de produção</p>
-          <p className="mt-2">
-            Só e-mails presentes em <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> ou no e-mail de bootstrap
-            podem receber ou manter acesso administrativo. A interface já reflete essa trava para reduzir erro humano, mas a
-            decisão final continua protegida pelo backend.
-          </p>
+          {overview?.whitelistConfigured ? (
+            <p className="mt-2">
+              Só e-mails presentes em <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> ou no e-mail de bootstrap
+              podem receber ou manter acesso administrativo. A decisão final permanece protegida pelo backend.
+            </p>
+          ) : (
+            <p className="mt-2">
+              Modo de recuperação ativo: apenas contas que já possuem perfil ADMIN no banco podem abrir este painel. Novas
+              promoções continuam bloqueadas. Configure <span className="font-semibold">APP_ADMIN_ALLOWED_EMAILS</span> no Render
+              para voltar ao modo normal.
+            </p>
+          )}
           <div className="mt-4 flex flex-wrap gap-2">
             {(overview?.adminWhitelist ?? []).length > 0 ? (
               (overview?.adminWhitelist ?? []).map((email) => (
@@ -200,7 +211,7 @@ export default function AdminPage() {
                 </Tag>
               ))
             ) : (
-              <Tag tone="warning">Whitelist administrativa não configurada</Tag>
+              <Tag tone="warning">Modo de recuperação</Tag>
             )}
           </div>
         </div>
