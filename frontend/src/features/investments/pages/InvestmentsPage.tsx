@@ -113,15 +113,6 @@ export default function InvestmentsPage() {
         <MetricCard label="Retorno total" value={`${signedCurrency(portfolio?.totalReturn ?? 0)} · ${signedPercent(portfolio?.totalReturnPercent ?? 0)}`} tone={(portfolio?.totalReturn ?? 0) >= 0 ? 'positive' : 'negative'} />
       </div>
 
-      <PortfolioEvolution points={portfolio?.evolution ?? []} />
-
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
-        <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
-        <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => { setEditingGoal(null); setGoalOpen(true); }} onContribute={setContributionGoal} onEdit={(goal) => { setEditingGoal(goal); setGoalOpen(true); }} />
-      </div>
-
-      <TaxAndReconciliationPanel />
-
       {(portfolio?.currentValue ?? 0) > 0 && (
         <SectionCard title="Distribuição da carteira">
           <div className="grid gap-4 md:grid-cols-4">
@@ -133,8 +124,7 @@ export default function InvestmentsPage() {
         </SectionCard>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_.65fr]">
-        <SectionCard title="Minha carteira">
+      <SectionCard title="Minha carteira">
           <p className="mb-5 text-sm leading-7 text-slate-500">Ações, FIIs e criptos são consolidados pelas compras e vendas. A fonte e o horário da cotação permanecem visíveis.</p>
           <div className="space-y-3">
             {(portfolio?.positions ?? []).length === 0 && <EmptyPortfolio onAdd={() => setTradeOpen(true)} />}
@@ -171,7 +161,17 @@ export default function InvestmentsPage() {
               </article>
             ))}
           </div>
-        </SectionCard>
+      </SectionCard>
+
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[1.25fr_.75fr]">
+        <div className="min-w-0">
+          <PortfolioEvolution points={portfolio?.evolution ?? []} />
+        </div>
+        <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => { setEditingGoal(null); setGoalOpen(true); }} onContribute={setContributionGoal} onEdit={(goal) => { setEditingGoal(goal); setGoalOpen(true); }} />
+      </div>
+
+      <div className="grid items-start gap-6 xl:grid-cols-[1.35fr_.65fr]">
+        <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
 
         <div className="space-y-6">
           <SectionCard title="Últimas movimentações">
@@ -201,6 +201,8 @@ export default function InvestmentsPage() {
           </SectionCard>
         </div>
       </div>
+
+      <TaxAndReconciliationPanel />
 
       <SectionCard title="Simulador de renda fixa">
         <p className="mb-5 max-w-3xl text-sm leading-7 text-slate-500">Simule juros compostos com aporte único ou mensal. Escolha como a taxa foi informada e como deseja acompanhar a evolução.</p>
