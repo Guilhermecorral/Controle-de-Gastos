@@ -19,13 +19,17 @@ import {
   useCreateInvestmentIncomeScheduleMutation,
   useDeleteInvestmentMutation,
   useDeleteInvestmentGoalMutation,
+  useDeleteInvestmentGoalContributionMutation,
   useDeleteInvestmentIncomeScheduleMutation,
   useInvestmentAssetSearchQuery,
   useInvestmentGoalsQuery,
+  useInvestmentGoalContributionsQuery,
   useInvestmentIncomeSchedulesQuery,
   useInvestmentMovementsQuery,
   useInvestmentPortfolioQuery,
   useInvestmentProjectionMutation,
+  useInvestmentReconciliationQuery,
+  useInvestmentTaxSummaryQuery,
   useRecordInvestmentIncomeMutation,
   useReceiveInvestmentIncomeScheduleMutation,
   useRecordInvestmentTradeMutation,
@@ -33,6 +37,7 @@ import {
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
+import OFXUploader from '../../ofx-upload/components/OFXUploader';
 
 const today = new Date().toISOString().slice(0, 10);
 const nextYear = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
@@ -114,6 +119,8 @@ export default function InvestmentsPage() {
         <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
         <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => { setEditingGoal(null); setGoalOpen(true); }} onContribute={setContributionGoal} onEdit={(goal) => { setEditingGoal(goal); setGoalOpen(true); }} />
       </div>
+
+      <TaxAndReconciliationPanel />
 
       {(portfolio?.currentValue ?? 0) > 0 && (
         <SectionCard title="Distribuição da carteira">
@@ -426,6 +433,29 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
   );
 }
 
+function TaxAndReconciliationPanel() {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const [importOpen, setImportOpen] = useState(false);
+  const taxQuery = useInvestmentTaxSummaryQuery(year);
+  const reconciliationQuery = useInvestmentReconciliationQuery(year);
+  const tax = taxQuery.data;
+  const reconciliation = reconciliationQuery.data;
+  const refresh = () => { taxQuery.refetch(); reconciliationQuery.refetch(); };
+  return <SectionCard title="Tributação e conciliação">
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-4"><div><p className="max-w-2xl text-sm leading-6 text-slate-500">Confira impostos retidos em proventos e compare as movimentações da carteira com seu extrato importado. Vendas ficam sinalizadas para apuração, porque as regras dependem do ativo e do resultado do período.</p></div><div className="flex gap-2"><select aria-label="Ano da apuração" className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700" value={year} onChange={(event) => setYear(Number(event.target.value))}>{[currentYear, currentYear - 1, currentYear - 2].map((option) => <option key={option} value={option}>{option}</option>)}</select><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setImportOpen((open) => !open)}>{importOpen ? 'Fechar importação' : 'Importar extrato'}</button></div></div>
+    {importOpen && <div className="mb-6 rounded-[24px] border border-emerald-100 bg-emerald-50/40 p-4 sm:p-5"><p className="mb-4 text-sm leading-6 text-slate-600">Envie OFX, CSV, TSV ou Excel. Revise as linhas antes de salvar; depois, a conciliação será atualizada. O importador registra lançamentos financeiros e não cria compras ou vendas de ativos automaticamente.</p><OFXUploader compact onImported={() => { setImportOpen(false); refresh(); }} /></div>}
+    <div className="grid gap-4 md:grid-cols-3"><FiscalMetric label="Imposto retido" value={taxQuery.isLoading ? '...' : currency(tax?.totalWithheld ?? 0)} helper="Proventos confirmados" tone="positive" /><FiscalMetric label="Eventos para revisar" value={taxQuery.isLoading ? '...' : String(tax?.reviewCount ?? 0)} helper="Sem cálculo automático" tone={(tax?.reviewCount ?? 0) > 0 ? 'warning' : 'neutral'} /><FiscalMetric label="Extrato conciliado" value={reconciliationQuery.isLoading ? '...' : `${reconciliation?.reconciledCount ?? 0}/${(reconciliation?.items ?? []).length}`} helper={`${reconciliation?.pendingCount ?? 0} pendente(s)`} tone={(reconciliation?.pendingCount ?? 0) > 0 ? 'warning' : 'positive'} /></div>
+    <div className="mt-6 grid gap-6 xl:grid-cols-2"><div><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Eventos fiscais</h4><span className="text-xs text-slate-400">{year}</span></div>{(tax?.events ?? []).length === 0 ? <EmptyFiscal label="Nenhum provento recebido ou venda registrada neste ano." /> : <div className="space-y-2">{tax?.events.slice(0, 7).map((event, index) => <div key={`${event.date}-${event.symbol}-${index}`} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{event.symbol || event.assetName} · {event.eventType.toLowerCase()}</p><p className="mt-1 text-xs text-slate-500">{formatDate(event.date)} · {event.note}</p></div><TaxBadge status={event.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Bruto <b className="text-slate-700">{currency(event.grossAmount)}</b></span><span className="text-slate-500">Retido <b className="text-emerald-700">{currency(event.withheldAmount)}</b></span><span className="text-slate-500">Líquido <b className="text-slate-700">{currency(event.netAmount)}</b></span></div></div>)}</div>}</div><div><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Conciliação do extrato</h4><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={refresh}>Atualizar</button></div>{(reconciliation?.items ?? []).length === 0 ? <EmptyFiscal label="Ainda não há movimentações de investimento no período." /> : <div className="space-y-2">{reconciliation?.items.slice(0, 7).map((item) => <div key={item.movementId} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{item.symbol || item.assetName} · {movementLabel(item.movementType)}</p><p className="mt-1 text-xs text-slate-500">{formatDate(item.eventDate)} · {item.note}</p></div><ReconciliationBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Carteira <b className="text-slate-700">{numberCurrency(item.expectedAmount, item.currency)}</b></span>{item.transactionAmount != null && <span className="text-slate-500">Extrato <b className="text-slate-700">{currency(item.transactionAmount)}</b></span>}</div></div>)}</div>}</div></div>
+    <p className="mt-5 text-xs leading-6 text-slate-400">Este painel organiza valores já registrados. Para DARF, compensações, isenções ou operações complexas, use-o como conferência e valide a apuração com sua documentação fiscal.</p>
+  </SectionCard>;
+}
+
+function FiscalMetric({ label, value, helper, tone }: { label: string; value: string; helper: string; tone: 'neutral' | 'positive' | 'warning' }) { const color = tone === 'positive' ? 'text-emerald-700' : tone === 'warning' ? 'text-amber-700' : 'text-slate-800'; return <div className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">{label}</p><p className={`mt-2 text-xl font-semibold ${color}`}>{value}</p><p className="mt-1 text-xs text-slate-500">{helper}</p></div>; }
+function EmptyFiscal({ label }: { label: string }) { return <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">{label}</div>; }
+function TaxBadge({ status }: { status: 'RETIDO' | 'SEM_RETENCAO' | 'REVISAR' }) { const options = { RETIDO: ['Retido', 'bg-emerald-100 text-emerald-800'], SEM_RETENCAO: ['Sem retenção', 'bg-slate-200 text-slate-600'], REVISAR: ['Revisar', 'bg-amber-100 text-amber-800'] } as const; const [label, classes] = options[status]; return <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${classes}`}>{label}</span>; }
+function ReconciliationBadge({ status }: { status: 'CONCILIADO' | 'GERADO_PELO_FAROL' | 'PENDENTE' | 'REVISAR' }) { const options = { CONCILIADO: ['Conciliado', 'bg-emerald-100 text-emerald-800'], GERADO_PELO_FAROL: ['Farol', 'bg-sky-100 text-sky-800'], PENDENTE: ['Pendente', 'bg-amber-100 text-amber-800'], REVISAR: ['Revisar', 'bg-slate-200 text-slate-600'] } as const; const [label, classes] = options[status]; return <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${classes}`}>{label}</span>; }
+
 function IncomeCalendar({ schedules, loading, onAdd }: { schedules: InvestmentIncomeScheduleResponse[]; loading: boolean; onAdd: () => void }) {
   const receiveMutation = useReceiveInvestmentIncomeScheduleMutation();
   const deleteMutation = useDeleteInvestmentIncomeScheduleMutation();
@@ -488,6 +518,8 @@ function IncomeScheduleDialog({ open, positions, onClose }: { open: boolean; pos
 function GoalDialog({ goal, open, onClose }: { goal: InvestmentGoalResponse | null; open: boolean; onClose: () => void }) {
   const createMutation = useCreateInvestmentGoalMutation();
   const updateMutation = useUpdateInvestmentGoalMutation();
+  const contributionsQuery = useInvestmentGoalContributionsQuery(goal?.id ?? null, Boolean(goal && open));
+  const deleteContributionMutation = useDeleteInvestmentGoalContributionMutation();
   const [name, setName] = useState(goal?.name ?? 'Patrimônio total');
   const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ?? 10000);
   const [initialAmount, setInitialAmount] = useState(goal?.initialAmount ?? 0);
@@ -503,7 +535,12 @@ function GoalDialog({ goal, open, onClose }: { goal: InvestmentGoalResponse | nu
     const options = { onSuccess: onClose, onError: (reason: unknown) => setError(getApiErrorMessage(reason, 'Não foi possível salvar a meta.')) };
     if (goal) updateMutation.mutate({ id: goal.id, data }, options); else createMutation.mutate(data, options);
   };
-  return <ModalShell eyebrow="Planejamento" title={goal ? 'Editar meta de patrimônio' : 'Criar meta de patrimônio'} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="text-sm leading-6 text-slate-500">O saldo desta meta é separado da carteira: informe o valor que você decidiu destinar a ela. A taxa anual pode ser revisada a qualquer momento.</p><Field label="Nome da meta"><input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Objetivo (R$)" value={targetAmount} onChange={setTargetAmount} /><NumberField label="Valor inicial destinado (R$)" value={initialAmount} onChange={setInitialAmount} /></div><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Aporte mensal previsto (R$)" value={monthlyContribution} onChange={setMonthlyContribution} /><NumberField label="Variação anual estimada (%)" value={annualGrowthRate} onChange={setAnnualGrowthRate} step="0.0001" /></div>{goal && goal.contributionsAmount > 0 && <p className="rounded-2xl bg-slate-100 px-4 py-3 text-xs text-slate-600">Aportes já registrados: {currency(goal.contributionsAmount)}. Eles permanecem na meta ao editar os dados.</p>}{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={targetAmount <= 0 || pending} type="submit">{pending ? 'Salvando...' : goal ? 'Salvar alterações' : 'Criar meta'}</button></div></form></ModalShell>;
+  const removeContribution = (contributionId: number) => {
+    if (!goal || !window.confirm('Remover este aporte da meta?')) return;
+    setError('');
+    deleteContributionMutation.mutate({ goalId: goal.id, contributionId }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover o aporte.')) });
+  };
+  return <ModalShell eyebrow="Planejamento" title={goal ? 'Editar meta de patrimônio' : 'Criar meta de patrimônio'} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="text-sm leading-6 text-slate-500">O saldo desta meta é separado da carteira: informe o valor que você decidiu destinar a ela. A taxa anual pode ser revisada a qualquer momento.</p><Field label="Nome da meta"><input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Objetivo (R$)" value={targetAmount} onChange={setTargetAmount} /><NumberField label="Valor inicial destinado (R$)" value={initialAmount} onChange={setInitialAmount} /></div><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Aporte mensal previsto (R$)" value={monthlyContribution} onChange={setMonthlyContribution} /><NumberField label="Variação anual estimada (%)" value={annualGrowthRate} onChange={setAnnualGrowthRate} step="0.0001" /></div>{goal && <div className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="mb-3 flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-800">Aportes registrados</p><p className="text-xs text-slate-500">Remova somente lançamentos inseridos por engano.</p></div><span className="text-sm font-semibold text-emerald-700">{currency(goal.contributionsAmount)}</span></div>{contributionsQuery.isLoading ? <p className="py-2 text-sm text-slate-500">Carregando aportes...</p> : (contributionsQuery.data ?? []).length === 0 ? <p className="py-2 text-sm text-slate-500">Nenhum aporte avulso registrado.</p> : <div className="space-y-2">{contributionsQuery.data?.map((contribution) => <div key={contribution.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"><span><b className="text-sm text-slate-800">{currency(contribution.amount)}</b><small className="ml-2 text-xs text-slate-500">{formatDate(contribution.eventDate)}</small></span><button className="text-xs font-semibold text-rose-600 disabled:text-slate-300" disabled={deleteContributionMutation.isPending} type="button" onClick={() => removeContribution(contribution.id)}>Remover</button></div>)}</div>}</div>}{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={targetAmount <= 0 || pending} type="submit">{pending ? 'Salvando...' : goal ? 'Salvar alterações' : 'Criar meta'}</button></div></form></ModalShell>;
 }
 
 function GoalContributionDialog({ goal, onClose }: { goal: InvestmentGoalResponse | null; onClose: () => void }) {

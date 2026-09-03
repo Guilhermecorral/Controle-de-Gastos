@@ -93,6 +93,27 @@ public class InvestmentController {
         return investmentService.contributeToGoal(id, request);
     }
 
+    @GetMapping("/goals/{id}/contributions")
+    public List<GoalContributionResponse> goalContributions(@PathVariable Long id) {
+        return investmentService.goalContributions(id);
+    }
+
+    @DeleteMapping("/goals/{goalId}/contributions/{contributionId}")
+    public ResponseEntity<Void> deleteGoalContribution(@PathVariable Long goalId, @PathVariable Long contributionId) {
+        investmentService.deleteGoalContribution(goalId, contributionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/tax-summary")
+    public TaxSummaryResponse taxSummary(@RequestParam(required = false) Integer year) {
+        return investmentService.taxSummary(year);
+    }
+
+    @GetMapping("/reconciliation")
+    public ReconciliationResponse reconciliation(@RequestParam(required = false) Integer year) {
+        return investmentService.reconciliation(year);
+    }
+
     @DeleteMapping("/goals/{id}")
     public ResponseEntity<Void> deleteGoal(@PathVariable Long id) {
         investmentService.deleteGoal(id);

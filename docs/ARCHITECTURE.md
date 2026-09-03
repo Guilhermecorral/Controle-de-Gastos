@@ -1,6 +1,6 @@
 # Arquitetura do Farol Financeiro
 
-Este documento apresenta a arquitetura técnica da versão 1.3.3 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
+Este documento apresenta a arquitetura técnica da versão 1.3.4 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
 
 ## Visão geral
 

@@ -184,6 +184,12 @@ public final class InvestmentDtos {
             @NotNull LocalDate eventDate
     ) {}
 
+    public record GoalContributionResponse(
+            Long id,
+            BigDecimal amount,
+            LocalDate eventDate
+    ) {}
+
     public record GoalResponse(
             Long id,
             String name,
@@ -198,6 +204,51 @@ public final class InvestmentDtos {
             Integer estimatedMonths,
             boolean achieved
     ) {}
+
+    public record TaxSummaryResponse(
+            int year,
+            BigDecimal totalWithheld,
+            int reviewCount,
+            List<TaxEventResponse> events
+    ) {}
+
+    public record TaxEventResponse(
+            LocalDate date,
+            String symbol,
+            String assetName,
+            String eventType,
+            BigDecimal grossAmount,
+            BigDecimal withheldAmount,
+            BigDecimal netAmount,
+            TaxStatus status,
+            String note
+    ) {}
+
+    public enum TaxStatus { RETIDO, SEM_RETENCAO, REVISAR }
+
+    public record ReconciliationResponse(
+            int year,
+            int reconciledCount,
+            int pendingCount,
+            List<ReconciliationItemResponse> items
+    ) {}
+
+    public record ReconciliationItemResponse(
+            Long movementId,
+            LocalDate eventDate,
+            String symbol,
+            String assetName,
+            InvestmentMovement.MovementType movementType,
+            BigDecimal expectedAmount,
+            String currency,
+            ReconciliationStatus status,
+            Long transactionId,
+            LocalDate transactionDate,
+            BigDecimal transactionAmount,
+            String note
+    ) {}
+
+    public enum ReconciliationStatus { CONCILIADO, GERADO_PELO_FAROL, PENDENTE, REVISAR }
 
     public record MovementResponse(
             Long id,

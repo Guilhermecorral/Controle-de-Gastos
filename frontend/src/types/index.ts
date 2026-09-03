@@ -532,6 +532,12 @@ export interface InvestmentGoalContributionRequest {
   eventDate: string;
 }
 
+export interface InvestmentGoalContributionResponse {
+  id: number;
+  amount: number;
+  eventDate: string;
+}
+
 export interface InvestmentGoalResponse {
   id: number;
   name: string;
@@ -545,4 +551,45 @@ export interface InvestmentGoalResponse {
   annualGrowthRate: number;
   estimatedMonths: number | null;
   achieved: boolean;
+}
+
+export type InvestmentTaxStatus = 'RETIDO' | 'SEM_RETENCAO' | 'REVISAR';
+
+export interface InvestmentTaxSummaryResponse {
+  year: number;
+  totalWithheld: number;
+  reviewCount: number;
+  events: Array<{
+    date: string;
+    symbol: string | null;
+    assetName: string;
+    eventType: string;
+    grossAmount: number;
+    withheldAmount: number;
+    netAmount: number;
+    status: InvestmentTaxStatus;
+    note: string;
+  }>;
+}
+
+export type InvestmentReconciliationStatus = 'CONCILIADO' | 'GERADO_PELO_FAROL' | 'PENDENTE' | 'REVISAR';
+
+export interface InvestmentReconciliationResponse {
+  year: number;
+  reconciledCount: number;
+  pendingCount: number;
+  items: Array<{
+    movementId: number;
+    eventDate: string;
+    symbol: string | null;
+    assetName: string;
+    movementType: InvestmentMovementResponse['movementType'];
+    expectedAmount: number;
+    currency: string;
+    status: InvestmentReconciliationStatus;
+    transactionId: number | null;
+    transactionDate: string | null;
+    transactionAmount: number | null;
+    note: string;
+  }>;
 }

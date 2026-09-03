@@ -2,6 +2,13 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.3.4] - 2026-09-03
+
+- Painel de Tributação e Conciliação com impostos retidos, proventos sem retenção informada e vendas que exigem apuração.
+- Conciliação de compras, vendas e proventos em reais com lançamentos de extratos OFX, CSV, TSV e Excel já importados.
+- Importador de extratos acessível pela carteira, com revisão das linhas antes da gravação e atualização da conciliação.
+- Estados explícitos para itens conciliados, gerados pelo Farol, pendentes e que exigem revisão.
+
 ## [1.3.3] - 2026-09-03
 
 - Agenda de proventos por ativo com valor por cota, Data Com opcional, pagamento e status de recebimento.
@@ -9,6 +16,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - Confirmação de recebimento integra o valor líquido ao histórico de investimentos e às receitas financeiras, sem duplicidade.
 - Metas de patrimônio com objetivo, aporte mensal, variação anual opcional, progresso e previsão de conclusão.
 - Metas passam a usar valor inicial e aportes exclusivos, com edição posterior da taxa e do planejamento.
+- Histórico de aportes por meta com remoção individual para correções de lançamento.
 
 ## [1.3.2] - 2026-09-02
 

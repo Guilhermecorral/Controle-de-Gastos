@@ -16,9 +16,12 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -277,6 +280,114 @@ public class InvestmentService {
         goalContributionRepository.save(InvestmentGoalContribution.builder().goal(goal)
                 .amount(money(request.amount())).eventDate(request.eventDate()).build());
         return toGoalResponse(goal);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GoalContributionResponse> goalContributions(Long id) {
+        InvestmentGoal goal = goalRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada"));
+        return goalContributionRepository.findAllByGoalOrderByEventDateDescCreatedAtDesc(goal).stream()
+                .map(contribution -> new GoalContributionResponse(contribution.getId(), contribution.getAmount(), contribution.getEventDate()))
+                .toList();
+    }
+
+    @Transactional
+    public void deleteGoalContribution(Long goalId, Long contributionId) {
+        InvestmentGoal goal = goalRepository.findByIdAndUser(goalId, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada"));
+        InvestmentGoalContribution contribution = goalContributionRepository.findByIdAndGoal(contributionId, goal)
+                .orElseThrow(() -> new ResourceNotFoundException("Aporte da meta não encontrado"));
+        goalContributionRepository.delete(contribution);
+    }
+
+    @Transactional(readOnly = true)
+    public TaxSummaryResponse taxSummary(Integer requestedYear) {
+        int year = requestedYear == null ? LocalDate.now().getYear() : requestedYear;
+        User user = authenticatedUserService.getAuthenticatedUser();
+        List<TaxEventResponse> events = new ArrayList<>();
+        Set<String> scheduledReferences = new HashSet<>();
+
+        for (InvestmentIncomeSchedule schedule : incomeScheduleRepository.findAllByUserOrderByPaymentDateAscCreatedAtDesc(user)) {
+            if (schedule.getStatus() != InvestmentIncomeSchedule.Status.RECEBIDO || schedule.getPaymentDate().getYear() != year) continue;
+            IncomeScheduleResponse income = toIncomeScheduleResponse(schedule);
+            scheduledReferences.add("income-schedule:" + schedule.getId());
+            TaxStatus status = income.taxAmount().signum() > 0 ? TaxStatus.RETIDO : TaxStatus.SEM_RETENCAO;
+            String note = status == TaxStatus.RETIDO ? "Imposto informado como retido no provento." : "Nenhum imposto retido foi informado neste provento.";
+            events.add(new TaxEventResponse(schedule.getPaymentDate(), schedule.getPosition().getSymbol(), schedule.getPosition().getName(),
+                    schedule.getIncomeType().name(), income.grossAmount(), income.taxAmount(), income.netAmount(), status, note));
+        }
+
+        for (InvestmentMovement movement : movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)) {
+            if (movement.getEventDate().getYear() != year || scheduledReferences.contains(movement.getExternalReference())) continue;
+            InvestmentPosition position = movement.getPosition();
+            if (isIncome(movement)) {
+                events.add(new TaxEventResponse(movement.getEventDate(), position.getSymbol(), position.getName(), movement.getMovementType().name(),
+                        movement.getAmount(), ZERO, movement.getAmount(), TaxStatus.REVISAR,
+                        "Provento manual: informe a retenção na agenda ou confirme a tributação no comprovante."));
+            } else if (movement.getMovementType() == InvestmentMovement.MovementType.VENDA) {
+                events.add(new TaxEventResponse(movement.getEventDate(), position.getSymbol(), position.getName(), "VENDA",
+                        movement.getAmount(), ZERO, movement.getAmount(), TaxStatus.REVISAR,
+                        "Venda requer apuração conforme tipo de ativo, resultados e regras do período."));
+            }
+        }
+        events.sort(Comparator.comparing(TaxEventResponse::date).reversed());
+        BigDecimal totalWithheld = events.stream().map(TaxEventResponse::withheldAmount).reduce(ZERO, BigDecimal::add);
+        int reviewCount = (int) events.stream().filter(event -> event.status() == TaxStatus.REVISAR).count();
+        return new TaxSummaryResponse(year, money(totalWithheld), reviewCount, events);
+    }
+
+    @Transactional(readOnly = true)
+    public ReconciliationResponse reconciliation(Integer requestedYear) {
+        int year = requestedYear == null ? LocalDate.now().getYear() : requestedYear;
+        User user = authenticatedUserService.getAuthenticatedUser();
+        List<Transaction> transactions = transactionRepository.findAllByUserOrderByTransactionDateDesc(user);
+        Set<Long> usedTransactionIds = new HashSet<>();
+        List<ReconciliationItemResponse> items = new ArrayList<>();
+
+        for (InvestmentMovement movement : movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)) {
+            if (movement.getEventDate().getYear() != year) continue;
+            Transaction.TransactionType expectedType = expectedTransactionType(movement.getMovementType());
+            if (expectedType == null) continue;
+            InvestmentPosition position = movement.getPosition();
+            if (!"BRL".equalsIgnoreCase(position.getCurrency())) {
+                items.add(new ReconciliationItemResponse(movement.getId(), movement.getEventDate(), position.getSymbol(), position.getName(),
+                        movement.getMovementType(), movement.getAmount(), position.getCurrency(), ReconciliationStatus.REVISAR,
+                        null, null, null, "Conciliação automática disponível apenas para movimentos em reais."));
+                continue;
+            }
+            Transaction match = transactions.stream().filter(transaction -> !usedTransactionIds.contains(transaction.getId()))
+                    .filter(transaction -> transaction.getType() == expectedType)
+                    .filter(transaction -> Math.abs(ChronoUnit.DAYS.between(movement.getEventDate(), transaction.getTransactionDate())) <= 3)
+                    .filter(transaction -> transaction.getAmount().subtract(movement.getAmount()).abs().compareTo(new BigDecimal("0.02")) <= 0)
+                    .min(Comparator.comparing((Transaction transaction) -> transaction.getAmount().subtract(movement.getAmount()).abs())
+                            .thenComparing(transaction -> Math.abs(ChronoUnit.DAYS.between(movement.getEventDate(), transaction.getTransactionDate()))))
+                    .orElse(null);
+            if (match == null) {
+                items.add(new ReconciliationItemResponse(movement.getId(), movement.getEventDate(), position.getSymbol(), position.getName(),
+                        movement.getMovementType(), movement.getAmount(), position.getCurrency(), ReconciliationStatus.PENDENTE,
+                        null, null, null, "Nenhum lançamento compatível foi encontrado no extrato importado."));
+                continue;
+            }
+            usedTransactionIds.add(match.getId());
+            boolean generated = match.getDescription().startsWith("Dividendo -") || match.getDescription().startsWith("Rendimento -");
+            items.add(new ReconciliationItemResponse(movement.getId(), movement.getEventDate(), position.getSymbol(), position.getName(),
+                    movement.getMovementType(), movement.getAmount(), position.getCurrency(),
+                    generated ? ReconciliationStatus.GERADO_PELO_FAROL : ReconciliationStatus.CONCILIADO,
+                    match.getId(), match.getTransactionDate(), match.getAmount(),
+                    generated ? "Receita criada pelo próprio Farol ao registrar o provento." : "Valor e data conferem com o extrato importado."));
+        }
+        items.sort(Comparator.comparing(ReconciliationItemResponse::eventDate).reversed());
+        int reconciled = (int) items.stream().filter(item -> item.status() == ReconciliationStatus.CONCILIADO
+                || item.status() == ReconciliationStatus.GERADO_PELO_FAROL).count();
+        int pending = items.size() - reconciled;
+        return new ReconciliationResponse(year, reconciled, pending, items);
+    }
+
+    private Transaction.TransactionType expectedTransactionType(InvestmentMovement.MovementType movementType) {
+        return switch (movementType) {
+            case COMPRA, APORTE -> Transaction.TransactionType.DESPESA;
+            case VENDA, RESGATE, DIVIDENDO, RENDIMENTO -> Transaction.TransactionType.RECEITA;
+        };
     }
 
     @Transactional

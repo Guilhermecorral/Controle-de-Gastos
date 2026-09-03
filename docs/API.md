@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.3.3. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão 1.3.4. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -124,6 +124,10 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `POST` | `/api/investments/goals` | Cria uma meta de patrimônio |
 | `PUT` | `/api/investments/goals/{id}` | Edita objetivo, valor inicial, aporte previsto e taxa |
 | `POST` | `/api/investments/goals/{id}/contributions` | Registra um aporte exclusivo da meta |
+| `GET` | `/api/investments/goals/{id}/contributions` | Lista os aportes registrados em uma meta |
+| `DELETE` | `/api/investments/goals/{goalId}/contributions/{contributionId}` | Remove um aporte informado incorretamente |
+| `GET` | `/api/investments/tax-summary?year=2026` | Resume impostos retidos e eventos fiscais para conferência |
+| `GET` | `/api/investments/reconciliation?year=2026` | Concilia movimentações de investimentos com o extrato importado |
 | `GET` | `/api/investments/assets/search?query=BBAS&type=ACAO` | Pesquisa o catálogo |
 | `GET` | `/api/investments/quotes` | Consulta uma cotação |
 | `GET` | `/api/investments/projections` | Calcula uma projeção de renda fixa |

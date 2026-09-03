@@ -6,6 +6,7 @@ import com.controledegastos.backend.investments.InvestmentDtos.TimelinePeriod;
 import com.controledegastos.backend.investments.InvestmentDtos.TradeRequest;
 import com.controledegastos.backend.security.AuthenticatedUserService;
 import com.controledegastos.backend.transactions.Repository.TransactionRepository;
+import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InvestmentServiceTest {
@@ -31,9 +33,10 @@ class InvestmentServiceTest {
     private final InvestmentIncomeScheduleRepository incomeScheduleRepository = mock(InvestmentIncomeScheduleRepository.class);
     private final InvestmentGoalRepository goalRepository = mock(InvestmentGoalRepository.class);
     private final InvestmentGoalContributionRepository goalContributionRepository = mock(InvestmentGoalContributionRepository.class);
+    private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
     private final InvestmentService service = new InvestmentService(repository, authenticatedUserService,
             marketQuoteService, mock(AssetCatalogService.class), movementRepository, snapshotRepository,
-            mock(TransactionRepository.class), incomeScheduleRepository, goalRepository, goalContributionRepository);
+            transactionRepository, incomeScheduleRepository, goalRepository, goalContributionRepository);
 
     @Test
     void shouldProjectTwelvePercentWithCompoundInterest() {
@@ -202,6 +205,66 @@ class InvestmentServiceTest {
         assertThat(result.initialAmount()).isEqualByComparingTo("500.00");
         assertThat(result.currentAmount()).isEqualByComparingTo("500.00");
         assertThat(result.remainingAmount()).isEqualByComparingTo("9500.00");
+    }
+
+    @Test
+    void shouldDeleteOnlyTheSelectedContributionFromItsGoal() {
+        User user = User.builder().id(7L).name("Pessoa").email("pessoa@example.com").password("secret").build();
+        InvestmentGoal goal = InvestmentGoal.builder().id(20L).user(user).name("Reserva")
+                .targetAmount(new BigDecimal("1000")).build();
+        InvestmentGoalContribution contribution = InvestmentGoalContribution.builder().id(30L).goal(goal)
+                .amount(new BigDecimal("100")).eventDate(LocalDate.of(2026, 9, 3)).build();
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        when(goalRepository.findByIdAndUser(20L, user)).thenReturn(Optional.of(goal));
+        when(goalContributionRepository.findByIdAndGoal(30L, goal)).thenReturn(Optional.of(contribution));
+
+        service.deleteGoalContribution(20L, 30L);
+
+        verify(goalContributionRepository).delete(contribution);
+    }
+
+    @Test
+    void shouldSummarizeWithheldTaxFromReceivedScheduledIncome() {
+        User user = User.builder().id(7L).name("Pessoa").email("pessoa@example.com").password("secret").build();
+        InvestmentPosition position = InvestmentPosition.builder().id(10L).user(user).assetType(InvestmentPosition.AssetType.ACAO)
+                .symbol("BBAS3").name("Banco do Brasil ON").quantity(new BigDecimal("2"))
+                .purchaseDate(LocalDate.of(2026, 1, 2)).build();
+        InvestmentIncomeSchedule schedule = InvestmentIncomeSchedule.builder().id(15L).user(user).position(position)
+                .incomeType(InvestmentMovement.MovementType.DIVIDENDO).amountPerUnit(new BigDecimal("1"))
+                .taxRate(new BigDecimal("10")).paymentDate(LocalDate.of(2026, 9, 1))
+                .status(InvestmentIncomeSchedule.Status.RECEBIDO).build();
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        when(incomeScheduleRepository.findAllByUserOrderByPaymentDateAscCreatedAtDesc(user)).thenReturn(List.of(schedule));
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of());
+
+        InvestmentDtos.TaxSummaryResponse result = service.taxSummary(2026);
+
+        assertThat(result.totalWithheld()).isEqualByComparingTo("0.20");
+        assertThat(result.reviewCount()).isZero();
+        assertThat(result.events()).hasSize(1);
+        assertThat(result.events().getFirst().status()).isEqualTo(InvestmentDtos.TaxStatus.RETIDO);
+    }
+
+    @Test
+    void shouldReconcilePurchaseWithImportedStatementEntry() {
+        User user = User.builder().id(7L).name("Pessoa").email("pessoa@example.com").password("secret").build();
+        InvestmentPosition position = InvestmentPosition.builder().id(10L).user(user).assetType(InvestmentPosition.AssetType.ACAO)
+                .symbol("BBAS3").name("Banco do Brasil ON").currency("BRL").purchaseDate(LocalDate.of(2026, 1, 2)).build();
+        InvestmentMovement movement = InvestmentMovement.builder().id(20L).user(user).position(position)
+                .movementType(InvestmentMovement.MovementType.COMPRA).amount(new BigDecimal("100"))
+                .eventDate(LocalDate.of(2026, 9, 1)).build();
+        Transaction transaction = Transaction.builder().id(30L).user(user).type(Transaction.TransactionType.DESPESA)
+                .description("Compra em corretora").category(Transaction.TransactionCategory.OUTROS).amount(new BigDecimal("100"))
+                .paymentMethod(Transaction.PaymentMethod.PIX).installments(1).transactionDate(LocalDate.of(2026, 9, 2)).build();
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(movement));
+        when(transactionRepository.findAllByUserOrderByTransactionDateDesc(user)).thenReturn(List.of(transaction));
+
+        InvestmentDtos.ReconciliationResponse result = service.reconciliation(2026);
+
+        assertThat(result.reconciledCount()).isEqualTo(1);
+        assertThat(result.pendingCount()).isZero();
+        assertThat(result.items().getFirst().status()).isEqualTo(InvestmentDtos.ReconciliationStatus.CONCILIADO);
     }
 
     private TradeRequest trade(InvestmentMovement.MovementType type, BigDecimal quantity, BigDecimal price, BigDecimal fees) {

@@ -26,6 +26,9 @@ import {
   InvestmentIncomeScheduleResponse,
   InvestmentGoalRequest,
   InvestmentGoalContributionRequest,
+  InvestmentGoalContributionResponse,
+  InvestmentTaxSummaryResponse,
+  InvestmentReconciliationResponse,
   InvestmentGoalResponse,
   InvestmentTradeRequest,
   MonthlyAnalysisResponse,
@@ -197,6 +200,43 @@ export function useContributeToInvestmentGoalMutation() {
     mutationFn: async ({ id, data }: { id: number; data: InvestmentGoalContributionRequest }) =>
       (await api.post<InvestmentGoalResponse>(`/investments/goals/${id}/contributions`, data)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] }),
+  })
+}
+
+export function useInvestmentGoalContributionsQuery(goalId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: ['investments', 'goals', goalId, 'contributions'],
+    queryFn: async () => (await api.get<InvestmentGoalContributionResponse[]>(`/investments/goals/${goalId}/contributions`)).data,
+    enabled: enabled && goalId != null,
+    staleTime: 30_000,
+  })
+}
+
+export function useDeleteInvestmentGoalContributionMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ goalId, contributionId }: { goalId: number; contributionId: number }) =>
+      api.delete(`/investments/goals/${goalId}/contributions/${contributionId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] })
+      queryClient.invalidateQueries({ queryKey: ['investments', 'goals', variables.goalId, 'contributions'] })
+    },
+  })
+}
+
+export function useInvestmentTaxSummaryQuery(year: number) {
+  return useQuery({
+    queryKey: ['investments', 'tax-summary', year],
+    queryFn: async () => (await api.get<InvestmentTaxSummaryResponse>('/investments/tax-summary', { params: { year } })).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useInvestmentReconciliationQuery(year: number) {
+  return useQuery({
+    queryKey: ['investments', 'reconciliation', year],
+    queryFn: async () => (await api.get<InvestmentReconciliationResponse>('/investments/reconciliation', { params: { year } })).data,
+    staleTime: 30_000,
   })
 }
 
