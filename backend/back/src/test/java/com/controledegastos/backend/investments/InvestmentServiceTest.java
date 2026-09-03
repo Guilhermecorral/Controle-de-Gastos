@@ -29,9 +29,11 @@ class InvestmentServiceTest {
     private final MarketQuoteService marketQuoteService = mock(MarketQuoteService.class);
     private final InvestmentPortfolioSnapshotRepository snapshotRepository = mock(InvestmentPortfolioSnapshotRepository.class);
     private final InvestmentIncomeScheduleRepository incomeScheduleRepository = mock(InvestmentIncomeScheduleRepository.class);
+    private final InvestmentGoalRepository goalRepository = mock(InvestmentGoalRepository.class);
+    private final InvestmentGoalContributionRepository goalContributionRepository = mock(InvestmentGoalContributionRepository.class);
     private final InvestmentService service = new InvestmentService(repository, authenticatedUserService,
             marketQuoteService, mock(AssetCatalogService.class), movementRepository, snapshotRepository,
-            mock(TransactionRepository.class), incomeScheduleRepository, mock(InvestmentGoalRepository.class));
+            mock(TransactionRepository.class), incomeScheduleRepository, goalRepository, goalContributionRepository);
 
     @Test
     void shouldProjectTwelvePercentWithCompoundInterest() {
@@ -182,6 +184,24 @@ class InvestmentServiceTest {
         assertThat(result.grossAmount()).isEqualByComparingTo("6.00");
         assertThat(result.taxAmount()).isEqualByComparingTo("0.60");
         assertThat(result.netAmount()).isEqualByComparingTo("5.40");
+    }
+
+    @Test
+    void shouldKeepGoalBalanceSeparateFromPortfolioValue() {
+        User user = User.builder().id(7L).name("Pessoa").email("pessoa@example.com").password("secret").build();
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        when(goalRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(goalContributionRepository.findAllByGoalOrderByEventDateDescCreatedAtDesc(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of());
+
+        InvestmentDtos.GoalResponse result = service.createGoal(new InvestmentDtos.GoalRequest(
+                "Reserva de viagem", new BigDecimal("10000"), new BigDecimal("500"),
+                new BigDecimal("300"), new BigDecimal("8")
+        ));
+
+        assertThat(result.initialAmount()).isEqualByComparingTo("500.00");
+        assertThat(result.currentAmount()).isEqualByComparingTo("500.00");
+        assertThat(result.remainingAmount()).isEqualByComparingTo("9500.00");
     }
 
     private TradeRequest trade(InvestmentMovement.MovementType type, BigDecimal quantity, BigDecimal price, BigDecimal fees) {

@@ -35,6 +35,7 @@ public class InvestmentService {
     private final TransactionRepository transactionRepository;
     private final InvestmentIncomeScheduleRepository incomeScheduleRepository;
     private final InvestmentGoalRepository goalRepository;
+    private final InvestmentGoalContributionRepository goalContributionRepository;
 
     @Value("${app.investments.default-annual-rate:12.0}")
     private BigDecimal defaultAnnualRate;
@@ -241,9 +242,8 @@ public class InvestmentService {
     @Transactional(readOnly = true)
     public List<GoalResponse> goals() {
         User user = authenticatedUserService.getAuthenticatedUser();
-        BigDecimal currentAmount = currentPortfolioValue(user);
         return goalRepository.findAllByUserAndActiveTrueOrderByCreatedAtDesc(user).stream()
-                .map(goal -> toGoalResponse(goal, currentAmount)).toList();
+                .map(this::toGoalResponse).toList();
     }
 
     @Transactional
@@ -251,10 +251,32 @@ public class InvestmentService {
         User user = authenticatedUserService.getAuthenticatedUser();
         InvestmentGoal goal = InvestmentGoal.builder().user(user).name(request.name().trim())
                 .targetAmount(request.targetAmount())
+                .initialAmount(request.initialAmount() == null ? BigDecimal.ZERO : request.initialAmount())
                 .monthlyContribution(request.monthlyContribution() == null ? BigDecimal.ZERO : request.monthlyContribution())
                 .annualGrowthRate(request.annualGrowthRate() == null ? BigDecimal.ZERO : request.annualGrowthRate()).build();
         goal = goalRepository.save(goal);
-        return toGoalResponse(goal, currentPortfolioValue(user));
+        return toGoalResponse(goal);
+    }
+
+    @Transactional
+    public GoalResponse updateGoal(Long id, GoalRequest request) {
+        InvestmentGoal goal = goalRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada"));
+        goal.setName(request.name().trim());
+        goal.setTargetAmount(request.targetAmount());
+        goal.setInitialAmount(request.initialAmount() == null ? BigDecimal.ZERO : request.initialAmount());
+        goal.setMonthlyContribution(request.monthlyContribution() == null ? BigDecimal.ZERO : request.monthlyContribution());
+        goal.setAnnualGrowthRate(request.annualGrowthRate() == null ? BigDecimal.ZERO : request.annualGrowthRate());
+        return toGoalResponse(goalRepository.save(goal));
+    }
+
+    @Transactional
+    public GoalResponse contributeToGoal(Long id, GoalContributionRequest request) {
+        InvestmentGoal goal = goalRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada"));
+        goalContributionRepository.save(InvestmentGoalContribution.builder().goal(goal)
+                .amount(money(request.amount())).eventDate(request.eventDate()).build());
+        return toGoalResponse(goal);
     }
 
     @Transactional
@@ -386,25 +408,17 @@ public class InvestmentService {
         return quantity.signum() == 0 ? (position.getQuantity() == null ? BigDecimal.ONE : position.getQuantity()) : quantity;
     }
 
-    private BigDecimal currentPortfolioValue(User user) {
-        List<InvestmentMovement> movements = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user);
-        Map<Long, BigDecimal> incomeByPosition = movements.stream().filter(this::isIncome)
-                .collect(Collectors.groupingBy(movement -> movement.getPosition().getId(),
-                        Collectors.reducing(BigDecimal.ZERO, InvestmentMovement::getAmount, BigDecimal::add)));
-        return repository.findAllByUserOrderByCreatedAtDesc(user).stream()
-                .filter(position -> position.getAssetType() == InvestmentPosition.AssetType.RENDA_FIXA
-                        || position.getQuantity() == null || position.getQuantity().signum() > 0)
-                .map(position -> toResponse(position, incomeByPosition.getOrDefault(position.getId(), ZERO)).currentValue())
-                .reduce(ZERO, BigDecimal::add);
-    }
-
-    private GoalResponse toGoalResponse(InvestmentGoal goal, BigDecimal currentAmount) {
+    private GoalResponse toGoalResponse(InvestmentGoal goal) {
+        BigDecimal contributions = goalContributionRepository.findAllByGoalOrderByEventDateDescCreatedAtDesc(goal).stream()
+                .map(InvestmentGoalContribution::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal initialAmount = goal.getInitialAmount() == null ? BigDecimal.ZERO : goal.getInitialAmount();
+        BigDecimal currentAmount = initialAmount.add(contributions);
         BigDecimal remaining = goal.getTargetAmount().subtract(currentAmount).max(BigDecimal.ZERO);
         boolean achieved = remaining.signum() == 0;
         BigDecimal progress = goal.getTargetAmount().signum() == 0 ? BigDecimal.ZERO
                 : currentAmount.multiply(BigDecimal.valueOf(100)).divide(goal.getTargetAmount(), 2, RoundingMode.HALF_UP).min(BigDecimal.valueOf(100));
-        return new GoalResponse(goal.getId(), goal.getName(), money(goal.getTargetAmount()), money(currentAmount), money(remaining),
-                progress, money(goal.getMonthlyContribution()), goal.getAnnualGrowthRate(),
+        return new GoalResponse(goal.getId(), goal.getName(), money(goal.getTargetAmount()), money(initialAmount),
+                money(contributions), money(currentAmount), money(remaining), progress, money(goal.getMonthlyContribution()), goal.getAnnualGrowthRate(),
                 achieved ? 0 : monthsToGoal(currentAmount, goal.getTargetAmount(), goal.getMonthlyContribution(), goal.getAnnualGrowthRate()), achieved);
     }
 

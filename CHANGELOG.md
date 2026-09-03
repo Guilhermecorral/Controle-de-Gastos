@@ -8,6 +8,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - Estimativa bruta, imposto retido e valor líquido calculados pela quantidade existente na Data Com.
 - Confirmação de recebimento integra o valor líquido ao histórico de investimentos e às receitas financeiras, sem duplicidade.
 - Metas de patrimônio com objetivo, aporte mensal, variação anual opcional, progresso e previsão de conclusão.
+- Metas passam a usar valor inicial e aportes exclusivos, com edição posterior da taxa e do planejamento.
 
 ## [1.3.2] - 2026-09-02
 

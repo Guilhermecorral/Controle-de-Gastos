@@ -174,14 +174,22 @@ public final class InvestmentDtos {
     public record GoalRequest(
             @NotBlank @Size(max = 100) String name,
             @NotNull @DecimalMin(value = "0.01") BigDecimal targetAmount,
+            @DecimalMin(value = "0.00") BigDecimal initialAmount,
             @DecimalMin(value = "0.00") BigDecimal monthlyContribution,
             @DecimalMin(value = "0.00") BigDecimal annualGrowthRate
+    ) {}
+
+    public record GoalContributionRequest(
+            @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
+            @NotNull LocalDate eventDate
     ) {}
 
     public record GoalResponse(
             Long id,
             String name,
             BigDecimal targetAmount,
+            BigDecimal initialAmount,
+            BigDecimal contributionsAmount,
             BigDecimal currentAmount,
             BigDecimal remainingAmount,
             BigDecimal progressPercent,

@@ -522,14 +522,22 @@ export interface InvestmentIncomeScheduleResponse {
 export interface InvestmentGoalRequest {
   name: string;
   targetAmount: number;
+  initialAmount: number;
   monthlyContribution: number;
   annualGrowthRate: number;
+}
+
+export interface InvestmentGoalContributionRequest {
+  amount: number;
+  eventDate: string;
 }
 
 export interface InvestmentGoalResponse {
   id: number;
   name: string;
   targetAmount: number;
+  initialAmount: number;
+  contributionsAmount: number;
   currentAmount: number;
   remainingAmount: number;
   progressPercent: number;

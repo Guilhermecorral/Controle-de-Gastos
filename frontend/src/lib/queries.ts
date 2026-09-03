@@ -25,6 +25,7 @@ import {
   InvestmentIncomeScheduleRequest,
   InvestmentIncomeScheduleResponse,
   InvestmentGoalRequest,
+  InvestmentGoalContributionRequest,
   InvestmentGoalResponse,
   InvestmentTradeRequest,
   MonthlyAnalysisResponse,
@@ -177,6 +178,24 @@ export function useCreateInvestmentGoalMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: InvestmentGoalRequest) => (await api.post<InvestmentGoalResponse>('/investments/goals', data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] }),
+  })
+}
+
+export function useUpdateInvestmentGoalMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InvestmentGoalRequest }) =>
+      (await api.put<InvestmentGoalResponse>(`/investments/goals/${id}`, data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] }),
+  })
+}
+
+export function useContributeToInvestmentGoalMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InvestmentGoalContributionRequest }) =>
+      (await api.post<InvestmentGoalResponse>(`/investments/goals/${id}/contributions`, data)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] }),
   })
 }

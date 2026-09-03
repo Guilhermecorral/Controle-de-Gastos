@@ -83,6 +83,16 @@ public class InvestmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.createGoal(request));
     }
 
+    @PutMapping("/goals/{id}")
+    public GoalResponse updateGoal(@PathVariable Long id, @Valid @RequestBody GoalRequest request) {
+        return investmentService.updateGoal(id, request);
+    }
+
+    @PostMapping("/goals/{id}/contributions")
+    public GoalResponse contributeToGoal(@PathVariable Long id, @Valid @RequestBody GoalContributionRequest request) {
+        return investmentService.contributeToGoal(id, request);
+    }
+
     @DeleteMapping("/goals/{id}")
     public ResponseEntity<Void> deleteGoal(@PathVariable Long id) {
         investmentService.deleteGoal(id);

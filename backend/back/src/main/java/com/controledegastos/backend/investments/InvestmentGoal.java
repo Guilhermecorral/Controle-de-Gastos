@@ -29,6 +29,10 @@ public class InvestmentGoal {
     @Column(name = "target_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal targetAmount;
 
+    @Column(name = "initial_amount", precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal initialAmount = BigDecimal.ZERO;
+
     @Column(name = "monthly_contribution", nullable = false, precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal monthlyContribution = BigDecimal.ZERO;

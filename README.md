@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Version](https://img.shields.io/badge/release-1.3.2-10B981)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/release-1.3.3-10B981)](CHANGELOG.md)
 
 ![Prévia do Farol Financeiro](frontend/public/og-farol-financeiro.png)
 

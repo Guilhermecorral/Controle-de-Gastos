@@ -14,6 +14,7 @@ import {
 } from '../../../types';
 import {
   useCreateInvestmentMutation,
+  useContributeToInvestmentGoalMutation,
   useCreateInvestmentGoalMutation,
   useCreateInvestmentIncomeScheduleMutation,
   useDeleteInvestmentMutation,
@@ -28,6 +29,7 @@ import {
   useRecordInvestmentIncomeMutation,
   useReceiveInvestmentIncomeScheduleMutation,
   useRecordInvestmentTradeMutation,
+  useUpdateInvestmentGoalMutation,
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
@@ -49,6 +51,8 @@ export default function InvestmentsPage() {
   const [selectedPosition, setSelectedPosition] = useState<InvestmentPositionResponse | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [goalOpen, setGoalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<InvestmentGoalResponse | null>(null);
+  const [contributionGoal, setContributionGoal] = useState<InvestmentGoalResponse | null>(null);
   const [fixedForm, setFixedForm] = useState<InvestmentPositionRequest>({
     assetType: 'RENDA_FIXA', symbol: null, externalId: null, name: '', quantity: null, averagePrice: null,
     principal: 0, annualRate: 12, purchaseDate: today, maturityDate: nextYear, market: 'BR', currency: 'BRL', exchange: null,
@@ -108,7 +112,7 @@ export default function InvestmentsPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
         <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
-        <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => setGoalOpen(true)} />
+        <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => { setEditingGoal(null); setGoalOpen(true); }} onContribute={setContributionGoal} onEdit={(goal) => { setEditingGoal(goal); setGoalOpen(true); }} />
       </div>
 
       {(portfolio?.currentValue ?? 0) > 0 && (
@@ -210,7 +214,8 @@ export default function InvestmentsPage() {
       <TradeDialog open={tradeOpen} positions={portfolio?.positions ?? []} onClose={() => setTradeOpen(false)} />
       <IncomeDialog position={incomePosition} onClose={() => setIncomePosition(null)} />
       <IncomeScheduleDialog open={scheduleOpen} positions={portfolio?.positions ?? []} onClose={() => setScheduleOpen(false)} />
-      <GoalDialog open={goalOpen} onClose={() => setGoalOpen(false)} />
+      <GoalDialog key={editingGoal?.id ?? 'new'} goal={editingGoal} open={goalOpen} onClose={() => { setGoalOpen(false); setEditingGoal(null); }} />
+      <GoalContributionDialog goal={contributionGoal} onClose={() => setContributionGoal(null)} />
       <AssetAnalysisDialog position={selectedPosition} movements={(movementsQuery.data ?? []).filter((movement) => movement.positionId === selectedPosition?.id)} onClose={() => setSelectedPosition(null)} />
     </div>
   );
@@ -446,20 +451,20 @@ function IncomeCalendar({ schedules, loading, onAdd }: { schedules: InvestmentIn
   </SectionCard>;
 }
 
-function GoalsPanel({ goals, loading, onAdd }: { goals: InvestmentGoalResponse[]; loading: boolean; onAdd: () => void }) {
+function GoalsPanel({ goals, loading, onAdd, onContribute, onEdit }: { goals: InvestmentGoalResponse[]; loading: boolean; onAdd: () => void; onContribute: (goal: InvestmentGoalResponse) => void; onEdit: (goal: InvestmentGoalResponse) => void }) {
   const deleteMutation = useDeleteInvestmentGoalMutation();
   const [error, setError] = useState('');
   return <SectionCard title="Metas de patrimônio">
-    <div className="mb-5 flex items-start justify-between gap-3"><p className="text-sm leading-6 text-slate-500">Transforme o patrimônio atual e os próximos aportes em um objetivo claro.</p><button className="shrink-0 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Nova meta</button></div>
+    <div className="mb-5 flex items-start justify-between gap-3"><p className="text-sm leading-6 text-slate-500">Cada meta tem saldo próprio: valor inicial e aportes registrados somente nela.</p><button className="shrink-0 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Nova meta</button></div>
     {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-    {loading ? <p className="py-6 text-center text-sm text-slate-500">Calculando metas...</p> : goals.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><p className="text-sm font-semibold text-slate-700">Sua primeira meta começa aqui</p><p className="mt-1 text-sm text-slate-500">Defina um objetivo e veja quanto falta para atingi-lo.</p></div> : <div className="space-y-4">{goals.map((goal) => <article key={goal.id} className="rounded-[20px] bg-slate-50 p-4"><div className="flex justify-between gap-3"><div><p className="font-semibold text-slate-900">{goal.name}</p><p className="mt-1 text-xs text-slate-500">Objetivo {currency(goal.targetAmount)}</p></div><button className="text-xs font-semibold text-slate-400 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => { setError(''); deleteMutation.mutate(goal.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover a meta.')) }); }}>Remover</button></div><div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, goal.progressPercent)}%` }} /></div><div className="mt-3 flex justify-between gap-3 text-xs"><span className="font-semibold text-emerald-700">{goal.progressPercent.toFixed(2).replace('.', ',')}% concluído</span><span className="text-slate-500">Faltam {currency(goal.remainingAmount)}</span></div><p className="mt-3 text-xs text-slate-500">{goal.achieved ? 'Meta concluída.' : goal.estimatedMonths != null ? `Conclusão estimada em ${formatMonths(goal.estimatedMonths)} com aporte de ${currency(goal.monthlyContribution)}.` : 'Inclua aporte mensal ou expectativa de rendimento para estimar a conclusão.'}</p></article>)}</div>}
+    {loading ? <p className="py-6 text-center text-sm text-slate-500">Calculando metas...</p> : goals.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><p className="text-sm font-semibold text-slate-700">Sua primeira meta começa aqui</p><p className="mt-1 text-sm text-slate-500">Defina um objetivo e veja quanto falta para atingi-lo.</p></div> : <div className="space-y-4">{goals.map((goal) => <article key={goal.id} className="rounded-[20px] bg-slate-50 p-4"><div className="flex justify-between gap-3"><div><p className="font-semibold text-slate-900">{goal.name}</p><p className="mt-1 text-xs text-slate-500">Objetivo {currency(goal.targetAmount)} · destinado {currency(goal.currentAmount)}</p></div><button className="text-xs font-semibold text-slate-400 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => { setError(''); deleteMutation.mutate(goal.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover a meta.')) }); }}>Remover</button></div><div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, goal.progressPercent)}%` }} /></div><div className="mt-3 flex justify-between gap-3 text-xs"><span className="font-semibold text-emerald-700">{goal.progressPercent.toFixed(2).replace('.', ',')}% concluído</span><span className="text-slate-500">Faltam {currency(goal.remainingAmount)}</span></div><p className="mt-3 text-xs text-slate-500">Inicial {currency(goal.initialAmount)} · aportes registrados {currency(goal.contributionsAmount)}</p><p className="mt-2 text-xs text-slate-500">{goal.achieved ? 'Meta concluída.' : goal.estimatedMonths != null ? `Conclusão estimada em ${formatMonths(goal.estimatedMonths)} com aporte mensal de ${currency(goal.monthlyContribution)}.` : 'Inclua aporte mensal ou expectativa de rendimento para estimar a conclusão.'}</p><div className="mt-4 flex flex-wrap justify-end gap-3"><button className="text-sm font-semibold text-slate-600 hover:text-emerald-700" type="button" onClick={() => onEdit(goal)}>Editar</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={() => onContribute(goal)}><Plus className="mr-1 inline" size={14} /> Registrar aporte</button></div></article>)}</div>}
   </SectionCard>;
 }
 
 function IncomeScheduleDialog({ open, positions, onClose }: { open: boolean; positions: InvestmentPositionResponse[]; onClose: () => void }) {
   const mutation = useCreateInvestmentIncomeScheduleMutation();
   const [positionId, setPositionId] = useState(0);
-  const [amountPerUnit, setAmountPerUnit] = useState(0);
+  const [amountPerUnit, setAmountPerUnit] = useState('');
   const [taxRate, setTaxRate] = useState(0);
   const [exDate, setExDate] = useState('');
   const [paymentDate, setPaymentDate] = useState(today);
@@ -468,27 +473,47 @@ function IncomeScheduleDialog({ open, positions, onClose }: { open: boolean; pos
   const selected = positions.find((position) => position.id === positionId) ?? positions[0];
   const incomeType = selected?.assetType === 'RENDA_FIXA' ? 'RENDIMENTO' : 'DIVIDENDO';
   const previewQuantity = selected?.quantity ?? 1;
-  const gross = previewQuantity * amountPerUnit;
+  const amountPerUnitValue = parseDecimalInput(amountPerUnit);
+  const gross = previewQuantity * amountPerUnitValue;
   const net = gross * (1 - taxRate / 100);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!selected) return setError('Inclua uma posição na carteira antes de agendar um provento.');
     setError('');
-    mutation.mutate({ positionId: selected.id, incomeType, amountPerUnit, taxRate, exDate: exDate || null, paymentDate }, { onSuccess: onClose, onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível agendar o provento.')) });
+    mutation.mutate({ positionId: selected.id, incomeType, amountPerUnit: amountPerUnitValue, taxRate, exDate: exDate || null, paymentDate }, { onSuccess: onClose, onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível agendar o provento.')) });
   };
-  return <ModalShell eyebrow="Agenda" title="Agendar provento" onClose={onClose}><form className="space-y-5" onSubmit={submit}><div className="rounded-[20px] border border-emerald-100 bg-emerald-50/70 p-4"><p className="text-xs font-semibold uppercase tracking-[.14em] text-emerald-700">Evento anunciado</p><p className="mt-1 text-sm text-slate-600">O lançamento financeiro só acontece ao confirmar que o valor foi recebido.</p></div><Field label="Ativo"><select className={inputClass} value={selected?.id ?? ''} onChange={(event) => setPositionId(Number(event.target.value))}><option value="" disabled>Selecione o ativo</option>{positions.map((position) => <option key={position.id} value={position.id}>{position.symbol || position.name} · {position.name}</option>)}</select></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Valor por cota (R$)" value={amountPerUnit} onChange={setAmountPerUnit} step="0.00000001" /><NumberField label="Imposto retido (%)" value={taxRate} onChange={setTaxRate} step="0.01" /></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Data Com (opcional)"><input className={inputClass} type="date" value={exDate} onChange={(event) => setExDate(event.target.value)} /></Field><DateField label="Data de pagamento" value={paymentDate} onChange={setPaymentDate} /></div><div className="grid gap-3 rounded-2xl bg-slate-100 p-4 text-sm sm:grid-cols-3"><span><b>{formatQuantity(previewQuantity)}</b><br /><small className="text-slate-500">cotas estimadas</small></span><span><b>{currency(gross)}</b><br /><small className="text-slate-500">bruto estimado</small></span><span className="text-emerald-700"><b>{currency(net)}</b><br /><small className="text-slate-500">líquido estimado</small></span></div>{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={!selected || amountPerUnit <= 0 || mutation.isPending} type="submit">{mutation.isPending ? 'Agendando...' : 'Salvar na agenda'}</button></div></form></ModalShell>;
+  return <ModalShell eyebrow="Agenda" title="Agendar provento" onClose={onClose}><form className="space-y-5" onSubmit={submit}><div className="rounded-[20px] border border-emerald-100 bg-emerald-50/70 p-4"><p className="text-xs font-semibold uppercase tracking-[.14em] text-emerald-700">Evento anunciado</p><p className="mt-1 text-sm text-slate-600">O lançamento financeiro só acontece ao confirmar que o valor foi recebido.</p></div><Field label="Ativo"><select className={inputClass} value={selected?.id ?? ''} onChange={(event) => setPositionId(Number(event.target.value))}><option value="" disabled>Selecione o ativo</option>{positions.map((position) => <option key={position.id} value={position.id}>{position.symbol || position.name} · {position.name}</option>)}</select></Field><div className="grid gap-4 sm:grid-cols-2"><Field label="Valor por cota (R$)"><input className={inputClass} inputMode="decimal" placeholder="0,0000" value={amountPerUnit} onChange={(event) => setAmountPerUnit(event.target.value.replace(/[^0-9,.]/g, ''))} /></Field><NumberField label="Imposto retido (%)" value={taxRate} onChange={setTaxRate} step="0.01" /></div><div className="grid gap-4 sm:grid-cols-2"><Field label="Data Com (opcional)"><input className={inputClass} type="date" value={exDate} onChange={(event) => setExDate(event.target.value)} /></Field><DateField label="Data de pagamento" value={paymentDate} onChange={setPaymentDate} /></div><div className="grid gap-3 rounded-2xl bg-slate-100 p-4 text-sm sm:grid-cols-3"><span><b>{formatQuantity(previewQuantity)}</b><br /><small className="text-slate-500">cotas estimadas</small></span><span><b>{currency(gross)}</b><br /><small className="text-slate-500">bruto estimado</small></span><span className="text-emerald-700"><b>{currency(net)}</b><br /><small className="text-slate-500">líquido estimado</small></span></div>{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={!selected || amountPerUnitValue <= 0 || mutation.isPending} type="submit">{mutation.isPending ? 'Agendando...' : 'Salvar na agenda'}</button></div></form></ModalShell>;
 }
 
-function GoalDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const mutation = useCreateInvestmentGoalMutation();
-  const [name, setName] = useState('Patrimônio total');
-  const [targetAmount, setTargetAmount] = useState(10000);
-  const [monthlyContribution, setMonthlyContribution] = useState(500);
-  const [annualGrowthRate, setAnnualGrowthRate] = useState(0);
+function GoalDialog({ goal, open, onClose }: { goal: InvestmentGoalResponse | null; open: boolean; onClose: () => void }) {
+  const createMutation = useCreateInvestmentGoalMutation();
+  const updateMutation = useUpdateInvestmentGoalMutation();
+  const [name, setName] = useState(goal?.name ?? 'Patrimônio total');
+  const [targetAmount, setTargetAmount] = useState(goal?.targetAmount ?? 10000);
+  const [initialAmount, setInitialAmount] = useState(goal?.initialAmount ?? 0);
+  const [monthlyContribution, setMonthlyContribution] = useState(goal?.monthlyContribution ?? 500);
+  const [annualGrowthRate, setAnnualGrowthRate] = useState(goal?.annualGrowthRate ?? 0);
   const [error, setError] = useState('');
   if (!open) return null;
-  const submit = (event: FormEvent) => { event.preventDefault(); setError(''); mutation.mutate({ name, targetAmount, monthlyContribution, annualGrowthRate }, { onSuccess: onClose, onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível criar a meta.')) }); };
-  return <ModalShell eyebrow="Planejamento" title="Criar meta de patrimônio" onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="text-sm leading-6 text-slate-500">A estimativa combina o patrimônio atual, seu aporte mensal e uma taxa anual opcional. Ela não substitui uma projeção de mercado.</p><Field label="Nome da meta"><input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Objetivo (R$)" value={targetAmount} onChange={setTargetAmount} /><NumberField label="Aporte mensal (R$)" value={monthlyContribution} onChange={setMonthlyContribution} /></div><NumberField label="Variação anual estimada (%)" value={annualGrowthRate} onChange={setAnnualGrowthRate} step="0.0001" />{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={targetAmount <= 0 || mutation.isPending} type="submit">{mutation.isPending ? 'Criando...' : 'Criar meta'}</button></div></form></ModalShell>;
+  const pending = createMutation.isPending || updateMutation.isPending;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    const data = { name, targetAmount, initialAmount, monthlyContribution, annualGrowthRate };
+    const options = { onSuccess: onClose, onError: (reason: unknown) => setError(getApiErrorMessage(reason, 'Não foi possível salvar a meta.')) };
+    if (goal) updateMutation.mutate({ id: goal.id, data }, options); else createMutation.mutate(data, options);
+  };
+  return <ModalShell eyebrow="Planejamento" title={goal ? 'Editar meta de patrimônio' : 'Criar meta de patrimônio'} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="text-sm leading-6 text-slate-500">O saldo desta meta é separado da carteira: informe o valor que você decidiu destinar a ela. A taxa anual pode ser revisada a qualquer momento.</p><Field label="Nome da meta"><input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Objetivo (R$)" value={targetAmount} onChange={setTargetAmount} /><NumberField label="Valor inicial destinado (R$)" value={initialAmount} onChange={setInitialAmount} /></div><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Aporte mensal previsto (R$)" value={monthlyContribution} onChange={setMonthlyContribution} /><NumberField label="Variação anual estimada (%)" value={annualGrowthRate} onChange={setAnnualGrowthRate} step="0.0001" /></div>{goal && goal.contributionsAmount > 0 && <p className="rounded-2xl bg-slate-100 px-4 py-3 text-xs text-slate-600">Aportes já registrados: {currency(goal.contributionsAmount)}. Eles permanecem na meta ao editar os dados.</p>}{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={targetAmount <= 0 || pending} type="submit">{pending ? 'Salvando...' : goal ? 'Salvar alterações' : 'Criar meta'}</button></div></form></ModalShell>;
+}
+
+function GoalContributionDialog({ goal, onClose }: { goal: InvestmentGoalResponse | null; onClose: () => void }) {
+  const mutation = useContributeToInvestmentGoalMutation();
+  const [amount, setAmount] = useState(0);
+  const [eventDate, setEventDate] = useState(today);
+  const [error, setError] = useState('');
+  if (!goal) return null;
+  const submit = (event: FormEvent) => { event.preventDefault(); setError(''); mutation.mutate({ id: goal.id, data: { amount, eventDate } }, { onSuccess: onClose, onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível registrar o aporte.')) }); };
+  return <ModalShell eyebrow="Meta" title={`Registrar aporte em ${goal.name}`} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="rounded-[20px] bg-emerald-50 p-4 text-sm leading-6 text-slate-600">Este valor será destinado somente a esta meta. Ele não altera nem redistribui o patrimônio das outras metas.</p><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Valor destinado (R$)" value={amount} onChange={setAmount} /><DateField label="Data do aporte" value={eventDate} onChange={setEventDate} /></div>{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={amount <= 0 || mutation.isPending} type="submit">{mutation.isPending ? 'Registrando...' : 'Registrar aporte'}</button></div></form></ModalShell>;
 }
 
 function IncomeDialog({ position, onClose }: { position: InvestmentPositionResponse | null; onClose: () => void }) {
@@ -550,6 +575,7 @@ function assetLabel(type: InvestmentAssetType) { return ({ ACAO: 'Ações', FII:
 function currency(value: number) { return numberCurrency(value, 'BRL'); }
 function numberCurrency(value: number, code: string) { try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: code || 'BRL' }).format(value); } catch { return `${code} ${value.toFixed(2)}`; } }
 function compactCurrency(value: number) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(value); }
+function parseDecimalInput(value: string) { const normalized = value.includes(',') ? value.replace(/\./g, '').replace(',', '.') : value; const parsed = Number(normalized); return Number.isFinite(parsed) ? parsed : 0; }
 function signedCurrency(value: number) { return `${value >= 0 ? '+' : '-'} ${currency(Math.abs(value))}`; }
 function signedPercent(value: number) { return `${value >= 0 ? '+' : '-'} ${Math.abs(value).toFixed(2).replace('.', ',')}%`; }
 function formatQuantity(value: number | null) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 8 }).format(value ?? 0); }
