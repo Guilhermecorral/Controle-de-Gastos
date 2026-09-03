@@ -2,11 +2,19 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.3.3] - 2026-09-03
+
+- Agenda de proventos por ativo com valor por cota, Data Com opcional, pagamento e status de recebimento.
+- Estimativa bruta, imposto retido e valor líquido calculados pela quantidade existente na Data Com.
+- Confirmação de recebimento integra o valor líquido ao histórico de investimentos e às receitas financeiras, sem duplicidade.
+- Metas de patrimônio com objetivo, aporte mensal, variação anual opcional, progresso e previsão de conclusão.
+
 ## [1.3.2] - 2026-09-02
 
 - Painel individual do ativo com preço médio, cotação atual, ganho de capital, proventos e retorno total separados.
 - Rentabilidade consolidada corrigida para distinguir valorização da posição e renda efetivamente registrada.
 - Evolução patrimonial baseada em retratos diários reais, sem fabricar cotações anteriores ao início do acompanhamento.
+- Gráfico patrimonial reformulado com escala monetária, capital investido, valor da carteira e variação do período.
 - Simulador de juros compostos com valor inicial, aporte mensal, taxa mensal ou anual e visão mensal ou anual.
 - Resultado do simulador com saldo final, total investido, juros ganhos, composição visual e tabela por período.
 - Registro de proventos redesenhado como modal integrado à identidade visual do Farol, com valor e data de recebimento.

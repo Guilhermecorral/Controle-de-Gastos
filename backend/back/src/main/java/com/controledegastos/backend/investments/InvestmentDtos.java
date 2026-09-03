@@ -145,6 +145,52 @@ public final class InvestmentDtos {
             @NotNull LocalDate eventDate
     ) {}
 
+    public record IncomeScheduleRequest(
+            @NotNull Long positionId,
+            @NotNull InvestmentMovement.MovementType incomeType,
+            @NotNull @DecimalMin(value = "0.00000001") BigDecimal amountPerUnit,
+            @DecimalMin(value = "0.00") BigDecimal taxRate,
+            LocalDate exDate,
+            @NotNull LocalDate paymentDate
+    ) {}
+
+    public record IncomeScheduleResponse(
+            Long id,
+            Long positionId,
+            String symbol,
+            String assetName,
+            InvestmentMovement.MovementType incomeType,
+            BigDecimal amountPerUnit,
+            BigDecimal quantityEligible,
+            BigDecimal grossAmount,
+            BigDecimal taxRate,
+            BigDecimal taxAmount,
+            BigDecimal netAmount,
+            LocalDate exDate,
+            LocalDate paymentDate,
+            InvestmentIncomeSchedule.Status status
+    ) {}
+
+    public record GoalRequest(
+            @NotBlank @Size(max = 100) String name,
+            @NotNull @DecimalMin(value = "0.01") BigDecimal targetAmount,
+            @DecimalMin(value = "0.00") BigDecimal monthlyContribution,
+            @DecimalMin(value = "0.00") BigDecimal annualGrowthRate
+    ) {}
+
+    public record GoalResponse(
+            Long id,
+            String name,
+            BigDecimal targetAmount,
+            BigDecimal currentAmount,
+            BigDecimal remainingAmount,
+            BigDecimal progressPercent,
+            BigDecimal monthlyContribution,
+            BigDecimal annualGrowthRate,
+            Integer estimatedMonths,
+            boolean achieved
+    ) {}
+
     public record MovementResponse(
             Long id,
             Long positionId,

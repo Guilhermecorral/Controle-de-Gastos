@@ -161,7 +161,7 @@ Para relatar uma vulnerabilidade, prefira um contato privado com o mantenedor em
 
 ## Estado do Projeto
 
-A versão atual é a **1.3.2**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco atual na evolução da carteira de investimentos, proventos, metas e conciliação tributária.
+A versão atual é a **1.3.3**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco atual na evolução da carteira de investimentos e na conciliação tributária.
 
 ## Autoria
 

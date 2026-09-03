@@ -28,9 +28,10 @@ class InvestmentServiceTest {
     private final InvestmentMovementRepository movementRepository = mock(InvestmentMovementRepository.class);
     private final MarketQuoteService marketQuoteService = mock(MarketQuoteService.class);
     private final InvestmentPortfolioSnapshotRepository snapshotRepository = mock(InvestmentPortfolioSnapshotRepository.class);
+    private final InvestmentIncomeScheduleRepository incomeScheduleRepository = mock(InvestmentIncomeScheduleRepository.class);
     private final InvestmentService service = new InvestmentService(repository, authenticatedUserService,
             marketQuoteService, mock(AssetCatalogService.class), movementRepository, snapshotRepository,
-            mock(TransactionRepository.class));
+            mock(TransactionRepository.class), incomeScheduleRepository, mock(InvestmentGoalRepository.class));
 
     @Test
     void shouldProjectTwelvePercentWithCompoundInterest() {
@@ -71,12 +72,14 @@ class InvestmentServiceTest {
     @Test
     void shouldCondenseLongProjectionIntoAnnualRows() {
         ProjectionResponse result = service.projection(
-                new BigDecimal("1000"), BigDecimal.ZERO, new BigDecimal("1"), RatePeriod.MONTHLY,
+                new BigDecimal("1000"), new BigDecimal("100"), new BigDecimal("1"), RatePeriod.MONTHLY,
                 TimelinePeriod.YEARLY, LocalDate.of(2026, 1, 1), LocalDate.of(2028, 7, 1)
         );
 
         assertThat(result.months()).isEqualTo(30);
         assertThat(result.timeline()).extracting(point -> point.month()).containsExactly(12, 24, 30);
+        assertThat(result.timeline()).extracting(point -> point.contribution())
+                .containsExactly(new BigDecimal("1200.00"), new BigDecimal("1200.00"), new BigDecimal("600.00"));
     }
 
     @Test
@@ -150,6 +153,35 @@ class InvestmentServiceTest {
         assertThatThrownBy(() -> service.recordTrade(trade(InvestmentMovement.MovementType.VENDA,
                 new BigDecimal("4"), new BigDecimal("21"), BigDecimal.ZERO)))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("excede");
+    }
+
+    @Test
+    void shouldEstimateScheduledIncomeUsingQuantityOwnedOnExDate() {
+        User user = User.builder().id(7L).name("Pessoa").email("pessoa@example.com").password("secret").build();
+        InvestmentPosition position = InvestmentPosition.builder()
+                .id(10L).user(user).assetType(InvestmentPosition.AssetType.ACAO).symbol("BBAS3")
+                .name("Banco do Brasil ON").market("BR").currency("BRL").quantity(new BigDecimal("1"))
+                .averagePrice(new BigDecimal("20")).purchaseDate(LocalDate.of(2026, 1, 2)).build();
+        InvestmentMovement purchase = InvestmentMovement.builder().position(position)
+                .movementType(InvestmentMovement.MovementType.COMPRA).quantity(new BigDecimal("5"))
+                .eventDate(LocalDate.of(2026, 7, 1)).build();
+        InvestmentMovement sale = InvestmentMovement.builder().position(position)
+                .movementType(InvestmentMovement.MovementType.VENDA).quantity(new BigDecimal("2"))
+                .eventDate(LocalDate.of(2026, 8, 1)).build();
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        when(repository.findByIdAndUser(10L, user)).thenReturn(Optional.of(position));
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase, sale));
+        when(incomeScheduleRepository.save(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        InvestmentDtos.IncomeScheduleResponse result = service.createIncomeSchedule(new InvestmentDtos.IncomeScheduleRequest(
+                10L, InvestmentMovement.MovementType.DIVIDENDO, new BigDecimal("2.00"), new BigDecimal("10"),
+                LocalDate.of(2026, 8, 15), LocalDate.of(2026, 8, 30)
+        ));
+
+        assertThat(result.quantityEligible()).isEqualByComparingTo("3");
+        assertThat(result.grossAmount()).isEqualByComparingTo("6.00");
+        assertThat(result.taxAmount()).isEqualByComparingTo("0.60");
+        assertThat(result.netAmount()).isEqualByComparingTo("5.40");
     }
 
     private TradeRequest trade(InvestmentMovement.MovementType type, BigDecimal quantity, BigDecimal price, BigDecimal fees) {

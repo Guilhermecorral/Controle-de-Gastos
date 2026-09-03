@@ -492,3 +492,49 @@ export interface InvestmentMovementResponse {
   eventDate: string;
   automatic: boolean;
 }
+
+export interface InvestmentIncomeScheduleRequest {
+  positionId: number;
+  incomeType: 'DIVIDENDO' | 'RENDIMENTO';
+  amountPerUnit: number;
+  taxRate: number;
+  exDate: string | null;
+  paymentDate: string;
+}
+
+export interface InvestmentIncomeScheduleResponse {
+  id: number;
+  positionId: number;
+  symbol: string | null;
+  assetName: string;
+  incomeType: 'DIVIDENDO' | 'RENDIMENTO';
+  amountPerUnit: number;
+  quantityEligible: number;
+  grossAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  netAmount: number;
+  exDate: string | null;
+  paymentDate: string;
+  status: 'AGUARDANDO' | 'RECEBIDO';
+}
+
+export interface InvestmentGoalRequest {
+  name: string;
+  targetAmount: number;
+  monthlyContribution: number;
+  annualGrowthRate: number;
+}
+
+export interface InvestmentGoalResponse {
+  id: number;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  remainingAmount: number;
+  progressPercent: number;
+  monthlyContribution: number;
+  annualGrowthRate: number;
+  estimatedMonths: number | null;
+  achieved: boolean;
+}

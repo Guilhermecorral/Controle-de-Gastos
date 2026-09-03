@@ -129,3 +129,11 @@ repomix-output.xml
 repomix-frontend.xml
 repomix-backend.xml
 repomix.*
+
+#docs
+security-audit/*
+docs/security-audit
+docs/security-audit/*
+docs/security-audit/generate_report.py
+docs/security-audit/Relatorio_Seguranca_Farol_Financeiro.pdf
+docs/security-audit/requirements.txt

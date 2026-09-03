@@ -33,6 +33,8 @@ public class InvestmentService {
     private final InvestmentMovementRepository movementRepository;
     private final InvestmentPortfolioSnapshotRepository snapshotRepository;
     private final TransactionRepository transactionRepository;
+    private final InvestmentIncomeScheduleRepository incomeScheduleRepository;
+    private final InvestmentGoalRepository goalRepository;
 
     @Value("${app.investments.default-annual-rate:12.0}")
     private BigDecimal defaultAnnualRate;
@@ -182,14 +184,96 @@ public class InvestmentService {
         User user = authenticatedUserService.getAuthenticatedUser();
         InvestmentPosition position = repository.findByIdAndUser(positionId, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Investimento não encontrado"));
+        return recordIncome(user, position, request.movementType(), request.amount(), request.eventDate(), null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IncomeScheduleResponse> incomeSchedules() {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        return incomeScheduleRepository.findAllByUserOrderByPaymentDateAscCreatedAtDesc(user).stream()
+                .map(this::toIncomeScheduleResponse).toList();
+    }
+
+    @Transactional
+    public IncomeScheduleResponse createIncomeSchedule(IncomeScheduleRequest request) {
+        if (request.incomeType() != InvestmentMovement.MovementType.DIVIDENDO
+                && request.incomeType() != InvestmentMovement.MovementType.RENDIMENTO) {
+            throw new IllegalArgumentException("A agenda aceita apenas dividendos ou rendimentos");
+        }
+        if (request.exDate() != null && request.paymentDate().isBefore(request.exDate())) {
+            throw new IllegalArgumentException("A data de pagamento deve ser igual ou posterior à Data Com");
+        }
+        User user = authenticatedUserService.getAuthenticatedUser();
+        InvestmentPosition position = repository.findByIdAndUser(request.positionId(), user)
+                .orElseThrow(() -> new ResourceNotFoundException("Investimento não encontrado"));
+        InvestmentIncomeSchedule schedule = InvestmentIncomeSchedule.builder()
+                .user(user).position(position).incomeType(request.incomeType()).amountPerUnit(request.amountPerUnit())
+                .taxRate(request.taxRate() == null ? BigDecimal.ZERO : request.taxRate())
+                .exDate(request.exDate()).paymentDate(request.paymentDate()).build();
+        return toIncomeScheduleResponse(incomeScheduleRepository.save(schedule));
+    }
+
+    @Transactional
+    public IncomeScheduleResponse receiveIncomeSchedule(Long id) {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        InvestmentIncomeSchedule schedule = incomeScheduleRepository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Provento agendado não encontrado"));
+        if (schedule.getStatus() == InvestmentIncomeSchedule.Status.RECEBIDO) {
+            throw new IllegalArgumentException("Este provento já foi registrado como recebido");
+        }
+        IncomeScheduleResponse response = toIncomeScheduleResponse(schedule);
+        recordIncome(user, schedule.getPosition(), schedule.getIncomeType(), response.netAmount(),
+                schedule.getPaymentDate(), "income-schedule:" + schedule.getId());
+        schedule.setStatus(InvestmentIncomeSchedule.Status.RECEBIDO);
+        return toIncomeScheduleResponse(incomeScheduleRepository.save(schedule));
+    }
+
+    @Transactional
+    public void deleteIncomeSchedule(Long id) {
+        InvestmentIncomeSchedule schedule = incomeScheduleRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Provento agendado não encontrado"));
+        if (schedule.getStatus() == InvestmentIncomeSchedule.Status.RECEBIDO) {
+            throw new IllegalArgumentException("Proventos recebidos não podem ser removidos da agenda");
+        }
+        incomeScheduleRepository.delete(schedule);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GoalResponse> goals() {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        BigDecimal currentAmount = currentPortfolioValue(user);
+        return goalRepository.findAllByUserAndActiveTrueOrderByCreatedAtDesc(user).stream()
+                .map(goal -> toGoalResponse(goal, currentAmount)).toList();
+    }
+
+    @Transactional
+    public GoalResponse createGoal(GoalRequest request) {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        InvestmentGoal goal = InvestmentGoal.builder().user(user).name(request.name().trim())
+                .targetAmount(request.targetAmount())
+                .monthlyContribution(request.monthlyContribution() == null ? BigDecimal.ZERO : request.monthlyContribution())
+                .annualGrowthRate(request.annualGrowthRate() == null ? BigDecimal.ZERO : request.annualGrowthRate()).build();
+        goal = goalRepository.save(goal);
+        return toGoalResponse(goal, currentPortfolioValue(user));
+    }
+
+    @Transactional
+    public void deleteGoal(Long id) {
+        InvestmentGoal goal = goalRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Meta não encontrada"));
+        goalRepository.delete(goal);
+    }
+
+    private MovementResponse recordIncome(User user, InvestmentPosition position, InvestmentMovement.MovementType movementType,
+                                           BigDecimal amount, LocalDate eventDate, String externalReference) {
         InvestmentMovement movement = movementRepository.save(InvestmentMovement.builder()
-                .user(user).position(position).movementType(request.movementType()).amount(request.amount())
-                .eventDate(request.eventDate()).automatic(false).build());
+                .user(user).position(position).movementType(movementType).amount(money(amount))
+                .eventDate(eventDate).automatic(false).externalReference(externalReference).build());
         transactionRepository.save(Transaction.builder()
                 .user(user).type(Transaction.TransactionType.RECEITA)
-                .description((request.movementType() == InvestmentMovement.MovementType.DIVIDENDO ? "Dividendo - " : "Rendimento - ") + position.getName())
-                .category(Transaction.TransactionCategory.OUTROS).amount(request.amount())
-                .paymentMethod(Transaction.PaymentMethod.PIX).installments(1).transactionDate(request.eventDate()).build());
+                .description((movementType == InvestmentMovement.MovementType.DIVIDENDO ? "Dividendo - " : "Rendimento - ") + position.getName())
+                .category(Transaction.TransactionCategory.OUTROS).amount(money(amount))
+                .paymentMethod(Transaction.PaymentMethod.PIX).installments(1).transactionDate(eventDate).build());
         return toMovementResponse(movement);
     }
 
@@ -228,16 +312,19 @@ public class InvestmentService {
         BigDecimal totalInvested = initial;
         BigDecimal totalInterest = BigDecimal.ZERO;
         BigDecimal periodInterest = BigDecimal.ZERO;
+        BigDecimal periodContribution = BigDecimal.ZERO;
         for (int month = 1; month <= months; month++) {
             BigDecimal monthInterest = balance.multiply(monthlyRate);
             totalInterest = totalInterest.add(monthInterest);
             periodInterest = periodInterest.add(monthInterest);
             balance = balance.add(monthInterest).add(contribution);
             totalInvested = totalInvested.add(contribution);
+            periodContribution = periodContribution.add(contribution);
             if (selectedTimelinePeriod == TimelinePeriod.MONTHLY || month % 12 == 0 || month == months) {
-                timeline.add(new ProjectionPoint(month, start.plusMonths(month), money(contribution), money(periodInterest),
+                timeline.add(new ProjectionPoint(month, start.plusMonths(month), money(periodContribution), money(periodInterest),
                         money(totalInvested), money(totalInterest), money(balance)));
                 periodInterest = BigDecimal.ZERO;
+                periodContribution = BigDecimal.ZERO;
             }
         }
         return new ProjectionResponse(money(initial), money(contribution), rate.setScale(4, RoundingMode.HALF_UP),
@@ -273,6 +360,63 @@ public class InvestmentService {
                 position.getQuantity(), position.getAveragePrice(), position.getPrincipal(), position.getAnnualRate(),
                 position.getPurchaseDate(), position.getMaturityDate(), money(invested), money(current), money(capitalGain),
                 percentage(capitalGain, invested), money(income), money(totalReturn), percentage(totalReturn, invested), quote);
+    }
+
+    private IncomeScheduleResponse toIncomeScheduleResponse(InvestmentIncomeSchedule schedule) {
+        InvestmentPosition position = schedule.getPosition();
+        BigDecimal quantity = eligibleQuantity(position, schedule.getExDate());
+        BigDecimal gross = quantity.multiply(schedule.getAmountPerUnit());
+        BigDecimal tax = gross.multiply(schedule.getTaxRate()).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP);
+        return new IncomeScheduleResponse(schedule.getId(), position.getId(), position.getSymbol(), position.getName(),
+                schedule.getIncomeType(), schedule.getAmountPerUnit(), quantity, money(gross), schedule.getTaxRate(),
+                money(tax), money(gross.subtract(tax)), schedule.getExDate(), schedule.getPaymentDate(), schedule.getStatus());
+    }
+
+    private BigDecimal eligibleQuantity(InvestmentPosition position, LocalDate exDate) {
+        if (exDate == null) return position.getQuantity() == null ? BigDecimal.ONE : position.getQuantity();
+        List<InvestmentMovement> movements = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(position.getUser());
+        BigDecimal quantity = movements.stream().filter(movement -> movement.getPosition().getId().equals(position.getId()))
+                .filter(movement -> !movement.getEventDate().isAfter(exDate))
+                .map(movement -> switch (movement.getMovementType()) {
+                    case COMPRA -> movement.getQuantity() == null ? BigDecimal.ZERO : movement.getQuantity();
+                    case VENDA -> movement.getQuantity() == null ? BigDecimal.ZERO : movement.getQuantity().negate();
+                    default -> BigDecimal.ZERO;
+                }).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (quantity.signum() == 0 && position.getPurchaseDate().isAfter(exDate)) return BigDecimal.ZERO;
+        return quantity.signum() == 0 ? (position.getQuantity() == null ? BigDecimal.ONE : position.getQuantity()) : quantity;
+    }
+
+    private BigDecimal currentPortfolioValue(User user) {
+        List<InvestmentMovement> movements = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user);
+        Map<Long, BigDecimal> incomeByPosition = movements.stream().filter(this::isIncome)
+                .collect(Collectors.groupingBy(movement -> movement.getPosition().getId(),
+                        Collectors.reducing(BigDecimal.ZERO, InvestmentMovement::getAmount, BigDecimal::add)));
+        return repository.findAllByUserOrderByCreatedAtDesc(user).stream()
+                .filter(position -> position.getAssetType() == InvestmentPosition.AssetType.RENDA_FIXA
+                        || position.getQuantity() == null || position.getQuantity().signum() > 0)
+                .map(position -> toResponse(position, incomeByPosition.getOrDefault(position.getId(), ZERO)).currentValue())
+                .reduce(ZERO, BigDecimal::add);
+    }
+
+    private GoalResponse toGoalResponse(InvestmentGoal goal, BigDecimal currentAmount) {
+        BigDecimal remaining = goal.getTargetAmount().subtract(currentAmount).max(BigDecimal.ZERO);
+        boolean achieved = remaining.signum() == 0;
+        BigDecimal progress = goal.getTargetAmount().signum() == 0 ? BigDecimal.ZERO
+                : currentAmount.multiply(BigDecimal.valueOf(100)).divide(goal.getTargetAmount(), 2, RoundingMode.HALF_UP).min(BigDecimal.valueOf(100));
+        return new GoalResponse(goal.getId(), goal.getName(), money(goal.getTargetAmount()), money(currentAmount), money(remaining),
+                progress, money(goal.getMonthlyContribution()), goal.getAnnualGrowthRate(),
+                achieved ? 0 : monthsToGoal(currentAmount, goal.getTargetAmount(), goal.getMonthlyContribution(), goal.getAnnualGrowthRate()), achieved);
+    }
+
+    private Integer monthsToGoal(BigDecimal current, BigDecimal target, BigDecimal contribution, BigDecimal annualRate) {
+        double balance = Math.max(0, current.doubleValue());
+        double targetValue = target.doubleValue();
+        double monthlyRate = Math.pow(1 + annualRate.doubleValue() / 100D, 1D / 12D) - 1D;
+        for (int month = 1; month <= 1200; month++) {
+            balance = balance * (1 + monthlyRate) + contribution.doubleValue();
+            if (balance >= targetValue) return month;
+        }
+        return null;
     }
 
     private void saveDailySnapshot(User user, BigDecimal invested, BigDecimal current, BigDecimal income) {

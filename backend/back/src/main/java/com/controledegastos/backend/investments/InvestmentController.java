@@ -56,6 +56,39 @@ public class InvestmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.recordIncome(id, request));
     }
 
+    @GetMapping("/income-schedules")
+    public List<IncomeScheduleResponse> incomeSchedules() { return investmentService.incomeSchedules(); }
+
+    @PostMapping("/income-schedules")
+    public ResponseEntity<IncomeScheduleResponse> createIncomeSchedule(@Valid @RequestBody IncomeScheduleRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.createIncomeSchedule(request));
+    }
+
+    @PostMapping("/income-schedules/{id}/receive")
+    public IncomeScheduleResponse receiveIncomeSchedule(@PathVariable Long id) {
+        return investmentService.receiveIncomeSchedule(id);
+    }
+
+    @DeleteMapping("/income-schedules/{id}")
+    public ResponseEntity<Void> deleteIncomeSchedule(@PathVariable Long id) {
+        investmentService.deleteIncomeSchedule(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/goals")
+    public List<GoalResponse> goals() { return investmentService.goals(); }
+
+    @PostMapping("/goals")
+    public ResponseEntity<GoalResponse> createGoal(@Valid @RequestBody GoalRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.createGoal(request));
+    }
+
+    @DeleteMapping("/goals/{id}")
+    public ResponseEntity<Void> deleteGoal(@PathVariable Long id) {
+        investmentService.deleteGoal(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/quotes")
     public QuoteResponse quote(@RequestParam InvestmentPosition.AssetType type,
                                @RequestParam(required = false) String symbol,

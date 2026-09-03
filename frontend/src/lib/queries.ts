@@ -22,6 +22,10 @@ import {
   InvestmentProjectionResponse,
   InvestmentProjectionRequest,
   InvestmentMovementResponse,
+  InvestmentIncomeScheduleRequest,
+  InvestmentIncomeScheduleResponse,
+  InvestmentGoalRequest,
+  InvestmentGoalResponse,
   InvestmentTradeRequest,
   MonthlyAnalysisResponse,
   RegisterRequest,
@@ -120,6 +124,68 @@ export function useRecordInvestmentIncomeMutation() {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     },
+  })
+}
+
+export function useInvestmentIncomeSchedulesQuery() {
+  return useQuery({
+    queryKey: ['investments', 'income-schedules'],
+    queryFn: async () => (await api.get<InvestmentIncomeScheduleResponse[]>('/investments/income-schedules')).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useCreateInvestmentIncomeScheduleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: InvestmentIncomeScheduleRequest) =>
+      (await api.post<InvestmentIncomeScheduleResponse>('/investments/income-schedules', data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+  })
+}
+
+export function useReceiveInvestmentIncomeScheduleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.post<InvestmentIncomeScheduleResponse>(`/investments/income-schedules/${id}/receive`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
+export function useDeleteInvestmentIncomeScheduleMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => api.delete(`/investments/income-schedules/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+  })
+}
+
+export function useInvestmentGoalsQuery() {
+  return useQuery({
+    queryKey: ['investments', 'goals'],
+    queryFn: async () => (await api.get<InvestmentGoalResponse[]>('/investments/goals')).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useCreateInvestmentGoalMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: InvestmentGoalRequest) => (await api.post<InvestmentGoalResponse>('/investments/goals', data)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] }),
+  })
+}
+
+export function useDeleteInvestmentGoalMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => api.delete(`/investments/goals/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments', 'goals'] }),
   })
 }
 
