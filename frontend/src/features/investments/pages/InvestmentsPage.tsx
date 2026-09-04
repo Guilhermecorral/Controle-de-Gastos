@@ -42,13 +42,13 @@ import OFXUploader from '../../ofx-upload/components/OFXUploader';
 const today = new Date().toISOString().slice(0, 10);
 const nextYear = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
 type TradableType = Exclude<InvestmentAssetType, 'RENDA_FIXA'>;
+type MovementMode = 'COMPRA' | 'VENDA' | 'RENDA_FIXA';
 
 export default function InvestmentsPage() {
   const portfolioQuery = useInvestmentPortfolioQuery();
   const movementsQuery = useInvestmentMovementsQuery();
   const schedulesQuery = useInvestmentIncomeSchedulesQuery();
   const goalsQuery = useInvestmentGoalsQuery();
-  const createMutation = useCreateInvestmentMutation();
   const deleteMutation = useDeleteInvestmentMutation();
   const projectionMutation = useInvestmentProjectionMutation();
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -58,10 +58,6 @@ export default function InvestmentsPage() {
   const [goalOpen, setGoalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<InvestmentGoalResponse | null>(null);
   const [contributionGoal, setContributionGoal] = useState<InvestmentGoalResponse | null>(null);
-  const [fixedForm, setFixedForm] = useState<InvestmentPositionRequest>({
-    assetType: 'RENDA_FIXA', symbol: null, externalId: null, name: '', quantity: null, averagePrice: null,
-    principal: 0, annualRate: 12, purchaseDate: today, maturityDate: nextYear, market: 'BR', currency: 'BRL', exchange: null,
-  });
   const [projection, setProjection] = useState<InvestmentProjectionRequest>({
     initialAmount: 1000,
     monthlyContribution: 500,
@@ -71,8 +67,6 @@ export default function InvestmentsPage() {
     startDate: today,
     endDate: nextYear,
   });
-  const [feedback, setFeedback] = useState('');
-
   if (portfolioQuery.isLoading) return <LoadingCard label="Buscando sua carteira e atualizando as cotações." />;
   if (portfolioQuery.isError) return <UnavailableCard label={getApiErrorMessage(portfolioQuery.error, 'Não foi possível carregar os investimentos.')} />;
   const portfolio = portfolioQuery.data;
@@ -80,18 +74,6 @@ export default function InvestmentsPage() {
     totals[position.assetType] += position.currentValue;
     return totals;
   }, { ACAO: 0, FII: 0, CRIPTO: 0, RENDA_FIXA: 0 });
-
-  const createFixedIncome = (event: FormEvent) => {
-    event.preventDefault();
-    setFeedback('');
-    createMutation.mutate(fixedForm, {
-      onSuccess: () => {
-        setFeedback('Aplicação de renda fixa adicionada.');
-        setFixedForm((current) => ({ ...current, name: '', principal: 0 }));
-      },
-      onError: (error) => setFeedback(getApiErrorMessage(error, 'Não foi possível salvar a aplicação.')),
-    });
-  };
 
   return (
     <div className="space-y-6">
@@ -126,7 +108,7 @@ export default function InvestmentsPage() {
 
       <SectionCard title="Minha carteira">
           <p className="mb-5 text-sm leading-7 text-slate-500">Ações, FIIs e criptos são consolidados pelas compras e vendas. A fonte e o horário da cotação permanecem visíveis.</p>
-          <div className="space-y-3">
+          <div className="max-h-[648px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">
             {(portfolio?.positions ?? []).length === 0 && <EmptyPortfolio onAdd={() => setTradeOpen(true)} />}
             {(portfolio?.positions ?? []).map((position) => (
               <article key={position.id} className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
@@ -163,20 +145,15 @@ export default function InvestmentsPage() {
           </div>
       </SectionCard>
 
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[1.25fr_.75fr]">
-        <div className="min-w-0">
-          <PortfolioEvolution points={portfolio?.evolution ?? []} />
+      <div className="grid items-stretch gap-6 xl:grid-cols-[1.35fr_.65fr]">
+        <div className="h-full [&>section]:h-full">
+          <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
         </div>
-        <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => { setEditingGoal(null); setGoalOpen(true); }} onContribute={setContributionGoal} onEdit={(goal) => { setEditingGoal(goal); setGoalOpen(true); }} />
-      </div>
-
-      <div className="grid items-start gap-6 xl:grid-cols-[1.35fr_.65fr]">
-        <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
 
         <div className="space-y-6">
           <SectionCard title="Últimas movimentações">
-            <div className="space-y-3">
-              {(movementsQuery.data ?? []).slice(0, 6).map((movement) => (
+            <div className="max-h-[252px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">
+              {(movementsQuery.data ?? []).map((movement) => (
                 <div key={movement.id} className="flex items-center justify-between gap-3 rounded-[18px] bg-slate-50 p-3">
                   <div className="flex items-center gap-3">
                     <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${movement.movementType === 'VENDA' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>{movement.movementType === 'VENDA' ? <ArrowUpRight size={17} /> : <ArrowDownLeft size={17} />}</span>
@@ -189,18 +166,11 @@ export default function InvestmentsPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Nova renda fixa">
-            <form className="space-y-4" onSubmit={createFixedIncome}>
-              <Field label="Nome da aplicação"><input className={inputClass} required value={fixedForm.name} onChange={(e) => setFixedForm({ ...fixedForm, name: e.target.value })} placeholder="CDB, Tesouro ou LCI" /></Field>
-              <NumberField label="Valor aplicado" value={fixedForm.principal ?? 0} onChange={(principal) => setFixedForm({ ...fixedForm, principal })} />
-              <NumberField label="Taxa anual (%)" value={fixedForm.annualRate ?? 12} onChange={(annualRate) => setFixedForm({ ...fixedForm, annualRate })} />
-              <div className="grid gap-3 sm:grid-cols-2"><DateField label="Aplicação" value={fixedForm.purchaseDate} onChange={(purchaseDate) => setFixedForm({ ...fixedForm, purchaseDate })} /><DateField label="Vencimento" value={fixedForm.maturityDate ?? nextYear} onChange={(maturityDate) => setFixedForm({ ...fixedForm, maturityDate })} /></div>
-              {feedback && <p className="text-sm text-emerald-700">{feedback}</p>}
-              <button className="w-full rounded-full bg-slate-900 px-5 py-3 font-semibold text-white disabled:bg-slate-400" disabled={createMutation.isPending} type="submit">Adicionar aplicação</button>
-            </form>
-          </SectionCard>
+          <GoalsPanel goals={goalsQuery.data ?? []} loading={goalsQuery.isLoading} onAdd={() => { setEditingGoal(null); setGoalOpen(true); }} onContribute={setContributionGoal} onEdit={(goal) => { setEditingGoal(goal); setGoalOpen(true); }} />
         </div>
       </div>
+
+      <PortfolioEvolution points={portfolio?.evolution ?? []} />
 
       <TaxAndReconciliationPanel />
 
@@ -232,7 +202,8 @@ export default function InvestmentsPage() {
 
 function TradeDialog({ open, positions, onClose }: { open: boolean; positions: InvestmentPositionResponse[]; onClose: () => void }) {
   const mutation = useRecordInvestmentTradeMutation();
-  const [movementType, setMovementType] = useState<'COMPRA' | 'VENDA'>('COMPRA');
+  const fixedIncomeMutation = useCreateInvestmentMutation();
+  const [mode, setMode] = useState<MovementMode>('COMPRA');
   const [assetType, setAssetType] = useState<TradableType>('ACAO');
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
@@ -243,7 +214,11 @@ function TradeDialog({ open, positions, onClose }: { open: boolean; positions: I
   const [fees, setFees] = useState(0);
   const [eventDate, setEventDate] = useState(today);
   const [error, setError] = useState('');
-  const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && movementType === 'COMPRA' && !selected);
+  const [fixedForm, setFixedForm] = useState<InvestmentPositionRequest>({
+    assetType: 'RENDA_FIXA', symbol: null, externalId: null, name: '', quantity: null, averagePrice: null,
+    principal: 0, annualRate: 12, purchaseDate: today, maturityDate: nextYear, market: 'BR', currency: 'BRL', exchange: null,
+  });
+  const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && mode === 'COMPRA' && !selected);
   if (!open) return null;
 
   const chooseAsset = (asset: InvestmentAssetSearchResponse, id: number | null = null, price?: number | null) => {
@@ -257,8 +232,18 @@ function TradeDialog({ open, positions, onClose }: { open: boolean; positions: I
   const resetSelection = () => { setSelected(null); setPositionId(null); setQuery(''); setUnitPrice(0); setError(''); };
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (mode === 'RENDA_FIXA') {
+      fixedIncomeMutation.mutate(fixedForm, {
+        onSuccess: () => {
+          setFixedForm((current) => ({ ...current, name: '', principal: 0 }));
+          onClose();
+        },
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível salvar a aplicação.')),
+      });
+      return;
+    }
     if (!selected) return setError('Selecione um ativo verificado para continuar.');
-    const payload: InvestmentTradeRequest = { positionId, movementType, assetType: selected.assetType as TradableType, symbol: selected.symbol,
+    const payload: InvestmentTradeRequest = { positionId, movementType: mode, assetType: selected.assetType as TradableType, symbol: selected.symbol,
       externalId: selected.externalId, name: selected.name, market: selected.market, exchange: selected.exchange,
       currency: selected.currency, quantity, unitPrice, fees, eventDate };
     mutation.mutate(payload, { onSuccess: () => { onClose(); resetSelection(); }, onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível registrar a movimentação.')) });
@@ -269,15 +254,15 @@ function TradeDialog({ open, positions, onClose }: { open: boolean; positions: I
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[30px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
-          <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-600">Movimentação</p><h3 className="mt-1 text-xl font-semibold text-slate-950">Registrar compra ou venda</h3></div>
+          <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-600">Investimentos</p><h3 className="mt-1 text-xl font-semibold text-slate-950">Nova movimentação</h3></div>
           <button className="rounded-full bg-slate-100 p-2 text-slate-500 hover:text-slate-900" type="button" onClick={onClose}><X size={20} /></button>
         </div>
         <form className="space-y-5 p-6" onSubmit={submit}>
-          <div className="grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
-            {(['COMPRA', 'VENDA'] as const).map((type) => <button key={type} className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${movementType === type ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMovementType(type); resetSelection(); }}>{type === 'COMPRA' ? 'Compra' : 'Venda'}</button>)}
+          <div className="grid grid-cols-3 rounded-2xl bg-slate-100 p-1">
+            {(['COMPRA', 'VENDA', 'RENDA_FIXA'] as MovementMode[]).map((type) => <button key={type} className={`rounded-xl px-2 py-3 text-sm font-semibold transition sm:px-4 ${mode === type ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode(type); resetSelection(); }}>{type === 'COMPRA' ? 'Compra' : type === 'VENDA' ? 'Venda' : 'Renda fixa'}</button>)}
           </div>
 
-          {!selected && movementType === 'COMPRA' && <>
+          {!selected && mode === 'COMPRA' && <>
             <div className="flex flex-wrap gap-2">{(['ACAO', 'FII', 'CRIPTO'] as TradableType[]).map((type) => <button key={type} className={`rounded-full border px-4 py-2 text-sm font-semibold ${assetType === type ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 text-slate-600'}`} type="button" onClick={() => { setAssetType(type); setQuery(''); }}>{assetLabel(type)}</button>)}</div>
             <Field label="Busque pelo ticker ou nome do ativo"><div className="relative"><Search className="absolute left-4 top-3.5 text-slate-400" size={19} /><input autoFocus className={`${inputClass} pl-11`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={assetType === 'CRIPTO' ? 'Bitcoin, Ethereum...' : 'ITUB4, Itaú, Apple...'} /></div></Field>
             <div className="space-y-2">
@@ -287,15 +272,22 @@ function TradeDialog({ open, positions, onClose }: { open: boolean; positions: I
             </div>
           </>}
 
-          {!selected && movementType === 'VENDA' && <div className="space-y-2"><p className="text-sm font-semibold text-slate-700">Selecione uma posição disponível</p>{sellable.map((position) => <button key={position.id} className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left hover:border-rose-200" type="button" onClick={() => choosePosition(position)}><div><p className="font-semibold text-slate-950">{position.symbol || position.name}</p><p className="mt-1 text-xs text-slate-500">{position.name} · disponível {formatQuantity(position.quantity)}</p></div><span className="text-sm font-semibold text-slate-700">{numberCurrency(position.quote.price ?? position.averagePrice ?? 0, position.currency ?? 'BRL')}</span></button>)}</div>}
+          {!selected && mode === 'VENDA' && <div className="space-y-2"><p className="text-sm font-semibold text-slate-700">Selecione uma posição disponível</p>{sellable.map((position) => <button key={position.id} className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left hover:border-rose-200" type="button" onClick={() => choosePosition(position)}><div><p className="font-semibold text-slate-950">{position.symbol || position.name}</p><p className="mt-1 text-xs text-slate-500">{position.name} · disponível {formatQuantity(position.quantity)}</p></div><span className="text-sm font-semibold text-slate-700">{numberCurrency(position.quote.price ?? position.averagePrice ?? 0, position.currency ?? 'BRL')}</span></button>)}</div>}
+
+          {mode === 'RENDA_FIXA' && <div className="space-y-4">
+            <div className="rounded-[20px] border border-emerald-100 bg-emerald-50/60 p-4"><p className="text-sm font-semibold text-emerald-800">Adicionar uma aplicação de renda fixa</p><p className="mt-1 text-xs leading-5 text-slate-500">Informe o valor aplicado, a taxa anual e o período do investimento.</p></div>
+            <Field label="Nome da aplicação"><input className={inputClass} required value={fixedForm.name} onChange={(event) => setFixedForm({ ...fixedForm, name: event.target.value })} placeholder="CDB, Tesouro ou LCI" /></Field>
+            <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Valor aplicado" value={fixedForm.principal ?? 0} onChange={(principal) => setFixedForm({ ...fixedForm, principal })} /><NumberField label="Taxa anual (%)" value={fixedForm.annualRate ?? 12} onChange={(annualRate) => setFixedForm({ ...fixedForm, annualRate })} /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><DateField label="Aplicação" value={fixedForm.purchaseDate} onChange={(purchaseDate) => setFixedForm({ ...fixedForm, purchaseDate })} /><DateField label="Vencimento" value={fixedForm.maturityDate ?? nextYear} onChange={(maturityDate) => setFixedForm({ ...fixedForm, maturityDate })} /></div>
+          </div>}
 
           {selected && <>
             <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={resetSelection}>Trocar</button></div>
             <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step="0.00000001" /><NumberField label={`Preço unitário (${selected.currency})`} value={unitPrice} onChange={setUnitPrice} step="0.000001" /><NumberField label={`Custos (${selected.currency})`} value={fees} onChange={setFees} /><DateField label="Data da operação" value={eventDate} onChange={setEventDate} /></div>
-            <div className="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3"><span className="text-sm font-semibold text-slate-600">Valor {movementType === 'COMPRA' ? 'investido' : 'líquido'}</span><strong className="text-slate-950">{numberCurrency(Math.max(0, quantity * unitPrice + (movementType === 'COMPRA' ? fees : -fees)), selected.currency)}</strong></div>
+            <div className="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3"><span className="text-sm font-semibold text-slate-600">Valor {mode === 'COMPRA' ? 'investido' : 'líquido'}</span><strong className="text-slate-950">{numberCurrency(Math.max(0, quantity * unitPrice + (mode === 'COMPRA' ? fees : -fees)), selected.currency)}</strong></div>
           </>}
           {error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-          <button className="w-full rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={!selected || mutation.isPending || quantity <= 0 || unitPrice <= 0} type="submit">{mutation.isPending ? 'Registrando...' : `Registrar ${movementType === 'COMPRA' ? 'compra' : 'venda'}`}</button>
+          <button className="w-full rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={mode === 'RENDA_FIXA' ? fixedIncomeMutation.isPending || !fixedForm.name.trim() || (fixedForm.principal ?? 0) <= 0 : !selected || mutation.isPending || quantity <= 0 || unitPrice <= 0} type="submit">{mode === 'RENDA_FIXA' ? fixedIncomeMutation.isPending ? 'Adicionando...' : 'Adicionar aplicação' : mutation.isPending ? 'Registrando...' : `Registrar ${mode === 'COMPRA' ? 'compra' : 'venda'}`}</button>
         </form>
       </div>
     </div>
@@ -448,7 +440,7 @@ function TaxAndReconciliationPanel() {
     <div className="mb-5 flex flex-wrap items-start justify-between gap-4"><div><p className="max-w-2xl text-sm leading-6 text-slate-500">Confira impostos retidos em proventos e compare as movimentações da carteira com seu extrato importado. Vendas ficam sinalizadas para apuração, porque as regras dependem do ativo e do resultado do período.</p></div><div className="flex gap-2"><select aria-label="Ano da apuração" className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700" value={year} onChange={(event) => setYear(Number(event.target.value))}>{[currentYear, currentYear - 1, currentYear - 2].map((option) => <option key={option} value={option}>{option}</option>)}</select><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setImportOpen((open) => !open)}>{importOpen ? 'Fechar importação' : 'Importar extrato'}</button></div></div>
     {importOpen && <div className="mb-6 rounded-[24px] border border-emerald-100 bg-emerald-50/40 p-4 sm:p-5"><p className="mb-4 text-sm leading-6 text-slate-600">Envie OFX, CSV, TSV ou Excel. Revise as linhas antes de salvar; depois, a conciliação será atualizada. O importador registra lançamentos financeiros e não cria compras ou vendas de ativos automaticamente.</p><OFXUploader compact onImported={() => { setImportOpen(false); refresh(); }} /></div>}
     <div className="grid gap-4 md:grid-cols-3"><FiscalMetric label="Imposto retido" value={taxQuery.isLoading ? '...' : currency(tax?.totalWithheld ?? 0)} helper="Proventos confirmados" tone="positive" /><FiscalMetric label="Eventos para revisar" value={taxQuery.isLoading ? '...' : String(tax?.reviewCount ?? 0)} helper="Sem cálculo automático" tone={(tax?.reviewCount ?? 0) > 0 ? 'warning' : 'neutral'} /><FiscalMetric label="Extrato conciliado" value={reconciliationQuery.isLoading ? '...' : `${reconciliation?.reconciledCount ?? 0}/${(reconciliation?.items ?? []).length}`} helper={`${reconciliation?.pendingCount ?? 0} pendente(s)`} tone={(reconciliation?.pendingCount ?? 0) > 0 ? 'warning' : 'positive'} /></div>
-    <div className="mt-6 grid gap-6 xl:grid-cols-2"><div><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Eventos fiscais</h4><span className="text-xs text-slate-400">{year}</span></div>{(tax?.events ?? []).length === 0 ? <EmptyFiscal label="Nenhum provento recebido ou venda registrada neste ano." /> : <div className="space-y-2">{tax?.events.slice(0, 7).map((event, index) => <div key={`${event.date}-${event.symbol}-${index}`} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{event.symbol || event.assetName} · {event.eventType.toLowerCase()}</p><p className="mt-1 text-xs text-slate-500">{formatDate(event.date)} · {event.note}</p></div><TaxBadge status={event.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Bruto <b className="text-slate-700">{currency(event.grossAmount)}</b></span><span className="text-slate-500">Retido <b className="text-emerald-700">{currency(event.withheldAmount)}</b></span><span className="text-slate-500">Líquido <b className="text-slate-700">{currency(event.netAmount)}</b></span></div></div>)}</div>}</div><div><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Conciliação do extrato</h4><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={refresh}>Atualizar</button></div>{(reconciliation?.items ?? []).length === 0 ? <EmptyFiscal label="Ainda não há movimentações de investimento no período." /> : <div className="space-y-2">{reconciliation?.items.slice(0, 7).map((item) => <div key={item.movementId} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{item.symbol || item.assetName} · {movementLabel(item.movementType)}</p><p className="mt-1 text-xs text-slate-500">{formatDate(item.eventDate)} · {item.note}</p></div><ReconciliationBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Carteira <b className="text-slate-700">{numberCurrency(item.expectedAmount, item.currency)}</b></span>{item.transactionAmount != null && <span className="text-slate-500">Extrato <b className="text-slate-700">{currency(item.transactionAmount)}</b></span>}</div></div>)}</div>}</div></div>
+    <div className="mt-6 grid gap-6 xl:grid-cols-2"><div><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Eventos fiscais</h4><span className="text-xs text-slate-400">{year}</span></div>{(tax?.events ?? []).length === 0 ? <EmptyFiscal label="Nenhum provento recebido ou venda registrada neste ano." /> : <div className="max-h-[360px] space-y-2 overflow-y-auto overflow-x-hidden pr-2">{tax?.events.map((event, index) => <div key={`${event.date}-${event.symbol}-${index}`} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{event.symbol || event.assetName} · {event.eventType.toLowerCase()}</p><p className="mt-1 text-xs text-slate-500">{formatDate(event.date)} · {event.note}</p></div><TaxBadge status={event.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Bruto <b className="text-slate-700">{currency(event.grossAmount)}</b></span><span className="text-slate-500">Retido <b className="text-emerald-700">{currency(event.withheldAmount)}</b></span><span className="text-slate-500">Líquido <b className="text-slate-700">{currency(event.netAmount)}</b></span></div></div>)}</div>}</div><div><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Conciliação do extrato</h4><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={refresh}>Atualizar</button></div>{(reconciliation?.items ?? []).length === 0 ? <EmptyFiscal label="Ainda não há movimentações de investimento no período." /> : <div className="max-h-[360px] space-y-2 overflow-y-auto overflow-x-hidden pr-2">{reconciliation?.items.map((item) => <div key={item.movementId} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{item.symbol || item.assetName} · {movementLabel(item.movementType)}</p><p className="mt-1 text-xs text-slate-500">{formatDate(item.eventDate)} · {item.note}</p></div><ReconciliationBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Carteira <b className="text-slate-700">{numberCurrency(item.expectedAmount, item.currency)}</b></span>{item.transactionAmount != null && <span className="text-slate-500">Extrato <b className="text-slate-700">{currency(item.transactionAmount)}</b></span>}</div></div>)}</div>}</div></div>
     <p className="mt-5 text-xs leading-6 text-slate-400">Este painel organiza valores já registrados. Para DARF, compensações, isenções ou operações complexas, use-o como conferência e valide a apuração com sua documentação fiscal.</p>
   </SectionCard>;
 }
@@ -478,8 +470,7 @@ function IncomeCalendar({ schedules, loading, onAdd }: { schedules: InvestmentIn
       <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Agendar provento</button>
     </div>
     {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-    {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : schedules.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">Nenhum provento agendado</p><p className="mt-1 text-sm text-slate-500">Adicione a Data Com, o pagamento e o valor por cota quando tiver o comunicado do ativo.</p></div> : <div className="space-y-3">{schedules.slice(0, 6).map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">{schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
-    {schedules.length > 6 && <p className="mt-4 text-center text-xs text-slate-400">Exibindo os próximos seis eventos da agenda.</p>}
+    {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : schedules.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">Nenhum provento agendado</p><p className="mt-1 text-sm text-slate-500">Adicione a Data Com, o pagamento e o valor por cota quando tiver o comunicado do ativo.</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{schedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">{schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
   </SectionCard>;
 }
 
