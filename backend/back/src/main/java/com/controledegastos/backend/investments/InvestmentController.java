@@ -45,6 +45,17 @@ public class InvestmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(investmentService.recordTrade(request));
     }
 
+    @PutMapping("/movements/{id}")
+    public MovementResponse updateMovement(@PathVariable Long id, @Valid @RequestBody MovementUpdateRequest request) {
+        return investmentService.updateMovement(id, request);
+    }
+
+    @DeleteMapping("/movements/{id}")
+    public ResponseEntity<Void> deleteMovement(@PathVariable Long id) {
+        investmentService.deleteMovement(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/assets/search")
     public List<AssetSearchResponse> searchAssets(@RequestParam String query,
                                                    @RequestParam InvestmentPosition.AssetType type) {
@@ -117,6 +128,11 @@ public class InvestmentController {
     @GetMapping("/tax-summary")
     public TaxSummaryResponse taxSummary(@RequestParam(required = false) Integer year) {
         return investmentService.taxSummary(year);
+    }
+
+    @PutMapping("/tax-events/{movementId}")
+    public TaxEventResponse adjustTaxEvent(@PathVariable Long movementId, @Valid @RequestBody TaxEventAdjustmentRequest request) {
+        return investmentService.adjustTaxEvent(movementId, request);
     }
 
     @GetMapping("/reconciliation")

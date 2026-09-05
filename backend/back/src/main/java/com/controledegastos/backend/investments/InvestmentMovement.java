@@ -47,6 +47,12 @@ public class InvestmentMovement {
     private BigDecimal realizedGain;
     @Column(name = "exchange_rate", precision = 19, scale = 8)
     private BigDecimal exchangeRate;
+    @Enumerated(EnumType.STRING) @Column(name = "tax_status_override", length = 30)
+    private InvestmentDtos.TaxStatus taxStatusOverride;
+    @Column(name = "tax_withheld_override", precision = 19, scale = 2)
+    private BigDecimal taxWithheldOverride;
+    @Column(name = "tax_note", length = 255)
+    private String taxNote;
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

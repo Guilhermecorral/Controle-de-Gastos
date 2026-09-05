@@ -378,6 +378,9 @@ export interface InvestmentPositionRequest {
   manualTaxRate?: number;
   iofApplicable?: boolean;
   openingDate?: string | null;
+  fixedIncomeYieldType?: 'PREFIXADO' | 'POS_FIXADO' | 'HIBRIDO' | null;
+  fixedIncomeIndexer?: string | null;
+  dailyLiquidity?: boolean;
   assetType: InvestmentAssetType;
   symbol: string | null;
   externalId: string | null;
@@ -501,7 +504,6 @@ export interface InvestmentProjectionRequest {
 }
 
 export interface InvestmentMovementResponse {
-  realizedGain: number | null;
   id: number;
   positionId: number;
   assetName: string;
@@ -513,6 +515,18 @@ export interface InvestmentMovementResponse {
   currency: string;
   eventDate: string;
   automatic: boolean;
+  realizedGain: number | null;
+  costs: { brokerageFee: number; b3Fee: number; otherCosts: number; withheldTax: number } | null;
+  exchangeRate: number | null;
+}
+
+export interface InvestmentMovementUpdateRequest {
+  quantity: number;
+  unitPrice: number;
+  fees: number;
+  eventDate: string;
+  exchangeRate?: number;
+  costs: { brokerageFee: number; b3Fee: number; otherCosts: number; withheldTax: number };
 }
 
 export interface InvestmentIncomeScheduleRequest {
@@ -575,13 +589,14 @@ export interface InvestmentGoalResponse {
   achieved: boolean;
 }
 
-export type InvestmentTaxStatus = 'RETIDO' | 'SEM_RETENCAO' | 'REVISAR';
+export type InvestmentTaxStatus = 'RETIDO_INTEGRAL' | 'RETIDO_ANTECIPACAO' | 'A_RECOLHER' | 'ISENTO';
 
 export interface InvestmentTaxSummaryResponse {
   year: number;
   totalWithheld: number;
   reviewCount: number;
   events: Array<{
+    movementId: number | null;
     date: string;
     symbol: string | null;
     assetName: string;

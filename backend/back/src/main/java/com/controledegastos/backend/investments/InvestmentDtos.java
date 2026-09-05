@@ -30,8 +30,21 @@ public final class InvestmentDtos {
             FixedIncomeTax.Regime taxRegime,
             @DecimalMin("0") @jakarta.validation.constraints.DecimalMax("100") BigDecimal manualTaxRate,
             Boolean iofApplicable,
-            LocalDate openingDate
-    ) {}
+            LocalDate openingDate,
+            InvestmentPosition.FixedIncomeYieldType fixedIncomeYieldType,
+            @Size(max = 30) String fixedIncomeIndexer,
+            Boolean dailyLiquidity
+    ) {
+        public PositionRequest(InvestmentPosition.AssetType assetType, String symbol, String externalId, String name,
+                               BigDecimal quantity, BigDecimal averagePrice, BigDecimal principal, BigDecimal annualRate,
+                               LocalDate purchaseDate, LocalDate maturityDate, String market, String exchange, String currency,
+                               FixedIncomeTax.Regime taxRegime, BigDecimal manualTaxRate, Boolean iofApplicable,
+                               LocalDate openingDate) {
+            this(assetType, symbol, externalId, name, quantity, averagePrice, principal, annualRate, purchaseDate,
+                    maturityDate, market, exchange, currency, taxRegime, manualTaxRate, iofApplicable, openingDate,
+                    null, null, false);
+        }
+    }
 
     public record AssetSearchResponse(
             InvestmentPosition.AssetType assetType,
@@ -112,7 +125,10 @@ public final class InvestmentDtos {
             FixedIncomeTax.Regime taxRegime,
             BigDecimal manualTaxRate,
             boolean iofApplicable,
-            LocalDate openingDate
+            LocalDate openingDate,
+            InvestmentPosition.FixedIncomeYieldType fixedIncomeYieldType,
+            String fixedIncomeIndexer,
+            boolean dailyLiquidity
     ) {}
 
     public record PortfolioResponse(
@@ -241,6 +257,7 @@ public final class InvestmentDtos {
     ) {}
 
     public record TaxEventResponse(
+            Long movementId,
             LocalDate date,
             String symbol,
             String assetName,
@@ -253,7 +270,13 @@ public final class InvestmentDtos {
             String note
     ) {}
 
-    public enum TaxStatus { RETIDO, SEM_RETENCAO, REVISAR }
+    public enum TaxStatus { RETIDO_INTEGRAL, RETIDO_ANTECIPACAO, A_RECOLHER, ISENTO }
+
+    public record TaxEventAdjustmentRequest(
+            @NotNull TaxStatus status,
+            @NotNull @DecimalMin("0.00") BigDecimal withheldAmount,
+            @Size(max = 255) String note
+    ) {}
 
     public record ReconciliationResponse(
             int year,
@@ -294,6 +317,15 @@ public final class InvestmentDtos {
             BigDecimal realizedGain,
             OperationCosts costs,
             BigDecimal exchangeRate
+    ) {}
+
+    public record MovementUpdateRequest(
+            @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
+            @NotNull @DecimalMin(value = "0.000001") BigDecimal unitPrice,
+            @DecimalMin(value = "0.00") BigDecimal fees,
+            @NotNull LocalDate eventDate,
+            @jakarta.validation.Valid OperationCosts costs,
+            @DecimalMin("0.00000001") BigDecimal exchangeRate
     ) {}
 
     public record RedemptionRequest(@NotNull LocalDate eventDate, @NotNull @DecimalMin("0.01") BigDecimal grossAmount,

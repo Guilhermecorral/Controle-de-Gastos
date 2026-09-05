@@ -242,7 +242,7 @@ class InvestmentServiceTest {
         assertThat(result.totalWithheld()).isEqualByComparingTo("0.20");
         assertThat(result.reviewCount()).isZero();
         assertThat(result.events()).hasSize(1);
-        assertThat(result.events().getFirst().status()).isEqualTo(InvestmentDtos.TaxStatus.RETIDO);
+        assertThat(result.events().getFirst().status()).isEqualTo(InvestmentDtos.TaxStatus.RETIDO_INTEGRAL);
     }
 
     @Test

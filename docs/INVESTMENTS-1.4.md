@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: primeira entrega de desenvolvimento, `1.4.0-beta.1`. A versao final 1.4.0 ainda depende das etapas pendentes abaixo.
+Status: prévia `1.4.0-beta.2`, atualizada em 05/09/2026. A versão final 1.4.0 ainda depende das etapas pendentes abaixo.
 
 ## Entregue nesta etapa
 
@@ -19,12 +19,19 @@ Status: primeira entrega de desenvolvimento, `1.4.0-beta.1`. A versao final 1.4.
 - Meses incompletos, vendas legadas sem custo realizado, operacoes no mesmo dia, cripto e exterior ficam em revisao; a incerteza e propagada aos meses seguintes.
 - Pagamento de DARF 6015/4600 com competencia, vencimento da guia, conta identificada por texto e comprovante identificado por referencia. Apenas a confirmacao gera despesa IMPOSTOS. A conta ainda nao representa um cadastro bancario independente.
 - Dashboard e Analise Mensal alertam sobre competencias para revisar/pagar. Aportes saem dos graficos e alertas de consumo, permanecendo nos totais do fluxo de caixa.
+- Fluxo de carteira separado em renda variável e renda fixa. O saldo inicial sai do lançamento recorrente e passa a ser uma ação de importação de posição existente.
+- Renda fixa permite perfil prefixado, pós-fixado ou híbrido, indexador opcional e liquidez diária sem data de vencimento obrigatória.
+- Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto.
+- Eventos fiscais de proventos, vendas e resgates podem ser marcados como isentos ou ter a retenção corrigida com base no comprovante. Isso não substitui a apuração de regimes ainda pendentes.
+- Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
+- O simulador combina métricas, tabela por período e gráfico de linha do saldo projetado.
 
 ## Endpoints
 
 | Metodo | Caminho | Uso |
 | --- | --- | --- |
 | POST | /api/investments/movements/trades | Compra/venda; aceita costs, exchangeRate e requestId para repeticao da mesma solicitacao |
+| PUT / DELETE | /api/investments/movements/{id} | Corrige ou remove compra/venda e sincroniza o lançamento financeiro vinculado |
 | POST | /api/investments/positions | Aplicacao de renda fixa ou saldo inicial (openingDate) |
 | POST | /api/investments/positions/{id}/redemption-preview | Previa de resgate total |
 | POST | /api/investments/positions/{id}/redeem | Confirma resgate e entrada liquida |
@@ -32,6 +39,7 @@ Status: primeira entrega de desenvolvimento, `1.4.0-beta.1`. A versao final 1.4.
 | PUT | /api/investments/tax/opening | Saldo fiscal anterior ao primeiro mes completo |
 | GET | /api/investments/tax | Recalcula competencias a partir do saldo inicial |
 | POST | /api/investments/tax/payments | Registra pagamento realizado e despesa vinculada |
+| PUT | /api/investments/tax-events/{movementId} | Ajusta o estado fiscal ou a retenção de provento, venda ou resgate |
 
 Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica residente no Brasil. Produtos com cupons, come-cotas, tributacao estrangeira ou condicoes especiais exigem calculo especifico. O resgate informa o valor bruto real; a taxa projetada nao determina a cotacao de venda de um titulo.
 
@@ -39,11 +47,13 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 
 - V11 amplia as categorias, acrescenta custos, custo realizado, cambio, vinculo financeiro e atributos de renda fixa. Aplicacoes legadas ficam sem regime inferido pelo nome.
 - V12 cria os saldos tributarios iniciais e pagamentos unicos por usuario/competencia/codigo.
+- V13 adiciona perfil de rentabilidade, indexador e liquidez diária às aplicações de renda fixa.
+- V14 adiciona ajustes fiscais explícitos por movimentação, sem alterar a operação financeira original.
 - As migracoes nao alteram despesas existentes nem geram lancamentos para compras antigas, evitando duplicar registros manuais.
 - Testes unitarios: fronteiras 180/181, 360/361, 720/721 dias, IOF, ausencia de lucro, prazos parciais, aportes com idades distintas e compensacao de prejuizos.
 - Testes de integracao: compra/venda e custos, protecao de vinculos, gastos de consumo, abertura sem caixa, resgate, pagamento unico de DARF.
 - Regressoes adicionais: repeticao idempotente de compra, rejeicao de payload alterado, cambio historico no caixa e no resumo, vinculo direto na conciliacao e pagamento divergente.
-- Validacao local em 04/09/2026: suite Maven e build TypeScript/Vite executados. A suite usa H2; isso nao valida as migracoes PostgreSQL V11/V12. O Docker local nao respondeu e a execucao dessas migracoes em PostgreSQL continua pendente.
+- Validação local em 05/09/2026: suite Maven e build TypeScript/Vite executados. A suite usa H2; isso não valida as migrações PostgreSQL V11-V14. A execução dessas migrações em PostgreSQL continua pendente antes da publicação.
 - A interface ainda requer conferencia visual em desktop/mobile antes de publicar esta previa.
 
 ## Pendente para concluir 1.4.0
@@ -53,8 +63,23 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Classificacao fiscal de custodia de cripto, ganhos progressivos e aplicacoes financeiras no exterior. A regra de R$ 35 mil nao pode ser aplicada indiscriminadamente a todo criptoativo global.
 - Obrigacoes persistidas com versao da memoria de calculo, revisoes e ajustes de pagamentos; hoje a estimativa e recalculada e o pagamento guarda os dados efetivos.
 - Calendario fiscal de vencimento e tratamento de guias complementares, multas e juros; nesta previa o vencimento vem da guia Sicalc.
-- Correcao/reversao de operacoes vinculadas, resgate parcial por lote e conciliacao de lancamentos ja existentes.
+- Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta prévia, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
 - Importacao de notas completas e comprovacao do historico anterior para marcar a apuracao como conferida.
+
+## Roadmap 1.4.0 a 1.4.2
+
+| Item | Status | Observação |
+| --- | --- | --- |
+| Fluxo financeiro vinculado à carteira | Entregue | Compra, venda, aplicação e resgate geram registro financeiro protegido. |
+| Renda fixa com IR/IOF e liquidez diária | Entregue | Estimativa por aporte e perfil do título; produto complexo continua exigindo conferência. |
+| Correção de compra/venda e evento fiscal | Entregue | Recalcula carteira e caixa; edição detalhada de aplicação/resgate segue pendente. |
+| Fechamento mensal guiado | Parcial | Ações B3 e FIIs em BRL têm estimativa; day trade, cripto, exterior, ETFs/BDRs seguem em revisão. |
+| Proventos automáticos | Pendente para 1.4.1 | Depende de provedor validado e confirmação de origem do pagamento. |
+| Importação de investimentos B3/corretoras | Pendente para 1.4.2 | Não iniciada nesta rodada. PDF/nota exige mapeamento e revisão humana. |
+
+### Viabilidade de PDF B3 e notas de corretagem
+
+PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quantidade, preço, taxas e liquidação. Esses campos podem ser extraídos com revisão humana obrigatória, mas não há um layout único e alguns documentos são imagens digitalizadas. A implementação deve começar com upload, prévia e mapeamento assistido; não foi iniciada nesta versão.
 
 ## 1.4.1 e 1.4.2
 

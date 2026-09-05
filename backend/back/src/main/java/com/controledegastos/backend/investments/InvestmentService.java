@@ -255,6 +255,117 @@ public class InvestmentService {
     }
 
     @Transactional
+    public MovementResponse updateMovement(Long id, MovementUpdateRequest request) {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        entityManager.lock(user, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        InvestmentMovement movement = movementRepository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Movimentação não encontrada"));
+        if (movement.isAutomatic() || (movement.getMovementType() != InvestmentMovement.MovementType.COMPRA
+                && movement.getMovementType() != InvestmentMovement.MovementType.VENDA)) {
+            throw new IllegalArgumentException("Edite aplicações, resgates e proventos pelo fluxo específico para preservar a tributação");
+        }
+        if (request.eventDate().isAfter(LocalDate.now())) throw new IllegalArgumentException("A operação não pode estar no futuro");
+        InvestmentPosition position = movement.getPosition();
+        BigDecimal fx = "BRL".equalsIgnoreCase(position.getCurrency()) ? BigDecimal.ONE : request.exchangeRate();
+        if (fx == null || fx.signum() <= 0) throw new IllegalArgumentException("Informe o câmbio usado nesta operação");
+        OperationCosts costs = request.costs() == null ? new OperationCosts(BigDecimal.ZERO, BigDecimal.ZERO,
+                request.fees() == null ? BigDecimal.ZERO : request.fees(), BigDecimal.ZERO) : request.costs();
+        if (movement.getMovementType() == InvestmentMovement.MovementType.COMPRA && costs.retention().signum() > 0)
+            throw new IllegalArgumentException("IRRF antecipado deve ser informado somente na venda");
+        movement.setQuantity(request.quantity());
+        movement.setUnitPrice(request.unitPrice());
+        movement.setFees(money(costs.total()));
+        movement.setCosts(costs);
+        movement.setExchangeRate(fx);
+        movement.setEventDate(request.eventDate());
+        rebuildVariablePosition(position);
+        return toMovementResponse(movementRepository.save(movement));
+    }
+
+    @Transactional
+    public void deleteMovement(Long id) {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        entityManager.lock(user, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        InvestmentMovement movement = movementRepository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Movimentação não encontrada"));
+        if (movement.isAutomatic()) throw new IllegalArgumentException("Esta movimentação foi criada automaticamente e não pode ser removida aqui");
+        InvestmentPosition position = movement.getPosition();
+        if (position.getAssetType() == InvestmentPosition.AssetType.RENDA_FIXA) {
+            if (movement.getMovementType() == InvestmentMovement.MovementType.APORTE) {
+                boolean hasLaterHistory = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user).stream()
+                        .anyMatch(item -> item.getPosition().getId().equals(position.getId()) && !item.getId().equals(id));
+                if (hasLaterHistory) throw new IllegalArgumentException("Remova primeiro o resgate ou rendimento desta aplicação");
+                transactionRepository.findByInvestmentMovementId(id).ifPresent(transactionRepository::delete);
+                movementRepository.delete(movement);
+                repository.delete(position);
+                return;
+            }
+            if (movement.getMovementType() == InvestmentMovement.MovementType.RESGATE) {
+                transactionRepository.findByInvestmentMovementId(id).ifPresent(transactionRepository::delete);
+                movementRepository.delete(movement);
+                position.setRedeemed(false);
+                repository.save(position);
+                return;
+            }
+        }
+        transactionRepository.findByInvestmentMovementId(id).ifPresent(transactionRepository::delete);
+        movementRepository.delete(movement);
+        if (position.getAssetType() != InvestmentPosition.AssetType.RENDA_FIXA) rebuildVariablePosition(position);
+    }
+
+    private void rebuildVariablePosition(InvestmentPosition position) {
+        List<InvestmentMovement> history = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(position.getUser()).stream()
+                .filter(item -> item.getPosition().getId().equals(position.getId()))
+                .sorted(Comparator.comparing(InvestmentMovement::getEventDate).thenComparing(InvestmentMovement::getId))
+                .toList();
+        BigDecimal quantity = BigDecimal.ZERO;
+        BigDecimal average = BigDecimal.ZERO;
+        LocalDate purchaseDate = position.getPurchaseDate();
+        for (InvestmentMovement item : history) {
+            if (item.getMovementType() == InvestmentMovement.MovementType.COMPRA || item.getMovementType() == InvestmentMovement.MovementType.SALDO_INICIAL) {
+                BigDecimal itemQuantity = item.getQuantity() == null ? BigDecimal.ZERO : item.getQuantity();
+                BigDecimal itemPrice = item.getUnitPrice() == null ? BigDecimal.ZERO : item.getUnitPrice();
+                BigDecimal newQuantity = quantity.add(itemQuantity);
+                BigDecimal cost = quantity.multiply(average).add(itemQuantity.multiply(itemPrice)).add(item.getFees());
+                quantity = newQuantity;
+                average = newQuantity.signum() == 0 ? BigDecimal.ZERO : cost.divide(newQuantity, 6, RoundingMode.HALF_UP);
+                item.setAmount(money(itemQuantity.multiply(itemPrice).add(item.getFees())));
+                item.setCostBasis(null);
+                item.setRealizedGain(null);
+                purchaseDate = purchaseDate == null || item.getEventDate().isBefore(purchaseDate) ? item.getEventDate() : purchaseDate;
+            } else if (item.getMovementType() == InvestmentMovement.MovementType.VENDA) {
+                BigDecimal itemQuantity = item.getQuantity() == null ? BigDecimal.ZERO : item.getQuantity();
+                if (itemQuantity.compareTo(quantity) > 0) throw new IllegalArgumentException("A alteração deixaria uma venda acima da quantidade disponível");
+                BigDecimal gross = itemQuantity.multiply(item.getUnitPrice());
+                BigDecimal withheld = item.getCosts() == null ? BigDecimal.ZERO : item.getCosts().retention();
+                if (item.getFees().add(withheld).compareTo(gross) >= 0) throw new IllegalArgumentException("Custos e retenções devem ser menores que a venda");
+                BigDecimal basis = average.multiply(itemQuantity);
+                item.setCostBasis(basis);
+                item.setRealizedGain(gross.subtract(item.getFees()).subtract(basis));
+                item.setAmount(money(gross.subtract(item.getFees()).subtract(withheld)));
+                quantity = quantity.subtract(itemQuantity);
+                if (quantity.signum() == 0) average = BigDecimal.ZERO;
+            }
+            syncLinkedCashFlow(item);
+        }
+        position.setQuantity(quantity);
+        position.setAveragePrice(average);
+        position.setPurchaseDate(purchaseDate);
+        repository.save(position);
+        movementRepository.saveAll(history);
+    }
+
+    private void syncLinkedCashFlow(InvestmentMovement movement) {
+        transactionRepository.findByInvestmentMovementId(movement.getId()).ifPresent(transaction -> {
+            BigDecimal fx = movement.getExchangeRate() == null ? BigDecimal.ONE : movement.getExchangeRate();
+            transaction.setAmount(money(movement.getAmount().multiply(fx)));
+            transaction.setTransactionDate(movement.getEventDate());
+            transaction.setDescription(movement.getMovementType().name() + " - " + movement.getPosition().getName());
+            transactionRepository.save(transaction);
+        });
+    }
+
+    @Transactional
     public MovementResponse recordIncome(Long positionId, IncomeRequest request) {
         if (request.movementType() != InvestmentMovement.MovementType.DIVIDENDO
                 && request.movementType() != InvestmentMovement.MovementType.RENDIMENTO) {
@@ -387,9 +498,9 @@ public class InvestmentService {
             if (schedule.getStatus() != InvestmentIncomeSchedule.Status.RECEBIDO || schedule.getPaymentDate().getYear() != year) continue;
             IncomeScheduleResponse income = toIncomeScheduleResponse(schedule);
             scheduledReferences.add("income-schedule:" + schedule.getId());
-            TaxStatus status = income.taxAmount().signum() > 0 ? TaxStatus.RETIDO : TaxStatus.SEM_RETENCAO;
-            String note = status == TaxStatus.RETIDO ? "Imposto informado como retido no provento." : "Nenhum imposto retido foi informado neste provento.";
-            events.add(new TaxEventResponse(schedule.getPaymentDate(), schedule.getPosition().getSymbol(), schedule.getPosition().getName(),
+            TaxStatus status = income.taxAmount().signum() > 0 ? TaxStatus.RETIDO_INTEGRAL : TaxStatus.ISENTO;
+            String note = status == TaxStatus.RETIDO_INTEGRAL ? "Imposto informado como retido no provento." : "Nenhum imposto retido foi informado neste provento.";
+            events.add(new TaxEventResponse(null, schedule.getPaymentDate(), schedule.getPosition().getSymbol(), schedule.getPosition().getName(),
                     schedule.getIncomeType().name(), schedule.getPosition().getCurrency(), income.grossAmount(), income.taxAmount(), income.netAmount(), status, note));
         }
 
@@ -397,31 +508,49 @@ public class InvestmentService {
             if (movement.getEventDate().getYear() != year || scheduledReferences.contains(movement.getExternalReference())) continue;
             InvestmentPosition position = movement.getPosition();
             if (isIncome(movement)) {
-                events.add(new TaxEventResponse(movement.getEventDate(), position.getSymbol(), position.getName(), movement.getMovementType().name(), position.getCurrency(),
-                        movement.getAmount(), ZERO, movement.getAmount(), TaxStatus.REVISAR,
-                        "Provento manual: informe a retenção na agenda ou confirme a tributação no comprovante."));
+                BigDecimal retained = movement.getTaxWithheldOverride() == null ? ZERO : movement.getTaxWithheldOverride();
+                TaxStatus status = movement.getTaxStatusOverride() == null ? TaxStatus.A_RECOLHER : movement.getTaxStatusOverride();
+                events.add(new TaxEventResponse(movement.getId(), movement.getEventDate(), position.getSymbol(), position.getName(), movement.getMovementType().name(), position.getCurrency(),
+                        movement.getAmount(), retained, money(movement.getAmount().subtract(retained)), status,
+                        movement.getTaxNote() == null ? "Provento manual: confirme a retenção no comprovante." : movement.getTaxNote()));
             } else if (movement.getMovementType() == InvestmentMovement.MovementType.VENDA) {
-                BigDecimal retained = movement.getCosts() == null ? ZERO : movement.getCosts().retention();
+                BigDecimal retained = movement.getTaxWithheldOverride() == null ? (movement.getCosts() == null ? ZERO : movement.getCosts().retention()) : movement.getTaxWithheldOverride();
                 BigDecimal fx = "BRL".equals(position.getCurrency()) ? BigDecimal.ONE : movement.getExchangeRate();
                 String eventCurrency = fx == null ? position.getCurrency() : "BRL";
                 BigDecimal factor = fx == null ? BigDecimal.ONE : fx;
-                events.add(new TaxEventResponse(movement.getEventDate(), position.getSymbol(), position.getName(), "VENDA", eventCurrency,
+                TaxStatus status = movement.getTaxStatusOverride() == null ? TaxStatus.A_RECOLHER : movement.getTaxStatusOverride();
+                events.add(new TaxEventResponse(movement.getId(), movement.getEventDate(), position.getSymbol(), position.getName(), "VENDA", eventCurrency,
                         money(movement.getQuantity().multiply(movement.getUnitPrice()).multiply(factor)),
-                        money(retained.multiply(factor)), money(movement.getAmount().multiply(factor)), TaxStatus.REVISAR,
-                        "IRRF informado e uma antecipacao. Venda requer apuracao mensal; o liquido tambem desconta custos operacionais."));
+                        money(retained.multiply(factor)), money(movement.getAmount().multiply(factor)), status,
+                        movement.getTaxNote() == null ? "Venda pode gerar DARF. O IRRF informado é apenas antecipação." : movement.getTaxNote()));
             } else if (movement.getMovementType() == InvestmentMovement.MovementType.RESGATE) {
-                BigDecimal retained = movement.getCosts() == null ? ZERO : movement.getCosts().retention();
-                events.add(new TaxEventResponse(movement.getEventDate(), position.getSymbol(), position.getName(), "RESGATE", position.getCurrency(),
+                BigDecimal retained = movement.getTaxWithheldOverride() == null ? (movement.getCosts() == null ? ZERO : movement.getCosts().retention()) : movement.getTaxWithheldOverride();
+                TaxStatus status = movement.getTaxStatusOverride() == null ? (retained.signum() > 0 ? TaxStatus.RETIDO_INTEGRAL : TaxStatus.ISENTO) : movement.getTaxStatusOverride();
+                events.add(new TaxEventResponse(movement.getId(), movement.getEventDate(), position.getSymbol(), position.getName(), "RESGATE", position.getCurrency(),
                         money(movement.getAmount().add(retained)), retained, movement.getAmount(),
-                        retained.signum() > 0 ? TaxStatus.RETIDO : TaxStatus.SEM_RETENCAO,
-                        "IR e IOF estimados no resgate registrado. Confira os valores retidos no comprovante da instituicao."));
+                        status, movement.getTaxNote() == null ? "IR e IOF estimados no resgate. Confira o comprovante da instituição." : movement.getTaxNote()));
             }
         }
         events.sort(Comparator.comparing(TaxEventResponse::date).reversed());
         BigDecimal totalWithheld = events.stream().filter(event -> "BRL".equals(event.currency()))
                 .map(TaxEventResponse::withheldAmount).reduce(ZERO, BigDecimal::add);
-        int reviewCount = (int) events.stream().filter(event -> event.status() == TaxStatus.REVISAR).count();
+        int reviewCount = (int) events.stream().filter(event -> event.status() == TaxStatus.A_RECOLHER).count();
         return new TaxSummaryResponse(year, money(totalWithheld), reviewCount, events);
+    }
+
+    @Transactional
+    public TaxEventResponse adjustTaxEvent(Long movementId, TaxEventAdjustmentRequest request) {
+        InvestmentMovement movement = movementRepository.findByIdAndUser(movementId, authenticatedUserService.getAuthenticatedUser())
+                .orElseThrow(() -> new ResourceNotFoundException("Evento fiscal não encontrado"));
+        if (!isIncome(movement) && movement.getMovementType() != InvestmentMovement.MovementType.VENDA
+                && movement.getMovementType() != InvestmentMovement.MovementType.RESGATE)
+            throw new IllegalArgumentException("Somente proventos, vendas e resgates possuem ajuste fiscal");
+        movement.setTaxStatusOverride(request.status());
+        movement.setTaxWithheldOverride(money(request.withheldAmount()));
+        movement.setTaxNote(blank(request.note()) ? "Ajuste fiscal informado pelo usuário." : request.note().trim());
+        movementRepository.save(movement);
+        return taxSummary(movement.getEventDate().getYear()).events().stream().filter(event -> movementId.equals(event.movementId())).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Não foi possível atualizar o evento fiscal"));
     }
 
     @Transactional(readOnly = true)
@@ -560,7 +689,8 @@ public class InvestmentService {
         BigDecimal invested = investedAmount(position);
         BigDecimal current;
         if (position.getAssetType() == InvestmentPosition.AssetType.RENDA_FIXA) {
-            LocalDate end = LocalDate.now().isAfter(position.getMaturityDate()) ? position.getMaturityDate() : LocalDate.now();
+            LocalDate end = position.getMaturityDate() == null || LocalDate.now().isBefore(position.getMaturityDate())
+                    ? LocalDate.now() : position.getMaturityDate();
             long elapsedDays = Math.max(0, ChronoUnit.DAYS.between(position.getPurchaseDate(), end));
             double growthFactor = Math.pow(1 + position.getAnnualRate().doubleValue() / 100.0, elapsedDays / 365.0);
             current = position.getPrincipal().multiply(BigDecimal.valueOf(growthFactor));
@@ -576,7 +706,8 @@ public class InvestmentService {
                 position.getQuantity(), position.getAveragePrice(), position.getPrincipal(), position.getAnnualRate(),
                 position.getPurchaseDate(), position.getMaturityDate(), money(invested), money(current), money(capitalGain),
                 percentage(capitalGain, invested), money(income), money(totalReturn), percentage(totalReturn, invested), quote,
-                position.getTaxRegime(), position.getManualTaxRate(), position.isIofApplicable(), position.getOpeningDate());
+                position.getTaxRegime(), position.getManualTaxRate(), position.isIofApplicable(), position.getOpeningDate(),
+                position.getFixedIncomeYieldType(), position.getFixedIncomeIndexer(), position.isDailyLiquidity());
     }
 
     private IncomeScheduleResponse toIncomeScheduleResponse(InvestmentIncomeSchedule schedule) {
@@ -659,9 +790,11 @@ public class InvestmentService {
 
     private void validate(PositionRequest request) {
         if (request.assetType() == InvestmentPosition.AssetType.RENDA_FIXA) {
-            if (request.principal() == null || request.annualRate() == null || request.maturityDate() == null)
-                throw new IllegalArgumentException("Renda fixa exige valor aplicado, taxa anual e vencimento");
-            if (!request.maturityDate().isAfter(request.purchaseDate()))
+            if (request.principal() == null || request.annualRate() == null)
+                throw new IllegalArgumentException("Renda fixa exige valor aplicado e taxa anual");
+            if (!Boolean.TRUE.equals(request.dailyLiquidity()) && request.maturityDate() == null)
+                throw new IllegalArgumentException("Informe o vencimento ou selecione liquidez diaria");
+            if (request.maturityDate() != null && !request.maturityDate().isAfter(request.purchaseDate()))
                 throw new IllegalArgumentException("O vencimento deve ser posterior à aplicação");
         } else {
             if (request.quantity() == null || request.averagePrice() == null)
@@ -687,6 +820,9 @@ public class InvestmentService {
         target.setAnnualRate(request.annualRate());
         target.setPurchaseDate(request.purchaseDate());
         target.setMaturityDate(request.maturityDate());
+        target.setFixedIncomeYieldType(request.fixedIncomeYieldType());
+        target.setFixedIncomeIndexer(blank(request.fixedIncomeIndexer()) ? null : request.fixedIncomeIndexer().trim());
+        target.setDailyLiquidity(Boolean.TRUE.equals(request.dailyLiquidity()));
         target.setTaxRegime(request.taxRegime());
         target.setManualTaxRate(request.manualTaxRate());
         target.setIofApplicable(Boolean.TRUE.equals(request.iofApplicable()));

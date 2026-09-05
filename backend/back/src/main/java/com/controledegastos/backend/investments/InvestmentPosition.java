@@ -66,6 +66,16 @@ public class InvestmentPosition {
     @Column(name = "maturity_date")
     private LocalDate maturityDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fixed_income_yield_type", length = 20)
+    private FixedIncomeYieldType fixedIncomeYieldType;
+
+    @Column(name = "fixed_income_indexer", length = 30)
+    private String fixedIncomeIndexer;
+
+    @Column(name = "daily_liquidity", nullable = false)
+    private boolean dailyLiquidity;
+
     @Enumerated(EnumType.STRING) @Column(name = "tax_regime", length = 20)
     private FixedIncomeTax.Regime taxRegime;
     @Column(name = "manual_tax_rate", precision = 8, scale = 4)
@@ -95,4 +105,5 @@ public class InvestmentPosition {
     }
 
     public enum AssetType { ACAO, FII, CRIPTO, RENDA_FIXA }
+    public enum FixedIncomeYieldType { PREFIXADO, POS_FIXADO, HIBRIDO }
 }

@@ -22,6 +22,7 @@ import {
   InvestmentProjectionResponse,
   InvestmentProjectionRequest,
   InvestmentMovementResponse,
+  InvestmentMovementUpdateRequest,
   InvestmentIncomeScheduleRequest,
   InvestmentIncomeScheduleResponse,
   InvestmentGoalRequest,
@@ -87,6 +88,32 @@ export function useRecordInvestmentTradeMutation() {
     mutationFn: async (data: InvestmentTradeRequest) =>
       (await api.post<InvestmentMovementResponse>('/investments/movements/trades', data)).data,
     onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
+export function useUpdateInvestmentMovementMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: InvestmentMovementUpdateRequest }) =>
+      (await api.put<InvestmentMovementResponse>(`/investments/movements/${id}`, data)).data,
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
+export function useDeleteInvestmentMovementMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => api.delete(`/investments/movements/${id}`),
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
+export function useUpdateInvestmentTaxEventMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ movementId, status, withheldAmount, note }: { movementId: number; status: 'RETIDO_INTEGRAL' | 'RETIDO_ANTECIPACAO' | 'A_RECOLHER' | 'ISENTO'; withheldAmount: number; note?: string }) =>
+      (await api.put(`/investments/tax-events/${movementId}`, { status, withheldAmount, note })).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
   })
 }
 

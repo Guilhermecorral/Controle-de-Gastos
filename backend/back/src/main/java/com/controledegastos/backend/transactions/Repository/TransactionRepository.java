@@ -49,6 +49,8 @@ public interface TransactionRepository extends  JpaRepository<Transaction, Long>
 
     Optional<Transaction> findByIdAndUser(Long id, User user);
 
+    Optional<Transaction> findByInvestmentMovementId(Long investmentMovementId);
+
     List<Transaction> findAllByTransactionGroupIdAndUserOrderByTransactionDateAscCreatedAtAsc(UUID transactionGroupId, User user);
 
     void deleteAllByTransactionGroupIdAndUser(UUID transactionGroupId, User user);

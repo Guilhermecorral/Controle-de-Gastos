@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface InvestmentMovementRepository extends JpaRepository<InvestmentMovement, Long> {
     List<InvestmentMovement> findAllByUserOrderByEventDateDescCreatedAtDesc(User user);
+    java.util.Optional<InvestmentMovement> findByIdAndUser(Long id, User user);
 }

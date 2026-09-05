@@ -111,6 +111,29 @@ class InvestmentCashFlowIntegrationTest {
         });
     }
 
+    @Test void dailyLiquidityFixedIncomeDoesNotRequireMaturityDate() {
+        var position = investments.create(new PositionRequest(InvestmentPosition.AssetType.RENDA_FIXA, null, null, "CDB liquidez diária", null, null, n("1000"), n("12"),
+                LocalDate.of(2026, 1, 2), null, "BR", "B3", "BRL", FixedIncomeTax.Regime.REGRESSIVO, null, true, null,
+                InvestmentPosition.FixedIncomeYieldType.POS_FIXADO, "CDI", true));
+        assertThat(position.dailyLiquidity()).isTrue();
+        assertThat(position.maturityDate()).isNull();
+        assertThat(position.fixedIncomeIndexer()).isEqualTo("CDI");
+    }
+
+    @Test void retroactiveTradeCanBeCorrectedAndKeepsLinkedCashFlowInSync() {
+        var buy = investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "19.50", LocalDate.of(2026, 1, 2)));
+        investments.updateMovement(buy.id(), new MovementUpdateRequest(n("3"), n("20.00"), n("0"), LocalDate.of(2026, 1, 1),
+                new OperationCosts(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO), null));
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).singleElement().satisfies(entry -> {
+            assertThat(entry.getAmount()).isEqualByComparingTo("60.00");
+            assertThat(entry.getTransactionDate()).isEqualTo(LocalDate.of(2026, 1, 1));
+        });
+        assertThat(investments.portfolio().positions()).singleElement().satisfies(position -> {
+            assertThat(position.quantity()).isEqualByComparingTo("3");
+            assertThat(position.averagePrice()).isEqualByComparingTo("20");
+        });
+    }
+
     @Test void foreignTradeUsesHistoricalExchangeRateInCashAndReconciliation() {
         investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.COMPRA, InvestmentPosition.AssetType.ACAO,
                 "AAPL", "AAPL", "Apple", "US", "NASDAQ", "USD", n("2"), n("100"), n("0"),

@@ -2,6 +2,16 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.0-beta.2] - 2026-09-05
+
+- Nova movimentação separada visualmente em renda variável e renda fixa, com compra/venda, busca de ativo e importação de saldo inicial fora do fluxo recorrente.
+- Renda fixa com rentabilidade prefixada, pós-fixada ou híbrida, indexador e opção de liquidez diária sem vencimento obrigatório.
+- Correção controlada de compras e vendas: edição recalcula quantidade, preço médio, resultado realizado e fluxo financeiro vinculado; exclusão exige confirmação de impacto.
+- Eventos fiscais passam a diferenciar imposto retido integralmente, IRRF antecipado, possível DARF e isenção, com ajuste manual de retenção baseado no comprovante.
+- Fechamento mensal reescrito em linguagem simples e explicação embutida sobre retenção na fonte, IRRF e DARF.
+- Simulador de renda fixa mantém a tabela por período e passa a exibir gráfico de linha da projeção de saldo.
+- Contratos, migrações V13/V14, documentação e referências de versão atualizados para esta prévia.
+
 ## [1.4.0-beta.1] - Em desenvolvimento
 
 - Compras, vendas, aplicacoes e resgates geram fluxo financeiro vinculado, separado dos indicadores de consumo.
