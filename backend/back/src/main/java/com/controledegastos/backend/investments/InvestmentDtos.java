@@ -215,6 +215,31 @@ public final class InvestmentDtos {
             InvestmentIncomeSchedule.Status status
     ) {}
 
+    public record WalletEarningResponse(
+            Long id,
+            Long positionId,
+            String symbol,
+            String assetName,
+            CorporateEvent.EventType eventType,
+            String payerCnpj,
+            String source,
+            BigDecimal amountPerUnit,
+            BigDecimal quantityEligible,
+            BigDecimal grossAmount,
+            BigDecimal withheldAmount,
+            BigDecimal netAmount,
+            BigDecimal taxRate,
+            LocalDate exDate,
+            LocalDate paymentDate,
+            WalletEarning.Status status
+    ) {}
+
+    public record WalletEarningAdjustmentRequest(
+            @DecimalMin(value = "0.01") BigDecimal grossAmount,
+            @DecimalMin(value = "0.00") BigDecimal withheldAmount,
+            Boolean cancelled
+    ) {}
+
     public record GoalRequest(
             @NotBlank @Size(max = 100) String name,
             @NotNull @DecimalMin(value = "0.01") BigDecimal targetAmount,

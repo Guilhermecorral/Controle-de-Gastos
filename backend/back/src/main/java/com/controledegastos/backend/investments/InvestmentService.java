@@ -37,6 +37,7 @@ public class InvestmentService {
     private final InvestmentPortfolioSnapshotRepository snapshotRepository;
     private final TransactionRepository transactionRepository;
     private final InvestmentIncomeScheduleRepository incomeScheduleRepository;
+    private final WalletEarningRepository walletEarningRepository;
     private final InvestmentGoalRepository goalRepository;
     private final InvestmentGoalContributionRepository goalContributionRepository;
     private final jakarta.persistence.EntityManager entityManager;
@@ -208,20 +209,19 @@ public class InvestmentService {
         if (position.getOpeningDate() != null && request.eventDate().isBefore(position.getOpeningDate()))
             throw new IllegalArgumentException("A operacao deve ocorrer apos o saldo inicial importado");
         Long existingId = position.getId();
-        if (existingId != null && movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user).stream()
-                .anyMatch(m -> m.getPosition().getId().equals(existingId) && m.getEventDate().isAfter(request.eventDate())))
-            throw new IllegalArgumentException("Registre operacoes em ordem cronologica para preservar o custo medio");
+        boolean hasLaterHistory = existingId != null && movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user).stream()
+                .anyMatch(m -> m.getPosition().getId().equals(existingId) && m.getEventDate().isAfter(request.eventDate()));
 
         BigDecimal currentQuantity = position.getQuantity() == null ? BigDecimal.ZERO : position.getQuantity();
         BigDecimal currentAverage = position.getAveragePrice() == null ? BigDecimal.ZERO : position.getAveragePrice();
         BigDecimal gross = request.quantity().multiply(request.unitPrice());
-        if (request.movementType() == InvestmentMovement.MovementType.COMPRA) {
+        if (!hasLaterHistory && request.movementType() == InvestmentMovement.MovementType.COMPRA) {
             BigDecimal newQuantity = currentQuantity.add(request.quantity());
             BigDecimal newCost = currentQuantity.multiply(currentAverage).add(gross).add(fees);
             position.setQuantity(newQuantity);
             position.setAveragePrice(newCost.divide(newQuantity, 6, RoundingMode.HALF_UP));
             if (request.eventDate().isBefore(position.getPurchaseDate())) position.setPurchaseDate(request.eventDate());
-        } else {
+        } else if (!hasLaterHistory) {
             if (request.quantity().compareTo(currentQuantity) > 0) {
                 throw new IllegalArgumentException("A venda excede a quantidade disponível de " + currentQuantity.stripTrailingZeros().toPlainString());
             }
@@ -245,12 +245,13 @@ public class InvestmentService {
                 .costs(request.costs())
                 .externalReference(request.requestId() == null ? null : "trade:" + request.requestId())
                 .exchangeRate(fx)
-                .costBasis(request.movementType() == InvestmentMovement.MovementType.VENDA ? currentAverage.multiply(request.quantity()) : null)
-                .realizedGain(request.movementType() == InvestmentMovement.MovementType.VENDA ? gross.subtract(fees).subtract(currentAverage.multiply(request.quantity())) : null)
+                .costBasis(request.movementType() == InvestmentMovement.MovementType.VENDA && !hasLaterHistory ? currentAverage.multiply(request.quantity()) : null)
+                .realizedGain(request.movementType() == InvestmentMovement.MovementType.VENDA && !hasLaterHistory ? gross.subtract(fees).subtract(currentAverage.multiply(request.quantity())) : null)
                 .eventDate(request.eventDate())
                 .automatic(false)
                 .build());
         recordCashFlow(movement, fx);
+        if (hasLaterHistory) rebuildVariablePosition(saved);
         return toMovementResponse(movement);
     }
 
@@ -502,6 +503,19 @@ public class InvestmentService {
             String note = status == TaxStatus.RETIDO_INTEGRAL ? "Imposto informado como retido no provento." : "Nenhum imposto retido foi informado neste provento.";
             events.add(new TaxEventResponse(null, schedule.getPaymentDate(), schedule.getPosition().getSymbol(), schedule.getPosition().getName(),
                     schedule.getIncomeType().name(), schedule.getPosition().getCurrency(), income.grossAmount(), income.taxAmount(), income.netAmount(), status, note));
+        }
+
+        for (WalletEarning earning : walletEarningRepository.findAllByUserOrderByCorporateEventPaymentDateAscCreatedAtDesc(user)) {
+            if (earning.getStatus() != WalletEarning.Status.EFETIVADO || earning.getCorporateEvent().getPaymentDate().getYear() != year) continue;
+            CorporateEvent event = earning.getCorporateEvent();
+            scheduledReferences.add("wallet-earning:" + earning.getId());
+            TaxStatus status = earning.getWithheldAmount().signum() > 0 ? TaxStatus.RETIDO_INTEGRAL : TaxStatus.ISENTO;
+            String note = event.getEventType() == CorporateEvent.EventType.JCP
+                    ? "JCP com IRRF retido na fonte conforme evento conciliado."
+                    : "Dividendo conciliado sem retenção prevista.";
+            events.add(new TaxEventResponse(null, event.getPaymentDate(), earning.getPosition().getSymbol(), earning.getPosition().getName(),
+                    event.getEventType().name(), earning.getPosition().getCurrency(), earning.getGrossAmount(), earning.getWithheldAmount(),
+                    earning.getNetAmount(), status, note));
         }
 
         for (InvestmentMovement movement : movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)) {

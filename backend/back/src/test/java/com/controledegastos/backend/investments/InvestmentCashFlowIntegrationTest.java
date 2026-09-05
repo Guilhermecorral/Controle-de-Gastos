@@ -25,6 +25,7 @@ import static com.controledegastos.backend.investments.InvestmentDtos.*;
 class InvestmentCashFlowIntegrationTest {
     @Autowired InvestmentService investments;
     @Autowired InvestmentTaxController tax;
+    @Autowired CorporateEventService corporateEvents;
     @Autowired UserRepository users;
     @Autowired TransactionRepository transactions;
     @Autowired TransactionService financial;
@@ -132,6 +133,54 @@ class InvestmentCashFlowIntegrationTest {
             assertThat(position.quantity()).isEqualByComparingTo("3");
             assertThat(position.averagePrice()).isEqualByComparingTo("20");
         });
+    }
+
+    @Test void retroactivePurchaseRecalculatesAverageCostAndLaterSale() {
+        investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", LocalDate.of(2026, 1, 3)));
+        investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.VENDA, InvestmentPosition.AssetType.ACAO,
+                "BBAS3", "BBAS3.SA", "Banco do Brasil", "BR", "B3", "BRL", n("1"), n("25.00"), BigDecimal.ZERO,
+                LocalDate.of(2026, 1, 4), new OperationCosts(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO), null));
+
+        investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "10.00", LocalDate.of(2026, 1, 2)));
+
+        assertThat(investments.portfolio().positions()).singleElement().satisfies(position -> {
+            assertThat(position.quantity()).isEqualByComparingTo("3");
+            assertThat(position.averagePrice()).isEqualByComparingTo("15.060000");
+        });
+        assertThat(investments.movements()).filteredOn(movement -> movement.movementType() == InvestmentMovement.MovementType.VENDA)
+                .singleElement().satisfies(sale -> {
+                    assertThat(sale.realizedGain()).isEqualByComparingTo("9.940000");
+                    assertThat(sale.amount()).isEqualByComparingTo("25.00");
+                });
+    }
+
+    @Test void automaticJcpFreezesExDateQuantityAndCreatesCashOnlyAfterConfirmation() {
+        LocalDate today = LocalDate.now();
+        investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", today.minusDays(3)));
+        investments.recordTrade(trade(InvestmentMovement.MovementType.VENDA, "20.00", today.minusDays(1)));
+
+        var earnings = corporateEvents.synchronizeCurrentUser();
+        var jcp = earnings.stream().filter(earning -> earning.eventType() == CorporateEvent.EventType.JCP).findFirst().orElseThrow();
+        assertThat(jcp.quantityEligible()).isEqualByComparingTo("2");
+        assertThat(jcp.grossAmount()).isEqualByComparingTo("0.40");
+        assertThat(jcp.withheldAmount()).isEqualByComparingTo("0.06");
+        assertThat(jcp.netAmount()).isEqualByComparingTo("0.34");
+        assertThat(jcp.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO);
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).hasSize(2);
+
+        corporateEvents.confirm(jcp.id());
+
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).filteredOn(transaction -> transaction.getDescription().startsWith("JCP -"))
+                .singleElement().satisfies(transaction -> {
+                    assertThat(transaction.getType()).isEqualTo(Transaction.TransactionType.RECEITA);
+                    assertThat(transaction.getCategory()).isEqualTo(Transaction.TransactionCategory.INVESTIMENTO);
+                    assertThat(transaction.getAmount()).isEqualByComparingTo("0.34");
+                });
+        assertThat(investments.taxSummary(today.getYear()).events()).filteredOn(event -> event.eventType().equals("JCP"))
+                .singleElement().satisfies(event -> {
+                    assertThat(event.status()).isEqualTo(TaxStatus.RETIDO_INTEGRAL);
+                    assertThat(event.withheldAmount()).isEqualByComparingTo("0.06");
+                });
     }
 
     @Test void foreignTradeUsesHistoricalExchangeRateInCashAndReconciliation() {

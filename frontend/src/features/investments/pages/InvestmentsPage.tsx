@@ -11,6 +11,7 @@ import {
   InvestmentProjectionRequest,
   InvestmentProjectionResponse,
   InvestmentTradeRequest,
+  WalletEarningResponse,
 } from '../../../types';
 import {
   useCreateInvestmentMutation,
@@ -36,6 +37,10 @@ import {
   useDeleteInvestmentMovementMutation,
   useUpdateInvestmentTaxEventMutation,
   useUpdateInvestmentGoalMutation,
+  useAdjustWalletEarningMutation,
+  useConfirmWalletEarningMutation,
+  useSynchronizeWalletEarningsMutation,
+  useWalletEarningsQuery,
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
@@ -52,6 +57,7 @@ export default function InvestmentsPage() {
   const portfolioQuery = useInvestmentPortfolioQuery();
   const movementsQuery = useInvestmentMovementsQuery();
   const schedulesQuery = useInvestmentIncomeSchedulesQuery();
+  const walletEarningsQuery = useWalletEarningsQuery();
   const goalsQuery = useInvestmentGoalsQuery();
   const projectionMutation = useInvestmentProjectionMutation();
   const [tradeOpen, setTradeOpen] = useState(false);
@@ -160,7 +166,8 @@ export default function InvestmentsPage() {
 
       <div className="grid items-stretch gap-6 md:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.8fr)]">
         <div className="min-w-0 [&>section]:h-full">
-          <IncomeCalendar schedules={schedulesQuery.data ?? []} loading={schedulesQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
+          <IncomeCalendar schedules={schedulesQuery.data ?? []} automaticEarnings={walletEarningsQuery.data ?? []}
+            loading={schedulesQuery.isLoading || walletEarningsQuery.isLoading} onAdd={() => setScheduleOpen(true)} />
         </div>
 
         <div className="min-w-0 space-y-6">
@@ -452,7 +459,7 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
         <ProjectionMetric label="IOF estimado" value={formatOptionalCurrency(result.iof)} />
         <ProjectionMetric label="Líquido no resgate" value={formatOptionalCurrency(result.netBalance)} />
       </div>
-      {!hasTaxEstimate && <p className="border-t border-amber-300/20 bg-amber-400/10 px-6 py-3 text-sm text-amber-100">Os impostos ainda não foram calculados porque esta API não enviou os campos fiscais da v1.4.0. Atualize o backend e tente novamente.</p>}
+      {!hasTaxEstimate && <p className="border-t border-amber-300/20 bg-amber-400/10 px-6 py-3 text-sm text-amber-100">Os impostos ainda não foram calculados porque esta API não enviou os campos fiscais da v1.4.1. Atualize o backend e tente novamente.</p>}
       <div className="border-y border-white/10 px-6 py-5">
         <div className="mb-3 flex justify-between text-xs text-slate-300"><span>Composição do saldo</span><span>{result.months} meses · {result.effectiveMonthlyRate.toFixed(4).replace('.', ',')}% a.m.</span></div>
         <div className="flex h-4 overflow-hidden rounded-full bg-emerald-400"><div className="bg-slate-400" style={{ width: `${investedShare}%` }} /></div>
@@ -522,12 +529,16 @@ function EmptyFiscal({ label }: { label: string }) { return <div className="roun
 function TaxBadge({ status }: { status: 'RETIDO_INTEGRAL' | 'RETIDO_ANTECIPACAO' | 'A_RECOLHER' | 'ISENTO' }) { const options = { RETIDO_INTEGRAL: ['Retido na fonte', 'bg-emerald-100 text-emerald-800'], RETIDO_ANTECIPACAO: ['IRRF antecipado', 'bg-sky-100 text-sky-800'], A_RECOLHER: ['Pode gerar DARF', 'bg-amber-100 text-amber-800'], ISENTO: ['Isento', 'bg-slate-200 text-slate-600'] } as const; const [label, classes] = options[status]; return <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${classes}`}>{label}</span>; }
 function ReconciliationBadge({ status }: { status: 'CONCILIADO' | 'GERADO_PELO_FAROL' | 'PENDENTE' | 'REVISAR' }) { const options = { CONCILIADO: ['Conciliado', 'bg-emerald-100 text-emerald-800'], GERADO_PELO_FAROL: ['Farol', 'bg-sky-100 text-sky-800'], PENDENTE: ['Pendente', 'bg-amber-100 text-amber-800'], REVISAR: ['Revisar', 'bg-slate-200 text-slate-600'] } as const; const [label, classes] = options[status]; return <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${classes}`}>{label}</span>; }
 
-function IncomeCalendar({ schedules, loading, onAdd }: { schedules: InvestmentIncomeScheduleResponse[]; loading: boolean; onAdd: () => void }) {
+function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { schedules: InvestmentIncomeScheduleResponse[]; automaticEarnings: WalletEarningResponse[]; loading: boolean; onAdd: () => void }) {
   const receiveMutation = useReceiveInvestmentIncomeScheduleMutation();
   const deleteMutation = useDeleteInvestmentIncomeScheduleMutation();
+  const synchronizeMutation = useSynchronizeWalletEarningsMutation();
+  const confirmEarningMutation = useConfirmWalletEarningMutation();
+  const adjustEarningMutation = useAdjustWalletEarningMutation();
   const [error, setError] = useState('');
   const pending = schedules.filter((schedule) => schedule.status === 'AGUARDANDO');
-  const upcomingValue = pending.reduce((total, schedule) => total + schedule.netAmount, 0);
+  const automaticPending = automaticEarnings.filter((earning) => earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO');
+  const upcomingValue = [...pending, ...automaticPending].reduce((total, item) => total + item.netAmount, 0);
   const receive = (id: number) => {
     setError('');
     receiveMutation.mutate(id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível confirmar o recebimento.')) });
@@ -536,14 +547,40 @@ function IncomeCalendar({ schedules, loading, onAdd }: { schedules: InvestmentIn
     setError('');
     deleteMutation.mutate(id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover o provento.')) });
   };
+  const synchronize = () => {
+    setError('');
+    synchronizeMutation.mutate(undefined, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível atualizar a agenda automática.')) });
+  };
+  const adjust = (earning: WalletEarningResponse) => {
+    const gross = window.prompt('Valor bruto recebido (R$).', String(earning.grossAmount));
+    if (gross == null) return;
+    const withheld = window.prompt('Imposto retido na fonte (R$).', String(earning.withheldAmount));
+    if (withheld == null) return;
+    const grossAmount = Number(gross.replace(',', '.'));
+    const withheldAmount = Number(withheld.replace(',', '.'));
+    if (!Number.isFinite(grossAmount) || !Number.isFinite(withheldAmount)) return setError('Informe números válidos para o bruto e a retenção.');
+    setError('');
+    adjustEarningMutation.mutate({ id: earning.id, data: { grossAmount, withheldAmount } }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível ajustar o provento.')) });
+  };
+  const cancel = (earning: WalletEarningResponse) => {
+    if (!window.confirm(`Cancelar o provento previsto de ${earning.symbol || earning.assetName}?`)) return;
+    setError('');
+    adjustEarningMutation.mutate({ id: earning.id, data: { cancelled: true } }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível cancelar o provento.')) });
+  };
   return <SectionCard title="Agenda de proventos">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-      <div><p className="text-sm text-slate-500">Planeje o que está anunciado e registre no histórico somente quando o valor cair na conta.</p><p className="mt-2 text-sm font-semibold text-emerald-700">{currency(upcomingValue)} líquidos aguardando</p></div>
-      <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Agendar provento</button>
+      <div><p className="text-sm text-slate-500">Eventos automáticos congelam a quantidade na Data Com e só viram receita após sua confirmação.</p><p className="mt-2 text-sm font-semibold text-emerald-700">{currency(upcomingValue)} líquidos aguardando</p></div>
+      <div className="flex flex-wrap gap-2"><button className="rounded-full border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" disabled={synchronizeMutation.isPending} type="button" onClick={synchronize}>{synchronizeMutation.isPending ? 'Atualizando...' : 'Atualizar agenda'}</button><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Agendar manualmente</button></div>
     </div>
     {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-    {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : schedules.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">Nenhum provento agendado</p><p className="mt-1 text-sm text-slate-500">Adicione a Data Com, o pagamento e o valor por cota quando tiver o comunicado do ativo.</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{schedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">{schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
+    {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : schedules.length === 0 && automaticEarnings.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">Nenhum provento previsto</p><p className="mt-1 text-sm text-slate-500">Atualize a agenda para consultar os eventos mock de PETR4 e BBAS3 ou registre um evento manual.</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{automaticEarnings.map((earning) => <article key={`automatic-${earning.id}`} className="rounded-[20px] border border-emerald-100 bg-emerald-50/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{earning.symbol || earning.assetName}</p><WalletEarningBadge status={earning.status} /></div><p className="mt-1 text-xs text-slate-500">{earning.eventType === 'JCP' ? 'JCP' : 'Dividendo'} automático · fonte {earning.source}{earning.payerCnpj ? ` · CNPJ ${earning.payerCnpj}` : ''}</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(earning.netAmount)}</p><p className="text-xs text-slate-500">líquido previsto</p></div></div><div className="mt-3 grid gap-2 border-t border-emerald-100 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{formatDate(earning.exDate)}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(earning.paymentDate)}</strong></span><span>{formatQuantity(earning.quantityEligible)} cotas · <strong className="text-slate-700">{currency(earning.grossAmount)} bruto</strong></span></div><p className="mt-2 text-xs text-slate-500">{earning.eventType === 'JCP' ? `JCP com IRRF de 15,00%: ${currency(earning.withheldAmount)} retidos.` : `Dividendo sem retenção prevista: ${currency(earning.withheldAmount)} retidos.`}</p>{(earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO') && <div className="mt-3 flex flex-wrap justify-end gap-3"><button className="text-sm font-semibold text-slate-600 hover:text-slate-950" disabled={adjustEarningMutation.isPending} type="button" onClick={() => adjust(earning)}>Ajustar valor</button><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={adjustEarningMutation.isPending} type="button" onClick={() => cancel(earning)}>Cancelar</button>{earning.status === 'PENDENTE_CONCILIACAO' && <button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={confirmEarningMutation.isPending} type="button" onClick={() => confirmEarningMutation.mutate(earning.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível confirmar o recebimento.')) })}>{confirmEarningMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button>}</div>}</article>)}{schedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">Manual · {schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
   </SectionCard>;
+}
+
+function WalletEarningBadge({ status }: { status: WalletEarningResponse['status'] }) {
+  const labels = { PROVISIONADO: ['Provisionado', 'bg-sky-100 text-sky-800'], PENDENTE_CONCILIACAO: ['A confirmar', 'bg-amber-100 text-amber-800'], EFETIVADO: ['Efetivado', 'bg-emerald-100 text-emerald-800'], CANCELADO: ['Cancelado', 'bg-slate-200 text-slate-600'] } as const;
+  const [label, classes] = labels[status];
+  return <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${classes}`}>{label}</span>;
 }
 
 function GoalsPanel({ goals, loading, onAdd, onContribute, onEdit }: { goals: InvestmentGoalResponse[]; loading: boolean; onAdd: () => void; onContribute: (goal: InvestmentGoalResponse) => void; onEdit: (goal: InvestmentGoalResponse) => void }) {

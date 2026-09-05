@@ -31,12 +31,13 @@ class InvestmentServiceTest {
     private final MarketQuoteService marketQuoteService = mock(MarketQuoteService.class);
     private final InvestmentPortfolioSnapshotRepository snapshotRepository = mock(InvestmentPortfolioSnapshotRepository.class);
     private final InvestmentIncomeScheduleRepository incomeScheduleRepository = mock(InvestmentIncomeScheduleRepository.class);
+    private final WalletEarningRepository walletEarningRepository = mock(WalletEarningRepository.class);
     private final InvestmentGoalRepository goalRepository = mock(InvestmentGoalRepository.class);
     private final InvestmentGoalContributionRepository goalContributionRepository = mock(InvestmentGoalContributionRepository.class);
     private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
     private final InvestmentService service = new InvestmentService(repository, authenticatedUserService,
             marketQuoteService, mock(AssetCatalogService.class), movementRepository, snapshotRepository,
-            transactionRepository, incomeScheduleRepository, goalRepository, goalContributionRepository, mock(jakarta.persistence.EntityManager.class));
+            transactionRepository, incomeScheduleRepository, walletEarningRepository, goalRepository, goalContributionRepository, mock(jakarta.persistence.EntityManager.class));
 
     @Test
     void shouldProjectTwelvePercentWithCompoundInterest() {

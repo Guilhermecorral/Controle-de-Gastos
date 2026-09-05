@@ -2,6 +2,14 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.1] - 2026-09-05
+
+- Compras e vendas retroativas passam a recalcular cronologicamente a posição, o custo médio, o resultado de vendas posteriores e os lançamentos financeiros vinculados.
+- Agenda automática de proventos com eventos corporativos, snapshot de elegibilidade na Data Com e estados provisionado, a confirmar, efetivado e cancelado.
+- Provedor mock isolado por interface para PETR4 e BBAS3; JCP exibe IRRF de 15% no fluxo da aplicação.
+- A confirmação do recebimento cria a receita `INVESTIMENTO`; previsões não alteram o saldo financeiro.
+- Migração V15, contratos, interface da agenda e referências de versão atualizados para `1.4.1`.
+
 ## [1.4.0] - 2026-09-05
 
 - Release oficial da base de investimentos com lançamentos financeiros vinculados, correções controladas e renda fixa com liquidez diária.

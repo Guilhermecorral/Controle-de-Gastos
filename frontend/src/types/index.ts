@@ -555,6 +555,31 @@ export interface InvestmentIncomeScheduleResponse {
   status: 'AGUARDANDO' | 'RECEBIDO';
 }
 
+export interface WalletEarningResponse {
+  id: number;
+  positionId: number;
+  symbol: string | null;
+  assetName: string;
+  eventType: 'DIVIDENDO' | 'JCP';
+  payerCnpj: string | null;
+  source: string;
+  amountPerUnit: number;
+  quantityEligible: number;
+  grossAmount: number;
+  withheldAmount: number;
+  netAmount: number;
+  taxRate: number;
+  exDate: string;
+  paymentDate: string;
+  status: 'PROVISIONADO' | 'PENDENTE_CONCILIACAO' | 'EFETIVADO' | 'CANCELADO';
+}
+
+export interface WalletEarningAdjustmentRequest {
+  grossAmount?: number;
+  withheldAmount?: number;
+  cancelled?: boolean;
+}
+
 export interface InvestmentGoalRequest {
   name: string;
   targetAmount: number;

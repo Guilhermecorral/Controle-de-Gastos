@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.4.0. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão 1.4.1. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -120,6 +120,10 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `GET` | `/api/investments/income-schedules` | Lista a agenda de proventos |
 | `POST` | `/api/investments/income-schedules` | Agenda provento com Data Com, pagamento e imposto |
 | `POST` | `/api/investments/income-schedules/{id}/receive` | Confirma o recebimento de um provento agendado |
+| `GET` | `/api/investments/wallet-earnings` | Lista proventos automáticos e atualiza o estado quando a data de pagamento chega |
+| `POST` | `/api/investments/wallet-earnings/sync` | Consulta o provedor configurado e cria previsões elegíveis pela Data Com |
+| `POST` | `/api/investments/wallet-earnings/{id}/confirm` | Confirma o valor recebido e cria a receita `INVESTIMENTO` vinculada |
+| `PUT` | `/api/investments/wallet-earnings/{id}` | Ajusta bruto/retenção ou cancela uma previsão ainda não efetivada |
 | `GET` | `/api/investments/goals` | Lista metas de patrimônio e seus saldos próprios |
 | `POST` | `/api/investments/goals` | Cria uma meta de patrimônio |
 | `PUT` | `/api/investments/goals/{id}` | Edita objetivo, valor inicial, aporte previsto e taxa |

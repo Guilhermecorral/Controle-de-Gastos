@@ -25,6 +25,8 @@ import {
   InvestmentMovementUpdateRequest,
   InvestmentIncomeScheduleRequest,
   InvestmentIncomeScheduleResponse,
+  WalletEarningAdjustmentRequest,
+  WalletEarningResponse,
   InvestmentGoalRequest,
   InvestmentGoalContributionRequest,
   InvestmentGoalContributionResponse,
@@ -194,6 +196,44 @@ export function useDeleteInvestmentIncomeScheduleMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: number) => api.delete(`/investments/income-schedules/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+  })
+}
+
+export function useWalletEarningsQuery() {
+  return useQuery({
+    queryKey: ['investments', 'wallet-earnings'],
+    queryFn: async () => (await api.get<WalletEarningResponse[]>('/investments/wallet-earnings')).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useSynchronizeWalletEarningsMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => (await api.post<WalletEarningResponse[]>('/investments/wallet-earnings/sync')).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+  })
+}
+
+export function useConfirmWalletEarningMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => (await api.post<WalletEarningResponse>(`/investments/wallet-earnings/${id}/confirm`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] })
+    },
+  })
+}
+
+export function useAdjustWalletEarningMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: WalletEarningAdjustmentRequest }) =>
+      (await api.put<WalletEarningResponse>(`/investments/wallet-earnings/${id}`, data)).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
   })
 }

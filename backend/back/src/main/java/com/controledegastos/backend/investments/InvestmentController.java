@@ -17,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InvestmentController {
     private final InvestmentService investmentService;
+    private final CorporateEventService corporateEventService;
 
     @GetMapping("/portfolio")
     public PortfolioResponse portfolio() { return investmentService.portfolio(); }
@@ -94,6 +95,21 @@ public class InvestmentController {
     public ResponseEntity<Void> deleteIncomeSchedule(@PathVariable Long id) {
         investmentService.deleteIncomeSchedule(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/wallet-earnings")
+    public List<WalletEarningResponse> walletEarnings() { return corporateEventService.walletEarnings(); }
+
+    @PostMapping("/wallet-earnings/sync")
+    public List<WalletEarningResponse> synchronizeWalletEarnings() { return corporateEventService.synchronizeCurrentUser(); }
+
+    @PostMapping("/wallet-earnings/{id}/confirm")
+    public WalletEarningResponse confirmWalletEarning(@PathVariable Long id) { return corporateEventService.confirm(id); }
+
+    @PutMapping("/wallet-earnings/{id}")
+    public WalletEarningResponse adjustWalletEarning(@PathVariable Long id,
+                                                      @Valid @RequestBody WalletEarningAdjustmentRequest request) {
+        return corporateEventService.adjust(id, request);
     }
 
     @GetMapping("/goals")
