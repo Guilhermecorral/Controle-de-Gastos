@@ -58,6 +58,10 @@ app:
     coingecko-api-key: ${APP_INVESTMENTS_COINGECKO_API_KEY:}
     quote-cache-seconds: ${APP_INVESTMENTS_QUOTE_CACHE_SECONDS:300}
     default-annual-rate: ${APP_INVESTMENTS_DEFAULT_ANNUAL_RATE:12.0}
+    corporate-events:
+      sync-cron: ${APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON:-}
+    imports:
+      pdf-enabled: ${APP_INVESTMENTS_IMPORTS_PDF_ENABLED:false}
   admin:
     bootstrap:
       enabled: ${APP_ADMIN_BOOTSTRAP_ENABLED:false}

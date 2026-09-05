@@ -25,6 +25,9 @@ import {
   InvestmentMovementUpdateRequest,
   InvestmentIncomeScheduleRequest,
   InvestmentIncomeScheduleResponse,
+  InvestmentImportConfirmItem,
+  InvestmentImportConfirmResponse,
+  InvestmentImportPreviewResponse,
   WalletEarningAdjustmentRequest,
   WalletEarningResponse,
   InvestmentGoalRequest,
@@ -89,6 +92,25 @@ export function useRecordInvestmentTradeMutation() {
   return useMutation({
     mutationFn: async (data: InvestmentTradeRequest) =>
       (await api.post<InvestmentMovementResponse>('/investments/movements/trades', data)).data,
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
+export function usePreviewInvestmentImportMutation() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return (await api.post<InvestmentImportPreviewResponse>('/investments/imports/preview', formData, { timeout: 120_000 })).data
+    },
+  })
+}
+
+export function useConfirmInvestmentImportMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ batchId, items }: { batchId: number; items: InvestmentImportConfirmItem[] }) =>
+      (await api.post<InvestmentImportConfirmResponse>(`/investments/imports/${batchId}/confirm`, { items }, { timeout: 120_000 })).data,
     onSuccess: () => queryClient.invalidateQueries(),
   })
 }

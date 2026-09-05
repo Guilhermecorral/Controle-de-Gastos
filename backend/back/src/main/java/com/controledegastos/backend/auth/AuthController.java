@@ -102,7 +102,8 @@ public class AuthController {
      * Encerra a sessao removendo os cookies sensiveis do navegador.
      */
     @PostMapping("/logout")
-    public ResponseEntity<SimpleMessageResponseDTO> logout(HttpServletResponse response) {
+    public ResponseEntity<SimpleMessageResponseDTO> logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.revokeSession(authCookieService.resolveRefreshToken(request));
         authCookieService.clearAuthenticationCookies(response);
         return ResponseEntity.ok(new SimpleMessageResponseDTO("Sessao encerrada com sucesso"));
     }

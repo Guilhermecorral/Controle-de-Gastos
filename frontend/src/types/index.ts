@@ -529,6 +529,43 @@ export interface InvestmentMovementUpdateRequest {
   costs: { brokerageFee: number; b3Fee: number; otherCosts: number; withheldTax: number };
 }
 
+export interface InvestmentImportPreviewItem {
+  id: number;
+  sourceRow: number;
+  selectedByDefault: boolean;
+  possibleDuplicate: boolean;
+  warning: string;
+  movementType: 'COMPRA' | 'VENDA';
+  assetType: Exclude<InvestmentAssetType, 'RENDA_FIXA'>;
+  symbol: string;
+  name: string;
+  market: string;
+  exchange: string | null;
+  currency: string;
+  quantity: number;
+  unitPrice: number;
+  costs: { brokerageFee: number; b3Fee: number; otherCosts: number; withheldTax: number };
+  exchangeRate: number;
+  eventDate: string;
+}
+
+export interface InvestmentImportPreviewResponse {
+  batchId: number;
+  filename: string;
+  format: string;
+  items: InvestmentImportPreviewItem[];
+  warnings: string[];
+}
+
+export interface InvestmentImportConfirmItem extends Omit<InvestmentImportPreviewItem, 'sourceRow' | 'selectedByDefault' | 'possibleDuplicate' | 'warning'> {
+  selected: boolean;
+}
+
+export interface InvestmentImportConfirmResponse {
+  importedCount: number;
+  message: string;
+}
+
 export interface InvestmentIncomeScheduleRequest {
   positionId: number;
   incomeType: 'DIVIDENDO' | 'RENDIMENTO';

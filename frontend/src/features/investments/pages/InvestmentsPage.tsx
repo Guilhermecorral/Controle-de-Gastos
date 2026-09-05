@@ -47,6 +47,7 @@ import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '..
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import { FixedIncomeRedemption, TaxRegimeFields } from '../components/FixedIncomeTools';
 import TaxClosingPanel from '../components/TaxClosingPanel';
+import InvestmentImportDialog from '../components/InvestmentImportDialog';
 
 const today = new Date().toISOString().slice(0, 10);
 const nextYear = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10);
@@ -61,6 +62,8 @@ export default function InvestmentsPage() {
   const goalsQuery = useInvestmentGoalsQuery();
   const projectionMutation = useInvestmentProjectionMutation();
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [investmentImportOpen, setInvestmentImportOpen] = useState(false);
+  const [investmentImportFeedback, setInvestmentImportFeedback] = useState<string | null>(null);
   const [importInitial, setImportInitial] = useState(false);
   const [redemption, setRedemption] = useState<InvestmentPositionResponse | null>(null);
   const [incomePosition, setIncomePosition] = useState<InvestmentPositionResponse | null>(null);
@@ -99,10 +102,9 @@ export default function InvestmentsPage() {
           <h2 className="mt-2 text-3xl font-semibold text-slate-950">Seus investimentos, sem cadastro no escuro</h2>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">Selecione ativos verificados no catálogo e registre cada compra ou venda. A posição é calculada pelo Farol.</p>
         </div>
-        <button className="button-pop button-glow flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 font-semibold text-white" type="button" onClick={() => setTradeOpen(true)}>
-          <Plus size={18} /> Nova movimentação
-        </button>
+        <div className="flex flex-wrap gap-2"><button className="rounded-full border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setInvestmentImportOpen(true)}>Importar investimentos</button><button className="button-pop button-glow flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 font-semibold text-white" type="button" onClick={() => setTradeOpen(true)}><Plus size={18} /> Nova movimentação</button></div>
       </header>
+      {investmentImportFeedback && <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{investmentImportFeedback}</p>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total investido" value={currency(portfolio?.totalInvested ?? 0)} tone="neutral" />
@@ -213,6 +215,7 @@ export default function InvestmentsPage() {
       </SectionCard>
 
       <TradeDialog key={importInitial ? 'opening' : 'new'} open={tradeOpen} positions={portfolio?.positions ?? []} initialMode={importInitial} onClose={() => { setTradeOpen(false); setImportInitial(false); }} />
+      <InvestmentImportDialog open={investmentImportOpen} onClose={() => setInvestmentImportOpen(false)} onFinished={setInvestmentImportFeedback} />
       <FixedIncomeRedemption position={redemption} onClose={() => setRedemption(null)} />
       <IncomeDialog position={incomePosition} onClose={() => setIncomePosition(null)} />
       <IncomeScheduleDialog open={scheduleOpen} positions={portfolio?.positions ?? []} onClose={() => setScheduleOpen(false)} />

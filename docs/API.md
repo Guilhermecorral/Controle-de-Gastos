@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.4.1. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão 1.4.2. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -66,8 +66,8 @@ Respostas comuns:
 | `POST` | `/api/auth/register` | Cria uma conta |
 | `POST` | `/api/auth/login` | Autentica e cria a sessão |
 | `GET` | `/api/auth/me` | Retorna o usuário da sessão |
-| `POST` | `/api/auth/refresh` | Renova o token de acesso |
-| `POST` | `/api/auth/logout` | Encerra a sessão e limpa cookies |
+| `POST` | `/api/auth/refresh` | Rotaciona o refresh token persistido e renova a sessão |
+| `POST` | `/api/auth/logout` | Revoga o refresh token atual e limpa cookies |
 | `POST` | `/api/auth/forgot-password` | Solicita recuperação de senha |
 | `POST` | `/api/auth/reset-password` | Define uma nova senha com token válido |
 | `GET` | `/api/auth/reset-password/redirect?token=...` | Redireciona o link recebido por e-mail |
@@ -116,6 +116,8 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `DELETE` | `/api/investments/positions/{id}` | Remove uma posição |
 | `GET` | `/api/investments/movements` | Lista movimentações |
 | `POST` | `/api/investments/movements/trades` | Registra compra ou venda |
+| `POST` | `/api/investments/imports/preview` | Lê CSV, Excel ou OFX de investimentos para staging, sem gravar na carteira |
+| `POST` | `/api/investments/imports/{batchId}/confirm` | Confirma as linhas revisadas e cria compras/vendas vinculadas |
 | `POST` | `/api/investments/positions/{id}/income` | Registra provento em uma posição |
 | `GET` | `/api/investments/income-schedules` | Lista a agenda de proventos |
 | `POST` | `/api/investments/income-schedules` | Agenda provento com Data Com, pagamento e imposto |

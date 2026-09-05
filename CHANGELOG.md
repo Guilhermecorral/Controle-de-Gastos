@@ -2,6 +2,14 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.2] - 2026-09-05
+
+- Refresh tokens agora são persistidos e rotacionados no PostgreSQL, com revogação no logout e validade padrão de 30 dias; a assinatura continua dependente de `JWT_SECRET` fixo no ambiente.
+- Nova importação assistida de investimentos para CSV, XLS, XLSX e OFX de investimentos: o arquivo é salvo apenas como lote de revisão, aponta possíveis duplicidades e não cria movimentações antes da confirmação.
+- A confirmação do lote reutiliza o fluxo oficial de compra e venda, preservando preço médio, transações `INVESTIMENTO`, painel e análise mensal.
+- PDF B3 possui apenas ponto de extensão protegido por feature flag; não há parser ou endpoint em produção nesta versão.
+- Migrações V16/V17, contratos, interface de revisão e referências de versão atualizados para `1.4.2`.
+
 ## [1.4.1] - 2026-09-05
 
 - Compras e vendas retroativas passam a recalcular cronologicamente a posição, o custo médio, o resultado de vendas posteriores e os lançamentos financeiros vinculados.

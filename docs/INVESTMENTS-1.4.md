@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.1` em desenvolvimento, atualizada em 05/09/2026. A versão amplia a base estável da 1.4.0 com agenda automática de proventos, ainda usando uma fonte mock explícita.
+Status: `1.4.2` em desenvolvimento, atualizada em 05/09/2026. A versão amplia a base estável da 1.4.0 com agenda automática controlada e importação assistida de investimentos.
 
 ## Entregue nesta etapa
 
@@ -28,12 +28,16 @@ Status: `1.4.1` em desenvolvimento, atualizada em 05/09/2026. A versão amplia a
 - Eventos corporativos e proventos do usuário são separados: `CorporateEvent` guarda o anúncio global e `WalletEarning` congela quantidade, bruto, IRRF e líquido pela Data Com.
 - A agenda automática usa `MarketDataProvider`; nesta etapa, `MockMarketDataProvider` fornece PETR4 e BBAS3 identificados como `MOCK` quando o usuário seleciona **Atualizar agenda**. O job existe, mas fica desativado por padrão até haver uma fonte real.
 - Proventos ficam provisionados até a data de pagamento e só criam uma receita `INVESTIMENTO` após a confirmação do usuário. JCP exibe IRRF de 15% no fluxo desta versão.
+- Importação de investimentos recebe CSV, XLS, XLSX e OFX de investimentos em um lote de staging. Ticker, data, operação, quantidade, preço, custos e IRRF são editáveis; possíveis duplicidades são avisadas e só a confirmação cria movimentações e fluxo financeiro.
+- O parser de PDF B3 permanece desativado por feature flag. Não existe endpoint de PDF em produção nesta versão.
 
 ## Endpoints
 
 | Metodo | Caminho | Uso |
 | --- | --- | --- |
 | POST | /api/investments/movements/trades | Compra/venda; aceita costs, exchangeRate e requestId para repeticao da mesma solicitacao |
+| POST | /api/investments/imports/preview | Cria lote de revisão para CSV, Excel ou OFX de investimentos, sem movimentação oficial |
+| POST | /api/investments/imports/{batchId}/confirm | Efetiva somente as linhas selecionadas e revisadas do lote |
 | PUT / DELETE | /api/investments/movements/{id} | Corrige ou remove compra/venda e sincroniza o lançamento financeiro vinculado |
 | POST | /api/investments/positions | Aplicacao de renda fixa ou saldo inicial (openingDate) |
 | POST | /api/investments/positions/{id}/redemption-preview | Previa de resgate total |
@@ -57,6 +61,8 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - V13 adiciona perfil de rentabilidade, indexador e liquidez diária às aplicações de renda fixa.
 - V14 adiciona ajustes fiscais explícitos por movimentação, sem alterar a operação financeira original.
 - V15 cria eventos corporativos globais e instâncias de proventos por usuário, incluindo snapshot de elegibilidade e vínculo com a movimentação efetivada.
+- V16 cria refresh tokens persistidos, revogáveis e com expiração para sustentar sessões após reinício.
+- V17 cria lotes e linhas de staging para importação assistida de investimentos.
 - As migracoes nao alteram despesas existentes nem geram lancamentos para compras antigas, evitando duplicar registros manuais.
 - Testes unitarios: fronteiras 180/181, 360/361, 720/721 dias, IOF, ausencia de lucro, prazos parciais, aportes com idades distintas e compensacao de prejuizos.
 - Testes de integracao: compra/venda e custos, inserção retroativa com recálculo de preço médio e venda posterior, proteção de vínculos, gastos de consumo, abertura sem caixa, resgate e pagamento único de DARF.
@@ -73,7 +79,7 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Obrigacoes persistidas com versao da memoria de calculo, revisoes e ajustes de pagamentos; hoje a estimativa e recalculada e o pagamento guarda os dados efetivos.
 - Calendario fiscal de vencimento e tratamento de guias complementares, multas e juros; nesta release o vencimento vem da guia Sicalc.
 - Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta release, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
-- Importacao de notas completas e comprovacao do historico anterior para marcar a apuracao como conferida.
+- Importação de PDF B3 e notas de corretagem; a estrutura está reservada, mas o parser permanece desativado até haver mapeamento de layouts e validação humana.
 
 ## Roadmap 1.4.0 a 1.4.2
 
@@ -84,7 +90,9 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 | Correção de compra/venda e evento fiscal | Entregue | Recalcula carteira e caixa; edição detalhada de aplicação/resgate segue pendente. |
 | Fechamento mensal guiado | Parcial | Ações B3 e FIIs em BRL têm estimativa; day trade, cripto, exterior, ETFs/BDRs seguem em revisão. |
 | Proventos automáticos | Entregue com mock | Data Com, snapshot, estados de conciliação, ajuste/cancelamento e confirmação financeira; provedor externo real continua pendente. |
-| Importação de investimentos B3/corretoras | Pendente para 1.4.2 | Não iniciada nesta rodada. PDF/nota exige mapeamento e revisão humana. |
+| Estabilidade de sessão | Entregue | `JWT_SECRET` permanece de ambiente; refresh token é persistido, rotacionado, revogável e vale 30 dias por padrão. |
+| Importação de investimentos CSV/Excel/OFX | Entregue | Staging, revisão editável, alerta de duplicidade e confirmação explícita antes de criar compra/venda. |
+| Importação de PDF B3/corretoras | Pendente | Feature flag reservada, sem endpoint ou parser em produção; layouts exigem mapeamento e revisão humana. |
 
 ### Viabilidade de PDF B3 e notas de corretagem
 
@@ -94,7 +102,7 @@ PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quanti
 
 1.4.1: agenda automática entregue com CNPJ pagador, Data Com, data de pagamento, quantidade elegível congelada, ajuste/cancelamento e confirmação. A fonte atual é mock, portanto os eventos servem ao fluxo e aos testes, não como informação de mercado para decisão financeira.
 
-1.4.2: importacao assistida de notas e extratos, revisao pelo usuario e conciliacao sem duplicidade.
+1.4.2: importação assistida de investimentos em CSV, Excel e OFX, revisão obrigatória, alerta de duplicidade e estabilidade de sessão por refresh token persistido. PDF B3 continua fora do fluxo de produção.
 
 ## Referencias fiscais verificadas
 

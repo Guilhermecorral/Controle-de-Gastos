@@ -7,6 +7,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ import java.util.List;
 public class InvestmentController {
     private final InvestmentService investmentService;
     private final CorporateEventService corporateEventService;
+    private final InvestmentImportService investmentImportService;
 
     @GetMapping("/portfolio")
     public PortfolioResponse portfolio() { return investmentService.portfolio(); }
@@ -40,6 +42,18 @@ public class InvestmentController {
 
     @GetMapping("/movements")
     public java.util.List<MovementResponse> movements() { return investmentService.movements(); }
+
+    /** Cria apenas um lote de revisão; nenhuma compra ou venda é registrada nesta etapa. */
+    @PostMapping(value = "/imports/preview", consumes = "multipart/form-data")
+    public InvestmentImportDtos.PreviewResponse previewImport(@RequestParam("file") MultipartFile file) {
+        return investmentImportService.preview(file);
+    }
+
+    @PostMapping("/imports/{batchId}/confirm")
+    public InvestmentImportDtos.ConfirmResponse confirmImport(@PathVariable Long batchId,
+                                                               @Valid @RequestBody InvestmentImportDtos.ConfirmRequest request) {
+        return investmentImportService.confirm(batchId, request);
+    }
 
     @PostMapping("/movements/trades")
     public ResponseEntity<MovementResponse> trade(@Valid @RequestBody TradeRequest request) {

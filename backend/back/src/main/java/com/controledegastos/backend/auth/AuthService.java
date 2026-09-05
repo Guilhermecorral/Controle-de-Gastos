@@ -20,6 +20,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+
 /**
  * Orquestra o fluxo de cadastro, login e emissao de tokens.
  */
@@ -35,6 +40,7 @@ public class AuthService {
     private final PasswordResetService passwordResetService;
     private final AuthenticatedUserService authenticatedUserService;
     private final TwoFactorService twoFactorService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     /**
      * Cria um novo usuario, aplica hash na senha e devolve os tokens iniciais.
@@ -131,6 +137,12 @@ public class AuthService {
             throw new BadCredentialsException("Sessao expirada");
         }
 
+        RefreshToken storedToken = refreshTokenRepository.findByTokenHashAndRevokedAtIsNull(hashToken(refreshToken))
+                .filter(token -> token.getUser().getId().equals(user.getId()))
+                .filter(token -> token.getExpiresAt().isAfter(LocalDateTime.now()))
+                .orElseThrow(() -> new BadCredentialsException("Sessao expirada"));
+        storedToken.setRevokedAt(LocalDateTime.now());
+        refreshTokenRepository.save(storedToken);
         return buildAuthenticationSession(user);
     }
 
@@ -168,12 +180,39 @@ public class AuthService {
         return passwordResetService.buildFrontendResetUrl(token);
     }
 
+    /** Revoga o refresh token atual para que sair em um dispositivo seja definitivo. */
+    public void revokeSession(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+        refreshTokenRepository.findByTokenHashAndRevokedAtIsNull(hashToken(refreshToken)).ifPresent(token -> {
+            token.setRevokedAt(LocalDateTime.now());
+            refreshTokenRepository.save(token);
+        });
+    }
+
     private AuthenticationSession buildAuthenticationSession(User user) {
+        String refreshToken = jwtService.generateRefreshToken(user);
+        refreshTokenRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+        refreshTokenRepository.save(RefreshToken.builder()
+                .user(user)
+                .tokenHash(hashToken(refreshToken))
+                .expiresAt(LocalDateTime.now().plusSeconds(jwtService.getRefreshExpiration() / 1_000))
+                .build());
         return new AuthenticationSession(
                 jwtService.generateAccessToken(user),
-                jwtService.generateRefreshToken(user),
+                refreshToken,
                 buildAuthResponse(user)
         );
+    }
+
+    private String hashToken(String rawToken) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 indisponivel", exception);
+        }
     }
 
     private AuthResponseDTO buildAuthResponse(User user) {

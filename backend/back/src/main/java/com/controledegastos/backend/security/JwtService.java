@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Gera, le e valida tokens JWT usados pela aplicacao.
@@ -26,7 +27,7 @@ public class JwtService {
     private static final String ACCESS_TOKEN_TYPE = "access";
     private static final String REFRESH_TOKEN_TYPE = "refresh";
     private static final long DEFAULT_ACCESS_EXPIRATION = 900_000L;
-    private static final long DEFAULT_REFRESH_EXPIRATION = 604_800_000L;
+    private static final long DEFAULT_REFRESH_EXPIRATION = 2_592_000_000L;
 
     private final Environment environment;
 
@@ -80,6 +81,8 @@ public class JwtService {
     public String generateRefreshToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put(TOKEN_TYPE_CLAIM, REFRESH_TOKEN_TYPE);
+        // Each rotation must produce a distinct value even when it happens in the same millisecond.
+        claims.put("jti", UUID.randomUUID().toString());
         return buildToken(claims, user.getEmail(), refreshExpiration);
     }
 

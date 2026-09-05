@@ -7,11 +7,10 @@
 [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Version](https://img.shields.io/badge/release-1.4.1-10B981)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/release-1.4.2-10B981)](CHANGELOG.md)
 
-**Em desenvolvimento: v1.4.1.** A agenda automática de proventos congela a posição na Data Com e só registra
-a receita após confirmação. Consulte o [escopo, testes e limitações](docs/INVESTMENTS-1.4.md). A fonte atual é mock;
-uma integração licenciada de mercado continua planejada para uma entrega futura.
+**Em desenvolvimento: v1.4.2.** A sessão persiste por refresh token revogável e a importação de investimentos passa por
+uma revisão obrigatória antes de alterar a carteira. Consulte o [escopo, testes e limitações](docs/INVESTMENTS-1.4.md).
 
 ![Prévia do Farol Financeiro](frontend/public/og-farol-financeiro.png)
 
@@ -31,7 +30,7 @@ O sistema foi construído como um projeto de produto real, não apenas como demo
 - **Investimentos:** catálogo de ativos, compras e vendas, preço médio, cotações, rentabilidade, proventos e evolução patrimonial.
 - **Renda fixa:** cadastro de aplicações e simulador de juros compostos com aportes mensais.
 - **Lista de desejos:** múltiplas listas, prioridades, descontos, histórico e conversão da compra em transação.
-- **Importação financeira:** prévia e confirmação de extratos OFX, CSV, TSV, XLS e XLSX.
+- **Importação financeira e de investimentos:** prévia editável de extratos e de compras/vendas em CSV, Excel ou OFX, com confirmação obrigatória.
 - **Notas fiscais:** envio em PDF, JPG ou PNG e sugestão de vínculo por valor, data e descrição.
 - **Conta e segurança:** cookies `HttpOnly`, renovação de sessão, recuperação de senha e autenticação em dois fatores.
 - **Administração:** visão operacional, suspensão de contas, papéis de acesso e recuperação controlada.
@@ -165,7 +164,7 @@ Para relatar uma vulnerabilidade, prefira um contato privado com o mantenedor em
 
 ## Estado do Projeto
 
-A versão em desenvolvimento é a **1.4.1**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco na evolução da agenda automática e em futuras integrações financeiras.
+A versão em desenvolvimento é a **1.4.2**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco na conferência de importações e em futuras integrações financeiras.
 
 ## Autoria
 

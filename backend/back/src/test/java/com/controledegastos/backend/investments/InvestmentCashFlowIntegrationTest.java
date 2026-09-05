@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.mock.web.MockMultipartFile;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -26,6 +27,7 @@ class InvestmentCashFlowIntegrationTest {
     @Autowired InvestmentService investments;
     @Autowired InvestmentTaxController tax;
     @Autowired CorporateEventService corporateEvents;
+    @Autowired InvestmentImportService investmentImports;
     @Autowired UserRepository users;
     @Autowired TransactionRepository transactions;
     @Autowired TransactionService financial;
@@ -202,5 +204,30 @@ class InvestmentCashFlowIntegrationTest {
             assertThat(event.currency()).isEqualTo("BRL");
             assertThat(event.grossAmount()).isEqualByComparingTo("525.20");
         });
+    }
+
+    @Test void investmentFileStaysInReviewUntilTheUserConfirmsIt() {
+        MockMultipartFile file = new MockMultipartFile("file", "carteira.csv", "text/csv", ("Data;Ticker;Operação;Quantidade;Preço;Corretagem;IRRF\n"
+                + "02/01/2026;PETR4;COMPRA;2;30,50;0,10;0\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        var preview = investmentImports.preview(file);
+        assertThat(preview.items()).singleElement().satisfies(item -> {
+            assertThat(item.symbol()).isEqualTo("PETR4");
+            assertThat(item.movementType()).isEqualTo(InvestmentMovement.MovementType.COMPRA);
+        });
+        assertThat(investments.movements()).isEmpty();
+
+        var item = preview.items().getFirst();
+        var response = investmentImports.confirm(preview.batchId(), new InvestmentImportDtos.ConfirmRequest(List.of(
+                new InvestmentImportDtos.ConfirmItemRequest(item.id(), true, item.movementType(), item.assetType(), item.symbol(), item.name(),
+                        item.market(), item.exchange(), item.currency(), item.quantity(), item.unitPrice(), item.costs(), item.exchangeRate(), item.eventDate())
+        )));
+        assertThat(response.importedCount()).isEqualTo(1);
+        assertThat(investments.movements()).singleElement().satisfies(movement -> {
+            assertThat(movement.assetName()).isEqualTo("PETR4");
+            assertThat(movement.quantity()).isEqualByComparingTo("2");
+        });
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).singleElement().satisfies(transaction ->
+                assertThat(transaction.getCategory()).isEqualTo(Transaction.TransactionCategory.INVESTIMENTO));
     }
 }

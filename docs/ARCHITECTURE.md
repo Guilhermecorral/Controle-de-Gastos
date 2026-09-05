@@ -1,6 +1,6 @@
 # Arquitetura do Farol Financeiro
 
-Este documento apresenta a arquitetura técnica da versão 1.4.1 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
+Este documento apresenta a arquitetura técnica da versão 1.4.2 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
 
 ## Visão geral
 
@@ -82,7 +82,7 @@ sequenceDiagram
     A-->>B: novo cookie de acesso
 ```
 
-A API é stateless. O token de acesso é enviado em cookie `HttpOnly` com escopo geral, enquanto o token de renovação possui escopo restrito à rota de autenticação. Em produção, os cookies usam transporte seguro e as origens permitidas são configuradas explicitamente.
+A API usa access token assinado e refresh token persistido. O token de acesso é enviado em cookie `HttpOnly` com escopo geral, enquanto o de renovação possui escopo restrito à rota de autenticação, é armazenado por hash no PostgreSQL e rotacionado ao renovar a sessão. Com `JWT_SECRET` fixo no ambiente, reinícios não invalidam sessões válidas. Em produção, os cookies usam transporte seguro e as origens permitidas são configuradas explicitamente.
 
 O segundo fator usa TOTP. O segredo é armazenado de forma cifrada; por isso, a chave de criptografia da aplicação deve ser tratada como segredo de produção e nunca versionada.
 
@@ -91,6 +91,7 @@ O segundo fator usa TOTP. O segredo é armazenado de forma cifrada; por isso, a 
 ```mermaid
 erDiagram
     USER ||--o{ TRANSACTION : possui
+    USER ||--o{ REFRESH_TOKEN : possui
     USER ||--o{ INVESTMENT_POSITION : possui
     USER ||--o{ INVESTMENT_MOVEMENT : registra
     USER ||--o{ PORTFOLIO_SNAPSHOT : acompanha
@@ -113,7 +114,7 @@ A rentabilidade da posição compara o custo médio das compras com a cotação 
 
 ## Importação de dados
 
-O pipeline de importação aceita OFX, CSV, TSV, XLS e XLSX. O arquivo é validado, convertido para uma representação comum, analisado e então transformado em transações do usuário.
+O pipeline de extratos aceita OFX, CSV, TSV, XLS e XLSX. Para investimentos, CSV, Excel e OFX de investimentos entram primeiro em tabelas de staging, recebem alertas de duplicidade e só são transformados em compras ou vendas após a confirmação explícita do usuário.
 
 ```mermaid
 flowchart LR
@@ -121,11 +122,14 @@ flowchart LR
     V --> P[Parser específico]
     P --> N[Normalização]
     N --> C[Classificação e confiança]
-    C --> R[Resultado da importação]
-    R --> T[(Transações)]
+    C --> R[Prévia editável]
+    R --> S[(Lote de staging)]
+    S -->|Confirmação| T[(Carteira e transações)]
 ```
 
 Comprovantes PDF, JPG e PNG seguem um fluxo próprio. A associação automática deve ser tratada como sugestão quando houver ambiguidade, nunca como prova contábil definitiva.
+
+O parser de nota B3 em PDF ainda não é exposto. Existe somente uma feature flag desligada por padrão (`APP_INVESTMENTS_IMPORTS_PDF_ENABLED=false`) para reservar o ponto de extensão sem permitir que um layout não validado produza lançamentos.
 
 ## Migrações
 
