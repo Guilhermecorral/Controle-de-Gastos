@@ -36,7 +36,7 @@ class InvestmentServiceTest {
     private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
     private final InvestmentService service = new InvestmentService(repository, authenticatedUserService,
             marketQuoteService, mock(AssetCatalogService.class), movementRepository, snapshotRepository,
-            transactionRepository, incomeScheduleRepository, goalRepository, goalContributionRepository);
+            transactionRepository, incomeScheduleRepository, goalRepository, goalContributionRepository, mock(jakarta.persistence.EntityManager.class));
 
     @Test
     void shouldProjectTwelvePercentWithCompoundInterest() {

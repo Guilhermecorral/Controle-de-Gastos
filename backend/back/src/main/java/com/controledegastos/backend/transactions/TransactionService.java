@@ -193,7 +193,9 @@ public class TransactionService {
                 transaction.getInstallments(),
                 transaction.getTransactionDate(),
                 transaction.getCreatedAt(),
-                toReceiptSummaryDTO(transaction)
+                toReceiptSummaryDTO(transaction),
+                transaction.getInvestmentMovementId(),
+                transaction.getInvestmentMovementId() != null || transaction.getManagedReference() != null
         );
     }
 
@@ -298,6 +300,7 @@ public class TransactionService {
         Integer installments = normalizeInstallments(dto);
         Transaction transaction = transactionRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Transacao nao encontrada"));
+        requireManualTransaction(transaction);
 
         if (transaction.getTransactionGroupId() != null || dto.paymentMethod() == Transaction.PaymentMethod.CARTAO_CREDITO_PARCELADO) {
             List<Transaction> recreatedGroup = replaceInstallmentGroup(user, transaction, dto, installments);
@@ -324,6 +327,7 @@ public class TransactionService {
         User user = getAuthenticatedUser();
         Transaction transaction = transactionRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Transacao nao encontrada"));
+        requireManualTransaction(transaction);
 
         if (transaction.getTransactionGroupId() != null) {
             transactionRepository.findAllByTransactionGroupIdAndUserOrderByTransactionDateAscCreatedAtAsc(transaction.getTransactionGroupId(), user)
@@ -334,6 +338,11 @@ public class TransactionService {
 
         deleteReceiptIfPresent(transaction);
         transactionRepository.delete(transaction);
+    }
+
+    private void requireManualTransaction(Transaction transaction) {
+        if (transaction.getInvestmentMovementId() != null || transaction.getManagedReference() != null)
+            throw new IllegalArgumentException("Lancamento vinculado: ajuste a operacao de origem na area de investimentos");
     }
 
     /**

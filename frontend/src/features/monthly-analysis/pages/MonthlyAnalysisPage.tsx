@@ -65,6 +65,7 @@ export default function MonthlyAnalysisPage({
 
   return (
     <>
+      <TaxClosingPanel compact />
       <SectionCard>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -346,3 +347,4 @@ function buildPieGradient(data: PieSlice[]): string {
 
   return `conic-gradient(${segments.join(', ')})`;
 }
+import TaxClosingPanel from '../../investments/components/TaxClosingPanel';

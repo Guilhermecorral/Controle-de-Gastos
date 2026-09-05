@@ -26,7 +26,11 @@ public final class InvestmentDtos {
             LocalDate maturityDate,
             @Size(max = 10) String market,
             @Size(max = 30) String exchange,
-            @Size(max = 3) String currency
+            @Size(max = 3) String currency,
+            FixedIncomeTax.Regime taxRegime,
+            @DecimalMin("0") @jakarta.validation.constraints.DecimalMax("100") BigDecimal manualTaxRate,
+            Boolean iofApplicable,
+            LocalDate openingDate
     ) {}
 
     public record AssetSearchResponse(
@@ -54,8 +58,22 @@ public final class InvestmentDtos {
             @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
             @NotNull @DecimalMin(value = "0.000001") BigDecimal unitPrice,
             @DecimalMin(value = "0.00") BigDecimal fees,
-            @NotNull LocalDate eventDate
-    ) {}
+            @NotNull LocalDate eventDate,
+            @jakarta.validation.Valid OperationCosts costs,
+            @DecimalMin("0.00000001") BigDecimal exchangeRate,
+            @Size(max = 36) @jakarta.validation.constraints.Pattern(regexp = "[a-fA-F0-9-]{36}") String requestId
+    ) {
+        public TradeRequest(Long positionId, InvestmentMovement.MovementType movementType, InvestmentPosition.AssetType assetType,
+                            String symbol, String externalId, String name, String market, String exchange, String currency,
+                            BigDecimal quantity, BigDecimal unitPrice, BigDecimal fees, LocalDate eventDate) {
+            this(positionId, movementType, assetType, symbol, externalId, name, market, exchange, currency, quantity, unitPrice, fees, eventDate, null, null, null);
+        }
+        public TradeRequest(Long positionId, InvestmentMovement.MovementType movementType, InvestmentPosition.AssetType assetType,
+                            String symbol, String externalId, String name, String market, String exchange, String currency,
+                            BigDecimal quantity, BigDecimal unitPrice, BigDecimal fees, LocalDate eventDate, OperationCosts costs, BigDecimal exchangeRate) {
+            this(positionId, movementType, assetType, symbol, externalId, name, market, exchange, currency, quantity, unitPrice, fees, eventDate, costs, exchangeRate, null);
+        }
+    }
 
     public record QuoteResponse(
             String symbol,
@@ -90,7 +108,11 @@ public final class InvestmentDtos {
             BigDecimal incomeAmount,
             BigDecimal totalReturnAmount,
             BigDecimal totalReturnPercent,
-            QuoteResponse quote
+            QuoteResponse quote,
+            FixedIncomeTax.Regime taxRegime,
+            BigDecimal manualTaxRate,
+            boolean iofApplicable,
+            LocalDate openingDate
     ) {}
 
     public record PortfolioResponse(
@@ -121,7 +143,10 @@ public final class InvestmentDtos {
             BigDecimal interest,
             BigDecimal totalInvested,
             BigDecimal totalInterest,
-            BigDecimal balance
+            BigDecimal balance,
+            BigDecimal incomeTax,
+            BigDecimal iof,
+            BigDecimal netBalance
     ) {}
 
     public record ProjectionResponse(
@@ -136,7 +161,10 @@ public final class InvestmentDtos {
             BigDecimal projectedEarnings,
             int months,
             List<ProjectionPoint> timeline,
-            String disclaimer
+            String disclaimer,
+            BigDecimal incomeTax,
+            BigDecimal iof,
+            BigDecimal netBalance
     ) {}
 
     public record IncomeRequest(
@@ -217,6 +245,7 @@ public final class InvestmentDtos {
             String symbol,
             String assetName,
             String eventType,
+            String currency,
             BigDecimal grossAmount,
             BigDecimal withheldAmount,
             BigDecimal netAmount,
@@ -261,6 +290,13 @@ public final class InvestmentDtos {
             BigDecimal fees,
             String currency,
             LocalDate eventDate,
-            boolean automatic
+            boolean automatic,
+            BigDecimal realizedGain,
+            OperationCosts costs,
+            BigDecimal exchangeRate
     ) {}
+
+    public record RedemptionRequest(@NotNull LocalDate eventDate, @NotNull @DecimalMin("0.01") BigDecimal grossAmount,
+                                    FixedIncomeTax.Regime taxRegime, @DecimalMin("0") @jakarta.validation.constraints.DecimalMax("100") BigDecimal manualTaxRate,
+                                    boolean iofApplicable) {}
 }

@@ -39,10 +39,18 @@ public class InvestmentMovement {
     private boolean automatic;
     @Column(name = "external_reference", length = 120)
     private String externalReference;
+    @Embedded
+    private OperationCosts costs;
+    @Column(name = "cost_basis", precision = 19, scale = 6)
+    private BigDecimal costBasis;
+    @Column(name = "realized_gain", precision = 19, scale = 6)
+    private BigDecimal realizedGain;
+    @Column(name = "exchange_rate", precision = 19, scale = 8)
+    private BigDecimal exchangeRate;
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist void onCreate() { createdAt = LocalDateTime.now(); }
 
-    public enum MovementType { COMPRA, VENDA, APORTE, RESGATE, DIVIDENDO, RENDIMENTO }
+    public enum MovementType { COMPRA, VENDA, APORTE, RESGATE, DIVIDENDO, RENDIMENTO, SALDO_INICIAL }
 }

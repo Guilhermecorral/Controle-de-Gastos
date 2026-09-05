@@ -60,7 +60,7 @@ export default function TransactionModal({
               {mode === 'single' ? 'Lançamento rápido' : 'Importação em lote'}
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-slate-900">
-              {mode === 'single' ? (draft.type === 'RECEITA' ? 'Nova receita' : 'Nova despesa') : 'Importar extrato bancário'}
+              {mode === 'single' ? (draft.category === 'INVESTIMENTO' ? 'Novo investimento' : draft.type === 'RECEITA' ? 'Nova receita' : 'Nova despesa') : 'Importar extrato bancário'}
             </h3>
             <p className="mt-2 text-sm leading-7 text-slate-600">
               {mode === 'single'
@@ -95,10 +95,20 @@ export default function TransactionModal({
             options={[
               { value: 'DESPESA', label: 'Despesa' },
               { value: 'RECEITA', label: 'Receita' },
+              { value: 'INVESTIMENTO', label: 'Investimento' },
             ]}
-            value={draft.type}
-            onChange={(value) => onDraftChange((currentValue) => ({ ...currentValue, type: value as 'RECEITA' | 'DESPESA' }))}
+            value={draft.category === 'INVESTIMENTO' ? 'INVESTIMENTO' : draft.type}
+            onChange={(value) => {
+              onCategoryTouched(true);
+              onDraftChange((currentValue) => ({ ...currentValue,
+                type: value === 'INVESTIMENTO' ? 'DESPESA' : value as 'RECEITA' | 'DESPESA',
+                category: value === 'INVESTIMENTO' ? 'INVESTIMENTO' : 'OUTROS' }));
+            }}
           />
+          {draft.category === 'INVESTIMENTO' && <SelectField label="Fluxo do investimento" value={draft.type}
+            options={[{ value: 'DESPESA', label: 'Saída: aplicação / compra' }, { value: 'RECEITA', label: 'Entrada: resgate / provento' }]}
+            onChange={(value) => onDraftChange((current) => ({ ...current, type: value as 'RECEITA' | 'DESPESA' }))} />}
+          {draft.category === 'INVESTIMENTO' && <p className="text-xs leading-5 text-slate-500 md:col-span-2">Este lançamento registra apenas o dinheiro. Para atualizar quantidade e custo médio de um ativo, use Nova movimentação na aba Investimentos, que já cria o lançamento financeiro automaticamente.</p>}
           <Field label="Data">
             <input
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
@@ -126,7 +136,7 @@ export default function TransactionModal({
           </Field>
           <SelectField
             label="Categoria"
-            options={Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))}
+            options={Object.entries(categoryLabels).filter(([value]) => draft.category !== 'INVESTIMENTO' || value === 'INVESTIMENTO').map(([value, label]) => ({ value, label }))}
             value={draft.category}
             onChange={(value) => {
               onCategoryTouched(true);

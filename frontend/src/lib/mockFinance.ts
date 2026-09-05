@@ -7,10 +7,13 @@ export type Category =
   | 'LAZER'
   | 'EDUCACAO'
   | 'COMPRAS'
+  | 'INVESTIMENTO'
+  | 'IMPOSTOS'
   | 'OUTROS';
 
 export type PaymentMethod =
   | 'PIX'
+  | 'TRANSFERENCIA'
   | 'DINHEIRO'
   | 'CARTAO_DEBITO'
   | 'CARTAO_CREDITO_AVISTA'
@@ -127,6 +130,8 @@ export interface MonthlyAnalysisSnapshot {
 }
 
 export const categoryLabels: Record<Category, string> = {
+  INVESTIMENTO: 'Investimento',
+  IMPOSTOS: 'Impostos',
   ALIMENTACAO: 'Alimentação',
   TRANSPORTE: 'Transporte',
   MORADIA: 'Moradia',
@@ -144,6 +149,7 @@ export const priorityLabels: Record<WishlistPriority, string> = {
 };
 
 export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  TRANSFERENCIA: 'Transferência / corretora',
   PIX: 'Pix',
   DINHEIRO: 'Dinheiro',
   CARTAO_DEBITO: 'Cartão de débito',

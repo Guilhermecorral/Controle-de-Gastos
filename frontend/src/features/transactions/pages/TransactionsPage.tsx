@@ -74,9 +74,13 @@ export default function TransactionsPage({
                 { value: 'TODOS', label: 'Todos' },
                 { value: 'RECEITA', label: 'Receitas' },
                 { value: 'DESPESA', label: 'Despesas' },
+                { value: 'INVESTIMENTO', label: 'Investimentos' },
               ]}
-              value={typeFilter}
-              onChange={(value) => onTypeFilterChange(value as 'TODOS' | 'RECEITA' | 'DESPESA')}
+              value={categoryFilter === 'INVESTIMENTO' ? 'INVESTIMENTO' : typeFilter}
+              onChange={(value) => {
+                if (value === 'INVESTIMENTO') { onTypeFilterChange('TODOS'); onCategoryFilterChange('INVESTIMENTO'); }
+                else { onTypeFilterChange(value as 'TODOS' | 'RECEITA' | 'DESPESA'); if (categoryFilter === 'INVESTIMENTO') onCategoryFilterChange('TODAS'); }
+              }}
             />
             <SelectField
               label="Categoria"
@@ -182,11 +186,12 @@ export default function TransactionsPage({
                 <div className="flex items-start">
                   <button
                     className="button-pop rounded-full border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isDeleting}
+                    disabled={isDeleting || transaction.managed}
+                    title={transaction.managed ? 'Gerado por investimentos; ajuste a operação de origem' : undefined}
                     onClick={() => onDeleteTransaction(transaction)}
                     type="button"
                   >
-                    {isDeleting ? 'Apagando...' : 'Apagar'}
+                    {transaction.managed ? 'Vinculado' : isDeleting ? 'Apagando...' : 'Apagar'}
                   </button>
                 </div>
                 <span className={`text-right text-sm font-semibold ${transaction.type === 'RECEITA' ? 'text-emerald-600' : 'text-rose-600'}`}>

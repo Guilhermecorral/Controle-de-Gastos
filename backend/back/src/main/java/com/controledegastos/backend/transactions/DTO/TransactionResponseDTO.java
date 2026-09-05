@@ -21,6 +21,8 @@ public record TransactionResponseDTO(
         Integer installments,
         LocalDate transactionDate,
         LocalDateTime createdAt,
-        TransactionReceiptSummaryDTO receipt
+        TransactionReceiptSummaryDTO receipt,
+        Long investmentMovementId,
+        boolean managed
 ) {
 }

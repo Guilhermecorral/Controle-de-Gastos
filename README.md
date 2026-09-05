@@ -9,6 +9,10 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Version](https://img.shields.io/badge/release-1.3.4-10B981)](CHANGELOG.md)
 
+**Em desenvolvimento: v1.4.0-beta.1.** A previa adiciona fluxo de caixa vinculado a investimentos,
+IR/IOF de renda fixa e apuracao mensal inicial. Consulte o [escopo, testes e limitacoes](docs/INVESTMENTS-1.4.md)
+antes de testar ou publicar. A automacao de proventos e os regimes tributarios adicionais ainda nao estao concluidos.
+
 ![Prévia do Farol Financeiro](frontend/public/og-farol-financeiro.png)
 
 ## Sobre

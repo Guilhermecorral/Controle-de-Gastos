@@ -2,6 +2,16 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.0-beta.1] - Em desenvolvimento
+
+- Compras, vendas, aplicacoes e resgates geram fluxo financeiro vinculado, separado dos indicadores de consumo.
+- Tipo visual Investimento nas transacoes e custos operacionais detalhados, com cambio informado para ativos estrangeiros.
+- Saldos iniciais de carteira sem movimentacao ficticia de caixa.
+- Simulador e resgate total de renda fixa com estimativas de IR/IOF por prazo e por aporte.
+- Apuracao inicial de acoes comuns e FIIs, saldos tributarios anteriores e pagamento de DARF separado da estimativa.
+- Revisao obrigatoria para operacoes ainda nao suportadas ou divergencias de pagamento.
+- Escopo e pendencias documentados em [Investimentos 1.4](docs/INVESTMENTS-1.4.md). Esta previa nao conclui toda a v1.4.
+
 ## [1.3.4] - 2026-09-03
 
 - Painel de Tributação e Conciliação com impostos retidos, proventos sem retenção informada e vendas que exigem apuração.

@@ -31,6 +31,12 @@ public class Transaction {
     @JoinColumn(name = "wishlist_item_id")
     private WishlistItem wishlistItem;
 
+    @Column(name = "investment_movement_id", unique = true)
+    private Long investmentMovementId;
+
+    @Column(name = "managed_reference", unique = true, length = 120)
+    private String managedReference;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TransactionType type;
@@ -95,11 +101,14 @@ public class Transaction {
         LAZER,
         EDUCACAO,
         COMPRAS,
+        INVESTIMENTO,
+        IMPOSTOS,
         OUTROS
     }
 
     public enum PaymentMethod {
         PIX,
+        TRANSFERENCIA,
         CARTAO_DEBITO,
         CARTAO_CREDITO_AVISTA,
         CARTAO_CREDITO_PARCELADO,

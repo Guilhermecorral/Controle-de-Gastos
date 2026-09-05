@@ -86,7 +86,7 @@ export function useRecordInvestmentTradeMutation() {
   return useMutation({
     mutationFn: async (data: InvestmentTradeRequest) =>
       (await api.post<InvestmentMovementResponse>('/investments/movements/trades', data)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+    onSuccess: () => queryClient.invalidateQueries(),
   })
 }
 
@@ -95,7 +95,7 @@ export function useCreateInvestmentMutation() {
   return useMutation({
     mutationFn: async (data: InvestmentPositionRequest) =>
       (await api.post<InvestmentPositionResponse>('/investments/positions', data)).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
+    onSuccess: () => queryClient.invalidateQueries(),
   })
 }
 
@@ -127,6 +127,7 @@ export function useRecordInvestmentIncomeMutation() {
       queryClient.invalidateQueries({ queryKey: ['investments'] })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] })
     },
   })
 }
@@ -157,6 +158,7 @@ export function useReceiveInvestmentIncomeScheduleMutation() {
       queryClient.invalidateQueries({ queryKey: ['investments'] })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] })
     },
   })
 }

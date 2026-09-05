@@ -66,6 +66,17 @@ public class InvestmentPosition {
     @Column(name = "maturity_date")
     private LocalDate maturityDate;
 
+    @Enumerated(EnumType.STRING) @Column(name = "tax_regime", length = 20)
+    private FixedIncomeTax.Regime taxRegime;
+    @Column(name = "manual_tax_rate", precision = 8, scale = 4)
+    private BigDecimal manualTaxRate;
+    @Column(name = "iof_applicable", nullable = false)
+    private boolean iofApplicable;
+    @Column(name = "opening_date")
+    private LocalDate openingDate;
+    @Column(nullable = false)
+    private boolean redeemed;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

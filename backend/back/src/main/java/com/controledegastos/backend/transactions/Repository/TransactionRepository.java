@@ -17,6 +17,12 @@ import java.util.UUID;
 @Repository
 public interface TransactionRepository extends  JpaRepository<Transaction, Long> {
 
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.user = :user AND t.type = :type AND t.category <> com.controledegastos.backend.transactions.Transaction.TransactionCategory.INVESTIMENTO AND t.transactionDate BETWEEN :startDate AND :endDate")
+    BigDecimal sumOrdinaryByType(User user, Transaction.TransactionType type, LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT t FROM Transaction t WHERE t.user = :user AND t.type = com.controledegastos.backend.transactions.Transaction.TransactionType.DESPESA AND t.category <> com.controledegastos.backend.transactions.Transaction.TransactionCategory.INVESTIMENTO AND t.transactionDate BETWEEN :startDate AND :endDate ORDER BY t.amount DESC LIMIT 1")
+    Optional<Transaction> highestOrdinaryExpense(User user, LocalDate startDate, LocalDate endDate);
+
     List<Transaction> findAllByUserOrderByTransactionDateDesc(User user);
 
     List<Transaction> findAllByUserAndTypeOrderByTransactionDateDesc(

@@ -40,7 +40,9 @@ public class DashboardService {
                 transaction.getInstallments(),
                 transaction.getTransactionDate(),
                 transaction.getCreatedAt(),
-                null
+                null,
+                transaction.getInvestmentMovementId(),
+                transaction.getInvestmentMovementId() != null || transaction.getManagedReference() != null
         );
     }
 
@@ -127,6 +129,7 @@ public class DashboardService {
         List<DashboardCategorySummaryDTO> gastosPorCategoria = transactionRepository
                 .findExpenseSummaryByCategoryAndTransactionDateBetween(user, monthStart, monthEnd)
                 .stream()
+                .filter(item -> item.getCategory() != Transaction.TransactionCategory.INVESTIMENTO)
                 .map(this::toCategorySummaryDTO)
                 .toList();
 

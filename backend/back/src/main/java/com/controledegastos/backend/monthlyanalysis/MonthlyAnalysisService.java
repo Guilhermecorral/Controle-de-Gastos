@@ -100,12 +100,14 @@ public class MonthlyAnalysisService {
                 sameMonthLastYearEndDate
         );
 
+        BigDecimal ordinaryIncome = transactionRepository.sumOrdinaryByType(user, Transaction.TransactionType.RECEITA, requestedStartDate, requestedEndDate);
+        BigDecimal ordinaryExpense = transactionRepository.sumOrdinaryByType(user, Transaction.TransactionType.DESPESA, requestedStartDate, requestedEndDate);
         List<FinancialInsightDTO> insights = buildInsights(
-                totalReceitas,
-                totalDespesas,
+                ordinaryIncome,
+                ordinaryExpense,
                 saldo,
                 gastosPorCategoria,
-                comparativoMesAnterior
+                transactionRepository.sumOrdinaryByType(user, Transaction.TransactionType.DESPESA, previousStartDate, previousEndDate)
         );
 
         return new MonthlyAnalysisResponseDTO(
@@ -130,7 +132,7 @@ public class MonthlyAnalysisService {
             BigDecimal expenses,
             BigDecimal balance,
             List<DashboardCategorySummaryDTO> expensesByCategory,
-            MonthlyComparisonDTO previousMonth
+            BigDecimal previousExpenses
     ) {
         List<FinancialInsightDTO> insights = new ArrayList<>();
 
@@ -168,7 +170,6 @@ public class MonthlyAnalysisService {
             }
         }
 
-        BigDecimal previousExpenses = previousMonth.totalDespesas();
         if (previousExpenses.signum() > 0 && expenses.compareTo(previousExpenses) > 0) {
             BigDecimal increase = expenses.subtract(previousExpenses)
                     .divide(previousExpenses, 4, RoundingMode.HALF_UP)
@@ -253,6 +254,7 @@ public class MonthlyAnalysisService {
     ) {
         return transactionRepository.findSummaryByCategoryAndTypeAndTransactionDateBetween(user, type, startDate, endDate)
                 .stream()
+                .filter(item -> type != Transaction.TransactionType.DESPESA || item.getCategory() != Transaction.TransactionCategory.INVESTIMENTO)
                 .map(this::toCategorySummaryDTO)
                 .toList();
     }
@@ -267,12 +269,7 @@ public class MonthlyAnalysisService {
             LocalDate endDate
     ) {
         return transactionRepository
-                .findTopByUserAndTypeAndTransactionDateBetweenOrderByAmountDescTransactionDateDescCreatedAtDesc(
-                        user,
-                        Transaction.TransactionType.DESPESA,
-                        startDate,
-                        endDate
-                )
+                .highestOrdinaryExpense(user, startDate, endDate)
                 .map(this::toHighestExpenseDTO)
                 .orElse(null);
     }

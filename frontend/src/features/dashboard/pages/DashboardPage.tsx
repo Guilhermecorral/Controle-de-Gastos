@@ -12,6 +12,7 @@ import {
   UnavailableCard,
 } from '../../shared/ui';
 import { monthOptions, yearOptions } from '../../workspace/constants';
+import TaxClosingPanel from '../../investments/components/TaxClosingPanel';
 
 type DashboardPageProps = {
   snapshot: DashboardResponse | null;
@@ -72,6 +73,7 @@ export default function DashboardPage({
 
   return (
     <>
+      <TaxClosingPanel compact />
       {!onboardingDismissed && (
         <WelcomePanel
           onDismiss={onDismissOnboarding}

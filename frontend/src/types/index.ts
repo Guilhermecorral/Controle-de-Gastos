@@ -11,10 +11,13 @@ export type Category =
   | 'LAZER'
   | 'EDUCACAO'
   | 'COMPRAS'
+  | 'INVESTIMENTO'
+  | 'IMPOSTOS'
   | 'OUTROS';
 
 export type PaymentMethod =
   | 'PIX'
+  | 'TRANSFERENCIA'
   | 'DINHEIRO'
   | 'CARTAO_DEBITO'
   | 'CARTAO_CREDITO_AVISTA'
@@ -177,6 +180,8 @@ export interface TransactionReceiptSummary {
 }
 
 export interface TransactionResponse {
+  investmentMovementId?: number | null;
+  managed?: boolean;
   id: number;
   type: TransactionType;
   description: string;
@@ -369,6 +374,10 @@ export interface WishlistHistoryResponse {
 export type InvestmentAssetType = 'ACAO' | 'FII' | 'CRIPTO' | 'RENDA_FIXA';
 
 export interface InvestmentPositionRequest {
+  taxRegime?: 'REGRESSIVO' | 'ISENTO' | 'MANUAL' | null;
+  manualTaxRate?: number;
+  iofApplicable?: boolean;
+  openingDate?: string | null;
   assetType: InvestmentAssetType;
   symbol: string | null;
   externalId: string | null;
@@ -397,6 +406,9 @@ export interface InvestmentAssetSearchResponse {
 }
 
 export interface InvestmentTradeRequest {
+  requestId?: string;
+  costs?: { brokerageFee: number; b3Fee: number; otherCosts: number; withheldTax: number };
+  exchangeRate?: number;
   positionId: number | null;
   movementType: 'COMPRA' | 'VENDA';
   assetType: Exclude<InvestmentAssetType, 'RENDA_FIXA'>;
@@ -447,6 +459,9 @@ export interface InvestmentPortfolioResponse {
 }
 
 export interface InvestmentProjectionResponse {
+  incomeTax: number;
+  iof: number;
+  netBalance: number;
   initialAmount: number;
   monthlyContribution: number;
   interestRate: number;
@@ -465,11 +480,17 @@ export interface InvestmentProjectionResponse {
     totalInvested: number;
     totalInterest: number;
     balance: number;
+    incomeTax: number;
+    iof: number;
+    netBalance: number;
   }>;
   disclaimer: string;
 }
 
 export interface InvestmentProjectionRequest {
+  taxRegime?: 'REGRESSIVO' | 'ISENTO' | 'MANUAL';
+  manualTaxRate?: number;
+  iofApplicable?: boolean;
   initialAmount: number;
   monthlyContribution: number;
   interestRate: number;
@@ -480,10 +501,11 @@ export interface InvestmentProjectionRequest {
 }
 
 export interface InvestmentMovementResponse {
+  realizedGain: number | null;
   id: number;
   positionId: number;
   assetName: string;
-  movementType: 'COMPRA' | 'VENDA' | 'APORTE' | 'RESGATE' | 'DIVIDENDO' | 'RENDIMENTO';
+  movementType: 'COMPRA' | 'VENDA' | 'APORTE' | 'RESGATE' | 'DIVIDENDO' | 'RENDIMENTO' | 'SALDO_INICIAL';
   amount: number;
   quantity: number | null;
   unitPrice: number | null;
@@ -564,6 +586,7 @@ export interface InvestmentTaxSummaryResponse {
     symbol: string | null;
     assetName: string;
     eventType: string;
+    currency: string;
     grossAmount: number;
     withheldAmount: number;
     netAmount: number;
