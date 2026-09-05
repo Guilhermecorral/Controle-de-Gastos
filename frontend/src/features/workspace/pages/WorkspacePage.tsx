@@ -867,6 +867,14 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
           );
           setTransactionModalOpen(false);
         }}
+        onInvestmentRecorded={(operation) => {
+          queryClient.invalidateQueries();
+          setTransactionDraft(buildTransactionDraft('DESPESA'));
+          setTransactionReceiptFile(null);
+          setTransactionCategoryTouched(false);
+          setTransactionModalOpen(false);
+          pushToast(`${operation} registrada na carteira e no financeiro.`);
+        }}
         onClose={() => {
           setTransactionReceiptFile(null);
           setTransactionModalOpen(false);

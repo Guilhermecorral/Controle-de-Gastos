@@ -1,6 +1,9 @@
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import { Category, PaymentMethod } from '../../../types';
+import { Dispatch, SetStateAction, useDeferredValue, useEffect, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Category, InvestmentAssetSearchResponse, InvestmentAssetType, InvestmentPositionResponse, InvestmentTradeRequest, PaymentMethod } from '../../../types';
 import { categoryLabels, paymentMethodLabels } from '../../../lib/mockFinance';
+import { useInvestmentAssetSearchQuery, useInvestmentPortfolioQuery, useRecordInvestmentTradeMutation } from '../../../lib/queries';
+import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { Field, SelectField } from '../../shared/ui';
 import { TransactionDraft } from '../types';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
@@ -16,6 +19,7 @@ type TransactionModalProps = {
   onCategoryTouched: (value: boolean) => void;
   onSubmit: () => void;
   onTransactionsImported: (importedTransactions: number) => void;
+  onInvestmentRecorded: (operation: string) => void;
   onClose: () => void;
 };
 
@@ -30,6 +34,7 @@ export default function TransactionModal({
   onCategoryTouched,
   onSubmit,
   onTransactionsImported,
+  onInvestmentRecorded,
   onClose,
 }: TransactionModalProps) {
   const [mode, setMode] = useState<'single' | 'batch'>('single');
@@ -86,6 +91,11 @@ export default function TransactionModal({
           <div className="mt-6">
             <OFXUploader compact onImported={onTransactionsImported} />
           </div>
+        ) : draft.category === 'INVESTIMENTO' ? (
+          <InvestmentOperationForm
+            onCancel={() => onDraftChange((current) => ({ ...current, type: 'DESPESA', category: 'OUTROS' }))}
+            onRecorded={onInvestmentRecorded}
+          />
         ) : (
           <>
 
@@ -97,7 +107,7 @@ export default function TransactionModal({
               { value: 'RECEITA', label: 'Receita' },
               { value: 'INVESTIMENTO', label: 'Investimento' },
             ]}
-            value={draft.category === 'INVESTIMENTO' ? 'INVESTIMENTO' : draft.type}
+            value={draft.type}
             onChange={(value) => {
               onCategoryTouched(true);
               onDraftChange((currentValue) => ({ ...currentValue,
@@ -105,10 +115,6 @@ export default function TransactionModal({
                 category: value === 'INVESTIMENTO' ? 'INVESTIMENTO' : 'OUTROS' }));
             }}
           />
-          {draft.category === 'INVESTIMENTO' && <SelectField label="Fluxo do investimento" value={draft.type}
-            options={[{ value: 'DESPESA', label: 'Saída: aplicação / compra' }, { value: 'RECEITA', label: 'Entrada: resgate / provento' }]}
-            onChange={(value) => onDraftChange((current) => ({ ...current, type: value as 'RECEITA' | 'DESPESA' }))} />}
-          {draft.category === 'INVESTIMENTO' && <p className="text-xs leading-5 text-slate-500 md:col-span-2">Este lançamento registra apenas o dinheiro. Para atualizar quantidade e custo médio de um ativo, use Nova movimentação na aba Investimentos, que já cria o lançamento financeiro automaticamente.</p>}
           <Field label="Data">
             <input
               className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
@@ -136,7 +142,7 @@ export default function TransactionModal({
           </Field>
           <SelectField
             label="Categoria"
-            options={Object.entries(categoryLabels).filter(([value]) => draft.category !== 'INVESTIMENTO' || value === 'INVESTIMENTO').map(([value, label]) => ({ value, label }))}
+            options={Object.entries(categoryLabels).filter(([value]) => value !== 'INVESTIMENTO').map(([value, label]) => ({ value, label }))}
             value={draft.category}
             onChange={(value) => {
               onCategoryTouched(true);
@@ -220,6 +226,115 @@ export default function TransactionModal({
     </div>
     </div>
   );
+}
+
+type TradableAssetType = Exclude<InvestmentAssetType, 'RENDA_FIXA'>;
+
+function InvestmentOperationForm({ onCancel, onRecorded }: { onCancel: () => void; onRecorded: (operation: string) => void }) {
+  const [operation, setOperation] = useState<'COMPRA' | 'VENDA'>('COMPRA');
+  const [assetType, setAssetType] = useState<TradableAssetType>('ACAO');
+  const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+  const [selected, setSelected] = useState<InvestmentAssetSearchResponse | null>(null);
+  const [positionId, setPositionId] = useState<number | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
+  const [exchangeRate, setExchangeRate] = useState(0);
+  const [error, setError] = useState('');
+  const portfolio = useInvestmentPortfolioQuery();
+  const trade = useRecordInvestmentTradeMutation();
+  const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, operation === 'COMPRA' && !selected);
+  const sellable = (portfolio.data?.positions ?? []).filter((position) => position.assetType !== 'RENDA_FIXA' && (position.quantity ?? 0) > 0);
+  const total = Math.max(0, quantity * unitPrice);
+
+  const reset = () => {
+    setSelected(null);
+    setPositionId(null);
+    setQuery('');
+    setUnitPrice(0);
+    setExchangeRate(0);
+    setError('');
+  };
+  const chooseAsset = (asset: InvestmentAssetSearchResponse, id: number | null = null, price?: number | null) => {
+    setSelected(asset);
+    setPositionId(id);
+    setUnitPrice(price ?? asset.currentPrice ?? 0);
+    setError('');
+  };
+  const choosePosition = (position: InvestmentPositionResponse) => chooseAsset({
+    assetType: position.assetType as TradableAssetType,
+    symbol: position.symbol ?? '',
+    externalId: position.externalId ?? '',
+    name: position.name,
+    market: (position.market ?? 'BR') as 'BR' | 'US' | 'GLOBAL',
+    exchange: position.exchange ?? '',
+    currency: position.currency ?? position.quote.currency,
+    currentPrice: position.quote.price,
+    source: position.quote.source,
+  }, position.id, position.quote.price ?? position.averagePrice);
+  const submit = () => {
+    if (!selected || quantity <= 0 || unitPrice <= 0) {
+      setError('Selecione um ativo e informe quantidade e preço maiores que zero.');
+      return;
+    }
+    if (selected.currency !== 'BRL' && exchangeRate <= 0) {
+      setError('Informe o câmbio usado nesta operação para registrar o valor em reais.');
+      return;
+    }
+    const payload: InvestmentTradeRequest = {
+      requestId: crypto.randomUUID(),
+      positionId,
+      movementType: operation,
+      assetType: selected.assetType as TradableAssetType,
+      symbol: selected.symbol,
+      externalId: selected.externalId,
+      name: selected.name,
+      market: selected.market,
+      exchange: selected.exchange,
+      currency: selected.currency,
+      quantity,
+      unitPrice,
+      fees: 0,
+      eventDate,
+      exchangeRate: selected.currency === 'BRL' ? undefined : exchangeRate,
+      costs: { brokerageFee: 0, b3Fee: 0, otherCosts: 0, withheldTax: 0 },
+    };
+    trade.mutate(payload, {
+      onSuccess: () => {
+        const label = `${operation === 'COMPRA' ? 'Compra' : 'Venda'} de ${selected.symbol}`;
+        reset();
+        onRecorded(label);
+      },
+      onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível registrar a operação.')),
+    });
+  };
+
+  return <div className="mt-6 space-y-5">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p className="text-sm font-semibold text-slate-900">Operação na carteira</p>
+        <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">Escolha o ativo e registre a operação uma única vez. O Farol atualiza a carteira, as transações e o painel financeiro juntos.</p>
+      </div>
+      <button type="button" className="text-sm font-semibold text-slate-600 hover:text-slate-900" onClick={onCancel}>Voltar para lançamento comum</button>
+    </div>
+    <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+      {(['COMPRA', 'VENDA'] as const).map((type) => <button key={type} type="button" className={`rounded-xl px-4 py-3 text-sm font-semibold ${operation === type ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} onClick={() => { setOperation(type); reset(); }}>{type === 'COMPRA' ? 'Comprar ativo' : 'Vender ativo'}</button>)}
+    </div>
+    {!selected && operation === 'COMPRA' && <>
+      <div className="flex flex-wrap gap-2">{(['ACAO', 'FII', 'CRIPTO'] as TradableAssetType[]).map((type) => <button key={type} type="button" className={`rounded-full border px-4 py-2 text-sm font-semibold ${assetType === type ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 text-slate-600'}`} onClick={() => { setAssetType(type); setQuery(''); }}>{type === 'ACAO' ? 'Ações' : type === 'FII' ? 'FIIs' : 'Cripto'}</button>)}</div>
+      <label className="block text-sm font-medium text-slate-700">Ativo que deseja comprar<div className="relative mt-1"><Search size={18} className="absolute left-4 top-3.5 text-slate-400" /><input autoFocus className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 outline-none focus:border-emerald-400 focus:bg-white" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={assetType === 'ACAO' ? 'Ex.: BBAS3, PETR4, Itaú...' : 'Digite ticker ou nome'} /></div></label>
+      <div className="space-y-2">
+        {search.isFetching && <p className="py-3 text-center text-sm text-slate-500">Buscando ativos verificados...</p>}
+        {!search.isFetching && deferredQuery.length >= 2 && search.data?.length === 0 && <p className="rounded-2xl border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">Nenhum ativo verificado foi encontrado.</p>}
+        {search.data?.map((asset) => <button key={`${asset.market}-${asset.externalId}`} type="button" className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left hover:border-emerald-200 hover:bg-emerald-50/40" onClick={() => chooseAsset(asset)}><span><b className="text-slate-950">{asset.symbol}</b><span className="ml-2 text-sm text-slate-500">{asset.name}</span></span><span className="text-sm font-semibold text-slate-700">{asset.currentPrice == null ? 'Cotação indisponível' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: asset.currency || 'BRL' }).format(asset.currentPrice)}</span></button>)}
+      </div>
+    </>}
+    {!selected && operation === 'VENDA' && <div className="space-y-2"><p className="text-sm font-medium text-slate-700">Escolha uma posição da sua carteira</p>{sellable.length === 0 ? <p className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">Ainda não há ativos disponíveis para venda.</p> : sellable.map((position) => <button key={position.id} type="button" className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left hover:border-rose-200" onClick={() => choosePosition(position)}><span><b className="text-slate-950">{position.symbol || position.name}</b><span className="ml-2 text-sm text-slate-500">Disponível: {position.quantity}</span></span><span className="text-sm font-semibold text-slate-700">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: position.currency ?? 'BRL' }).format(position.quote.price ?? position.averagePrice ?? 0)}</span></button>)}</div>}
+    {selected && <><div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-emerald-700">Ativo selecionado</p><p className="mt-1 font-semibold text-slate-950">{selected.symbol} · {selected.name}</p></div><button type="button" className="text-sm font-semibold text-slate-600" onClick={reset}>Trocar</button></div><div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">Quantidade<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.00000001" step="0.00000001" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Preço unitário ({selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={unitPrice} onChange={(event) => setUnitPrice(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Data<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label></div>{selected.currency !== 'BRL' && <label className="block text-sm font-medium text-slate-700">Câmbio da operação (R$ por {selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(event) => setExchangeRate(Number(event.target.value))} /></label>}<div className="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3"><span className="text-sm text-slate-600">Total da {operation === 'COMPRA' ? 'compra' : 'venda'}</span><strong className="text-slate-950">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selected.currency || 'BRL' }).format(total)}</strong></div></>}
+    {error && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
+    <button type="button" onClick={submit} disabled={!selected || trade.isPending} className="w-full rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{trade.isPending ? 'Registrando...' : operation === 'COMPRA' ? 'Comprar e atualizar carteira' : 'Vender e atualizar carteira'}</button>
+  </div>;
 }
 
 function ModeButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {

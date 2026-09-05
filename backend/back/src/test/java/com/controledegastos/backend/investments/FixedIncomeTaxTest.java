@@ -47,4 +47,17 @@ class FixedIncomeTaxTest {
         assertThat(result.projectedBalance()).isBetween(new BigDecimal("1001"), new BigDecimal("1002"));
         assertThat(result.timeline().getLast().date()).isEqualTo(start.plusDays(5));
     }
+    @Test void projectionAlwaysReturnsTaxAndNetValuesForTheApi() {
+        var result = FixedIncomeProjection.calculate(new BigDecimal("1000"), new BigDecimal("500"), new BigDecimal("12"),
+                RatePeriod.ANNUAL, TimelinePeriod.MONTHLY, start, start.plusYears(1),
+                FixedIncomeTax.Regime.REGRESSIVO, null, true);
+        assertThat(result.incomeTax()).isNotNull().isGreaterThanOrEqualTo(BigDecimal.ZERO);
+        assertThat(result.iof()).isNotNull().isGreaterThanOrEqualTo(BigDecimal.ZERO);
+        assertThat(result.netBalance()).isNotNull().isEqualByComparingTo(result.projectedBalance().subtract(result.incomeTax()).subtract(result.iof()));
+        assertThat(result.timeline()).allSatisfy(point -> {
+            assertThat(point.incomeTax()).isNotNull();
+            assertThat(point.iof()).isNotNull();
+            assertThat(point.netBalance()).isNotNull();
+        });
+    }
 }

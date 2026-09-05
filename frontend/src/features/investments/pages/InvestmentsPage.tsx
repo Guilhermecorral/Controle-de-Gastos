@@ -428,16 +428,18 @@ function EvolutionMetric({ label, value, tone = 'neutral' }: { label: string; va
 
 function ProjectionResults({ result }: { result: InvestmentProjectionResponse }) {
   const investedShare = result.projectedBalance > 0 ? Math.min(100, (result.totalInvested / result.projectedBalance) * 100) : 0;
+  const hasTaxEstimate = [result.incomeTax, result.iof, result.netBalance].every((value) => Number.isFinite(Number(value)));
   return (
     <div className="mt-6 overflow-hidden rounded-[26px] bg-slate-950 text-white">
       <div className="grid gap-5 p-6 md:grid-cols-3">
         <ProjectionMetric label="Saldo final" value={currency(result.projectedBalance)} />
         <ProjectionMetric label="Total investido" value={currency(result.totalInvested)} />
         <ProjectionMetric label="Juros ganhos" value={currency(result.projectedEarnings)} />
-        <ProjectionMetric label="IR estimado" value={currency(result.incomeTax)} />
-        <ProjectionMetric label="IOF estimado" value={currency(result.iof)} />
-        <ProjectionMetric label="Líquido no resgate" value={currency(result.netBalance)} />
+        <ProjectionMetric label="IR estimado" value={formatOptionalCurrency(result.incomeTax)} />
+        <ProjectionMetric label="IOF estimado" value={formatOptionalCurrency(result.iof)} />
+        <ProjectionMetric label="Líquido no resgate" value={formatOptionalCurrency(result.netBalance)} />
       </div>
+      {!hasTaxEstimate && <p className="border-t border-amber-300/20 bg-amber-400/10 px-6 py-3 text-sm text-amber-100">Os impostos ainda não foram calculados porque esta API não enviou os campos fiscais da v1.4.0-beta.1. Atualize o backend e tente novamente.</p>}
       <div className="border-y border-white/10 px-6 py-5">
         <div className="mb-3 flex justify-between text-xs text-slate-300"><span>Composição do saldo</span><span>{result.months} meses · {result.effectiveMonthlyRate.toFixed(4).replace('.', ',')}% a.m.</span></div>
         <div className="flex h-4 overflow-hidden rounded-full bg-emerald-400"><div className="bg-slate-400" style={{ width: `${investedShare}%` }} /></div>
@@ -446,7 +448,7 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
       <div className="overflow-x-auto bg-white text-slate-800">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-slate-100 text-xs uppercase tracking-[.1em] text-slate-500"><tr>{['Período', 'Data', 'Taxa mensal equivalente', 'Aportes', 'Juros do período', 'Investido', 'Juros acumulados', 'Saldo bruto', 'IR estimado', 'IOF estimado', 'Saldo líquido'].map((label) => <th key={label} className="px-5 py-4">{label}</th>)}</tr></thead>
-          <tbody>{result.timeline.map((point) => <tr key={point.month} className="border-t border-slate-100"><td className="px-5 py-4 font-semibold">{result.timelinePeriod === 'YEARLY' ? `${Math.ceil(point.month / 12)}º ano` : `${point.month}º período`}</td><td className="px-5 py-4 text-slate-500">{formatDate(point.date)}</td><td className="px-5 py-4">{result.effectiveMonthlyRate.toFixed(4).replace('.', ',')}%</td>{[point.contribution, point.interest, point.totalInvested, point.totalInterest, point.balance, point.incomeTax, point.iof, point.netBalance].map((amount, index) => <td key={index} className="px-5 py-4 text-right">{currency(amount)}</td>)}</tr>)}</tbody>
+          <tbody>{result.timeline.map((point) => <tr key={point.month} className="border-t border-slate-100"><td className="px-5 py-4 font-semibold">{result.timelinePeriod === 'YEARLY' ? `${Math.ceil(point.month / 12)}º ano` : `${point.month}º período`}</td><td className="px-5 py-4 text-slate-500">{formatDate(point.date)}</td><td className="px-5 py-4">{result.effectiveMonthlyRate.toFixed(4).replace('.', ',')}%</td>{[point.contribution, point.interest, point.totalInvested, point.totalInterest, point.balance].map((amount, index) => <td key={index} className="px-5 py-4 text-right">{currency(amount)}</td>)}{[point.incomeTax, point.iof, point.netBalance].map((amount, index) => <td key={index} className="px-5 py-4 text-right">{formatOptionalCurrency(amount)}</td>)}</tr>)}</tbody>
         </table>
       </div>
       <p className="px-6 py-4 text-xs leading-6 text-slate-400">{result.disclaimer}</p>
@@ -631,6 +633,7 @@ function EmptyPortfolio({ onAdd }: { onAdd: () => void }) { return <div classNam
 function assetLabel(type: InvestmentAssetType) { return ({ ACAO: 'Ações', FII: 'FIIs', CRIPTO: 'Cripto', RENDA_FIXA: 'Renda fixa' })[type]; }
 function currency(value: number) { return numberCurrency(value, 'BRL'); }
 function numberCurrency(value: number, code: string) { try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: code || 'BRL' }).format(value); } catch { return `${code} ${value.toFixed(2)}`; } }
+function formatOptionalCurrency(value: number | null | undefined) { return Number.isFinite(Number(value)) ? currency(Number(value)) : 'A calcular'; }
 function compactCurrency(value: number) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 }).format(value); }
 function parseDecimalInput(value: string) { const normalized = value.includes(',') ? value.replace(/\./g, '').replace(',', '.') : value; const parsed = Number(normalized); return Number.isFinite(parsed) ? parsed : 0; }
 function signedCurrency(value: number) { return `${value >= 0 ? '+' : '-'} ${currency(Math.abs(value))}`; }
