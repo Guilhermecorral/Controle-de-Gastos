@@ -268,7 +268,10 @@ function TradeDialog({ open, positions, onClose }: { open: boolean; positions: I
     }
     const payload: InvestmentTradeRequest = { positionId, movementType: mode, assetType: selected.assetType as TradableType, symbol: selected.symbol,
       externalId: selected.externalId, name: selected.name, market: selected.market, exchange: selected.exchange,
-      currency: selected.currency, quantity, unitPrice, fees: 0, eventDate, exchangeRate, requestId,
+      currency: selected.currency, quantity, unitPrice, fees: 0, eventDate,
+      // Assets priced in BRL do not need an FX rate. Sending the form's initial zero
+      // would fail the API validation before the backend can apply BRL = 1.
+      exchangeRate: selected.currency === 'BRL' ? undefined : exchangeRate, requestId,
       costs: { brokerageFee, b3Fee, otherCosts: fees, withheldTax: mode === 'VENDA' ? withheldTax : 0 } };
     mutation.mutate(payload, { onSuccess: () => { onClose(); resetSelection(); }, onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível registrar a movimentação.')) });
   };
