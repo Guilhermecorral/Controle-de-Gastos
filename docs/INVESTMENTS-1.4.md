@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: prévia `1.4.0-beta.2`, atualizada em 05/09/2026. A versão final 1.4.0 ainda depende das etapas pendentes abaixo.
+Status: release oficial `1.4.0`, consolidada em 05/09/2026. Os itens abaixo registram limites conhecidos e próximos incrementos, sem bloquear esta versão.
 
 ## Entregue nesta etapa
 
@@ -53,17 +53,17 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Testes unitarios: fronteiras 180/181, 360/361, 720/721 dias, IOF, ausencia de lucro, prazos parciais, aportes com idades distintas e compensacao de prejuizos.
 - Testes de integracao: compra/venda e custos, protecao de vinculos, gastos de consumo, abertura sem caixa, resgate, pagamento unico de DARF.
 - Regressoes adicionais: repeticao idempotente de compra, rejeicao de payload alterado, cambio historico no caixa e no resumo, vinculo direto na conciliacao e pagamento divergente.
-- Validação local em 05/09/2026: suite Maven e build TypeScript/Vite executados. A suite usa H2; isso não valida as migrações PostgreSQL V11-V14. A execução dessas migrações em PostgreSQL continua pendente antes da publicação.
-- A interface ainda requer conferencia visual em desktop/mobile antes de publicar esta previa.
+- Validação local em 05/09/2026: suite Maven e build TypeScript/Vite executados. A suite usa H2; isso não substitui uma validação específica de migração em PostgreSQL.
+- Validação manual em produção confirmada pelo responsável do produto em 05/09/2026, incluindo liquidez diária e correção controlada de movimentações.
 
-## Pendente para concluir 1.4.0
+## Limites conhecidos e próximos incrementos
 
-- Motor completo de day trade com corretora e pareamento das execucoes; perdas e creditos iniciais de day trade ja podem ser guardados, mas nao sao compensados automaticamente nesta previa.
+- Motor completo de day trade com corretora e pareamento das execucoes; perdas e creditos iniciais de day trade ja podem ser guardados, mas nao sao compensados automaticamente nesta release.
 - Classificacao de ETFs/BDRs e regras especificas de compensacao. ETFs de renda fixa nao seguem simplesmente o prazo individual da tabela de CDB.
 - Classificacao fiscal de custodia de cripto, ganhos progressivos e aplicacoes financeiras no exterior. A regra de R$ 35 mil nao pode ser aplicada indiscriminadamente a todo criptoativo global.
 - Obrigacoes persistidas com versao da memoria de calculo, revisoes e ajustes de pagamentos; hoje a estimativa e recalculada e o pagamento guarda os dados efetivos.
-- Calendario fiscal de vencimento e tratamento de guias complementares, multas e juros; nesta previa o vencimento vem da guia Sicalc.
-- Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta prévia, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
+- Calendario fiscal de vencimento e tratamento de guias complementares, multas e juros; nesta release o vencimento vem da guia Sicalc.
+- Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta release, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
 - Importacao de notas completas e comprovacao do historico anterior para marcar a apuracao como conferida.
 
 ## Roadmap 1.4.0 a 1.4.2

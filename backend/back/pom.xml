@@ -15,7 +15,7 @@
 
 	<groupId>com.controledegastos</groupId>
 	<artifactId>backend</artifactId>
-	<version>1.4.0-beta.2</version>
+	<version>1.4.0</version>
 
 	<name>backend</name>
 	<description>Farol Financeiro - Back-End</description>

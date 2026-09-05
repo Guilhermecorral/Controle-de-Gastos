@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.4.0-beta.2. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão 1.4.0. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 

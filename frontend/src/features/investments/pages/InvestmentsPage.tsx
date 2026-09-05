@@ -452,7 +452,7 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
         <ProjectionMetric label="IOF estimado" value={formatOptionalCurrency(result.iof)} />
         <ProjectionMetric label="Líquido no resgate" value={formatOptionalCurrency(result.netBalance)} />
       </div>
-      {!hasTaxEstimate && <p className="border-t border-amber-300/20 bg-amber-400/10 px-6 py-3 text-sm text-amber-100">Os impostos ainda não foram calculados porque esta API não enviou os campos fiscais da v1.4.0-beta.2. Atualize o backend e tente novamente.</p>}
+      {!hasTaxEstimate && <p className="border-t border-amber-300/20 bg-amber-400/10 px-6 py-3 text-sm text-amber-100">Os impostos ainda não foram calculados porque esta API não enviou os campos fiscais da v1.4.0. Atualize o backend e tente novamente.</p>}
       <div className="border-y border-white/10 px-6 py-5">
         <div className="mb-3 flex justify-between text-xs text-slate-300"><span>Composição do saldo</span><span>{result.months} meses · {result.effectiveMonthlyRate.toFixed(4).replace('.', ',')}% a.m.</span></div>
         <div className="flex h-4 overflow-hidden rounded-full bg-emerald-400"><div className="bg-slate-400" style={{ width: `${investedShare}%` }} /></div>
@@ -473,16 +473,29 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
 function ProjectionLineChart({ result }: { result: InvestmentProjectionResponse }) {
   const points = result.timeline;
   if (points.length < 2) return null;
-  const width = 760;
-  const height = 210;
-  const padding = 20;
-  const maximum = Math.max(...points.map((point) => point.balance), 1);
-  const path = points.map((point, index) => {
-    const x = padding + (index / (points.length - 1)) * (width - padding * 2);
-    const y = height - padding - (point.balance / maximum) * (height - padding * 2);
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ');
-  return <div className="border-y border-white/10 bg-slate-900 px-6 py-5"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold">Evolução do saldo</p><p className="text-xs text-slate-400">Projeção bruta por {result.timelinePeriod === 'MONTHLY' ? 'mês' : 'ano'}, antes de impostos.</p></div><strong className="text-sm text-emerald-300">{currency(result.projectedBalance)}</strong></div><svg className="h-52 w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Gráfico de linha da evolução do saldo"><line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="rgba(148,163,184,.35)" /><path d={path} fill="none" stroke="#34d399" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />{points.map((point, index) => { const x = padding + (index / (points.length - 1)) * (width - padding * 2); const y = height - padding - (point.balance / maximum) * (height - padding * 2); return <circle key={point.month} cx={x} cy={y} r="3" fill="#d1fae5" />; })}</svg><div className="flex justify-between text-xs text-slate-400"><span>{formatDate(points[0].date)}</span><span>{formatDate(points.at(-1)!.date)}</span></div></div>;
+  const width = 960;
+  const height = 300;
+  const chart = { top: 24, right: 28, bottom: 38, left: 88 };
+  const plotWidth = width - chart.left - chart.right;
+  const plotHeight = height - chart.top - chart.bottom;
+  const values = points.map((point) => point.balance);
+  const rawMinimum = Math.min(...values);
+  const rawMaximum = Math.max(...values);
+  const rangePadding = Math.max((rawMaximum - rawMinimum) * 0.16, rawMaximum * 0.025, 1);
+  const minimum = Math.max(0, rawMinimum - rangePadding);
+  const maximum = rawMaximum + rangePadding;
+  const domain = Math.max(1, maximum - minimum);
+  const xAt = (index: number) => chart.left + (index / Math.max(1, points.length - 1)) * plotWidth;
+  const yAt = (value: number) => chart.top + ((maximum - value) / domain) * plotHeight;
+  const linePath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${xAt(index)} ${yAt(point.balance)}`).join(' ');
+  const areaPath = `${linePath} L ${xAt(points.length - 1)} ${chart.top + plotHeight} L ${xAt(0)} ${chart.top + plotHeight} Z`;
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => ({
+    y: chart.top + ratio * plotHeight,
+    value: maximum - ratio * domain,
+  }));
+  const labelIndexes = Array.from(new Set([0, Math.floor((points.length - 1) / 2), points.length - 1]));
+
+  return <div className="bg-white px-6 py-5 text-slate-900"><div className="mb-4 flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-semibold">Evolução do saldo</p><p className="mt-1 text-xs text-slate-400">Projeção bruta por {result.timelinePeriod === 'MONTHLY' ? 'mês' : 'ano'}, antes de impostos.</p></div><div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><i className="h-2.5 w-2.5 rounded-full bg-emerald-500" />Saldo bruto projetado</div></div><div className="overflow-x-auto rounded-[24px] border border-slate-100 bg-slate-50/80 p-3 sm:p-5"><svg className="h-[280px] min-w-[720px] w-full" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Gráfico de linha da evolução do saldo"><defs><linearGradient id="projectionArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity="0.2" /><stop offset="100%" stopColor="#10b981" stopOpacity="0.01" /></linearGradient></defs>{yTicks.map((tick) => <g key={tick.y}><line stroke="#e2e8f0" strokeWidth="1" x1={chart.left} x2={width - chart.right} y1={tick.y} y2={tick.y} /><text fill="#94a3b8" fontSize="12" textAnchor="end" x={chart.left - 12} y={tick.y + 4}>{compactCurrency(tick.value)}</text></g>)}<path d={areaPath} fill="url(#projectionArea)" /><path d={linePath} fill="none" stroke="#10b981" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />{points.map((point, index) => <circle key={point.month} cx={xAt(index)} cy={yAt(point.balance)} fill="white" r="5" stroke="#10b981" strokeWidth="3"><title>{`${formatDate(point.date)} · Saldo bruto ${currency(point.balance)} · Investido ${currency(point.totalInvested)}`}</title></circle>)}{labelIndexes.map((index) => <text key={points[index].month} fill="#94a3b8" fontSize="12" textAnchor={index === 0 ? 'start' : index === points.length - 1 ? 'end' : 'middle'} x={xAt(index)} y={height - 8}>{shortDate(points[index].date)}</text>)}</svg><p className="mt-1 text-right text-[11px] text-slate-400">Escala ajustada ao intervalo exibido</p></div></div>;
 }
 
 function TaxAndReconciliationPanel() {

@@ -7,11 +7,11 @@
 [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Version](https://img.shields.io/badge/release-1.4.0--beta.2-10B981)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/release-1.4.0-10B981)](CHANGELOG.md)
 
-**Em desenvolvimento: v1.4.0-beta.2.** A prévia unifica o lançamento por classe de investimento, permite correções
-controladas e adiciona liquidez diária à renda fixa. Consulte o [escopo, testes e limitações](docs/INVESTMENTS-1.4.md)
-antes de testar ou publicar. A automacao de proventos e os regimes tributarios adicionais ainda nao estao concluidos.
+**Versão atual: v1.4.0.** A release oficial unifica o lançamento por classe de investimento, permite correções
+controladas e adiciona liquidez diária à renda fixa. Consulte o [escopo, testes e limitações](docs/INVESTMENTS-1.4.md).
+A automacao de proventos e os regimes tributarios adicionais continuam planejados para as próximas versões.
 
 ![Prévia do Farol Financeiro](frontend/public/og-farol-financeiro.png)
 
@@ -165,7 +165,7 @@ Para relatar uma vulnerabilidade, prefira um contato privado com o mantenedor em
 
 ## Estado do Projeto
 
-A versão em desenvolvimento é a **1.4.0-beta.2**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco atual no refinamento da experiência e em futuras integrações financeiras.
+A versão atual é a **1.4.0**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco nas próximas integrações financeiras e na automação de proventos.
 
 ## Autoria
 

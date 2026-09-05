@@ -2,6 +2,13 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.0] - 2026-09-05
+
+- Release oficial da base de investimentos com lançamentos financeiros vinculados, correções controladas e renda fixa com liquidez diária.
+- Simulador de renda fixa consolidado com projeção bruta, IR/IOF estimados, tabela por período e gráfico alinhado ao padrão visual de Evolução Patrimonial.
+- Fechamento mensal guiado, estados tributários explícitos e pagamento de DARF separado da estimativa mantidos como recursos da release.
+- Referências de runtime, pacote frontend, backend e documentação sincronizadas para `1.4.0`.
+
 ## [1.4.0-beta.2] - 2026-09-05
 
 - Nova movimentação separada visualmente em renda variável e renda fixa, com compra/venda, busca de ativo e importação de saldo inicial fora do fluxo recorrente.
