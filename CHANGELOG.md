@@ -5,6 +5,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 ## [1.4.4] - 2026-09-06
 
 - Compra e venda de investimentos passam a invalidar somente Carteira, Transações, Painel e Análise Mensal, removendo a atualização global duplicada que podia deixar o modal sem resposta após uma venda.
+- O diálogo de movimentação é desmontado ao fechar, abre acima de outros overlays e encerra diálogos concorrentes para impedir estado residual ou uma camada invisível de bloquear Compra, Venda, Renda Fixa, Trocar e Fechar.
 - Compra retroativa de BBAS3 foi coberta junto da Agenda: quando a operação é anterior à Data Com, ela permanece salva, gera despesa de investimento e participa da quantidade elegível.
 - Agenda vazia explica que a fonte pode estar no modo demonstrativo e que operações posteriores à Data Com não têm direito ao evento já anunciado.
 - O fluxo de renovação silenciosa continua coberto para access token ausente/expirado no navegador e refresh token persistido válido.

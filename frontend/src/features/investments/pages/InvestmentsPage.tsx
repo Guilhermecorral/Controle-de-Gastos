@@ -74,6 +74,24 @@ export default function InvestmentsPage() {
   const [contributionGoal, setContributionGoal] = useState<InvestmentGoalResponse | null>(null);
   const [editingMovement, setEditingMovement] = useState<InvestmentMovementResponse | null>(null);
   const deleteMovementMutation = useDeleteInvestmentMovementMutation();
+  const closeInvestmentDialogs = () => {
+    setTradeOpen(false);
+    setInvestmentImportOpen(false);
+    setImportInitial(false);
+    setRedemption(null);
+    setIncomePosition(null);
+    setSelectedPosition(null);
+    setScheduleOpen(false);
+    setGoalOpen(false);
+    setEditingGoal(null);
+    setContributionGoal(null);
+    setEditingMovement(null);
+  };
+  const openTradeDialog = (openingBalance = false) => {
+    closeInvestmentDialogs();
+    setImportInitial(openingBalance);
+    setTradeOpen(true);
+  };
   const [projection, setProjection] = useState<InvestmentProjectionRequest>({
     initialAmount: 1000,
     monthlyContribution: 500,
@@ -102,7 +120,7 @@ export default function InvestmentsPage() {
           <h2 className="mt-2 text-3xl font-semibold text-slate-950">Seus investimentos, sem cadastro no escuro</h2>
           <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">Selecione ativos verificados no catálogo e registre cada compra ou venda. A posição é calculada pelo Farol.</p>
         </div>
-        <div className="flex flex-wrap gap-2"><button className="rounded-full border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setInvestmentImportOpen(true)}>Importar investimentos</button><button className="button-pop button-glow flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 font-semibold text-white" type="button" onClick={() => setTradeOpen(true)}><Plus size={18} /> Nova movimentação</button></div>
+        <div className="flex flex-wrap gap-2"><button className="rounded-full border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setInvestmentImportOpen(true)}>Importar investimentos</button><button className="button-pop button-glow flex items-center gap-2 rounded-full bg-slate-950 px-5 py-3 font-semibold text-white" type="button" onClick={() => openTradeDialog()}><Plus size={18} /> Nova movimentação</button></div>
       </header>
       {investmentImportFeedback && <p className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{investmentImportFeedback}</p>}
 
@@ -127,10 +145,10 @@ export default function InvestmentsPage() {
       <SectionCard title="Minha carteira">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <p className="max-w-3xl text-sm leading-7 text-slate-500">Ações, FIIs e criptos são consolidados pelas compras e vendas. A fonte e o horário da cotação permanecem visíveis.</p>
-            <div className="flex items-center gap-3">{portfolioHasOverflow && <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Exibindo 3 de {positions.length} ativos</span>}<button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={() => { setImportInitial(true); setTradeOpen(true); }}>Já investia antes? Importar posição</button></div>
+            <div className="flex items-center gap-3">{portfolioHasOverflow && <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">Exibindo 3 de {positions.length} ativos</span>}<button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={() => openTradeDialog(true)}>Já investia antes? Importar posição</button></div>
           </div>
           <div aria-label="Ativos da carteira" className={`space-y-3 overflow-x-hidden pr-2 ${portfolioHasOverflow ? 'max-h-[648px] overflow-y-auto' : ''}`}>
-            {positions.length === 0 && <EmptyPortfolio onAdd={() => setTradeOpen(true)} />}
+            {positions.length === 0 && <EmptyPortfolio onAdd={() => openTradeDialog()} />}
             {positions.map((position) => (
               <article key={position.id} className="rounded-[22px] border border-slate-100 bg-slate-50 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -156,7 +174,7 @@ export default function InvestmentsPage() {
                   <span className="flex items-center gap-1"><Clock3 size={13} /> {position.quote.available ? `${position.quote.source} · atualizada ${formatTimestamp(position.quote.updatedAt)}` : 'Cotação indisponível · usando preço médio'}</span>
                   <div className="flex gap-3">
                     <button className="font-semibold text-slate-700 hover:text-emerald-700" type="button" onClick={() => setSelectedPosition(position)}>Ver análise</button>
-                    {position.assetType !== 'RENDA_FIXA' && <button className="font-semibold text-slate-700 hover:text-emerald-700" type="button" onClick={() => setTradeOpen(true)}>Comprar ou vender</button>}
+                    {position.assetType !== 'RENDA_FIXA' && <button className="font-semibold text-slate-700 hover:text-emerald-700" type="button" onClick={() => openTradeDialog()}>Comprar ou vender</button>}
                     <button className="font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={() => setIncomePosition(position)}>Registrar provento</button>
                     {position.assetType === 'RENDA_FIXA' && <button className="font-semibold text-emerald-700" type="button" onClick={() => setRedemption(position)}>Simular / resgatar</button>}
                   </div>
@@ -214,7 +232,7 @@ export default function InvestmentsPage() {
         {projectionMutation.data && <ProjectionResults result={projectionMutation.data} />}
       </SectionCard>
 
-      <TradeDialog key={importInitial ? 'opening' : 'new'} open={tradeOpen} positions={portfolio?.positions ?? []} initialMode={importInitial} onClose={() => { setTradeOpen(false); setImportInitial(false); }} />
+      {tradeOpen && <TradeDialog key={importInitial ? 'opening' : 'new'} open positions={portfolio?.positions ?? []} initialMode={importInitial} onClose={closeInvestmentDialogs} />}
       <InvestmentImportDialog open={investmentImportOpen} onClose={() => setInvestmentImportOpen(false)} onFinished={setInvestmentImportFeedback} />
       <FixedIncomeRedemption position={redemption} onClose={() => setRedemption(null)} />
       <IncomeDialog position={incomePosition} onClose={() => setIncomePosition(null)} />
@@ -295,7 +313,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
 
   const sellable = positions.filter((position) => position.assetType !== 'RENDA_FIXA' && (position.quantity ?? 0) > 0);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[30px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
           <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-600">Investimentos</p><h3 className="mt-1 text-xl font-semibold text-slate-950">Nova movimentação</h3></div>
