@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useDeferredValue, useState } from 'react';
+import { FormEvent, ReactNode, useDeferredValue, useEffect, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, BarChart3, CalendarDays, Clock3, Plus, Search, X } from 'lucide-react';
 import {
   InvestmentAssetSearchResponse,
@@ -63,6 +63,7 @@ export default function InvestmentsPage() {
   const goalsQuery = useInvestmentGoalsQuery();
   const projectionMutation = useInvestmentProjectionMutation();
   const [tradeOpen, setTradeOpen] = useState(false);
+  const [tradeSession, setTradeSession] = useState(0);
   const [investmentImportOpen, setInvestmentImportOpen] = useState(false);
   const [investmentImportFeedback, setInvestmentImportFeedback] = useState<string | null>(null);
   const [importInitial, setImportInitial] = useState(false);
@@ -91,8 +92,16 @@ export default function InvestmentsPage() {
   const openTradeDialog = (openingBalance = false) => {
     closeInvestmentDialogs();
     setImportInitial(openingBalance);
+    setTradeSession((current) => current + 1);
     setTradeOpen(true);
   };
+  useEffect(() => {
+    void api.post('/diagnostics/ui-events', {
+      area: 'investment-page',
+      action: tradeOpen ? 'trade-open' : 'trade-closed',
+      mode: importInitial ? 'SALDO_INICIAL' : 'MOVIMENTO',
+    }).catch(() => undefined);
+  }, [importInitial, tradeOpen, tradeSession]);
   const [projection, setProjection] = useState<InvestmentProjectionRequest>({
     initialAmount: 1000,
     monthlyContribution: 500,
@@ -233,7 +242,7 @@ export default function InvestmentsPage() {
         {projectionMutation.data && <ProjectionResults result={projectionMutation.data} />}
       </SectionCard>
 
-      {tradeOpen && <TradeDialog key={importInitial ? 'opening' : 'new'} open positions={portfolio?.positions ?? []} initialMode={importInitial} onClose={closeInvestmentDialogs} />}
+      {tradeOpen && <TradeDialog key={`${importInitial ? 'opening' : 'new'}-${tradeSession}`} open positions={portfolio?.positions ?? []} initialMode={importInitial} onClose={closeInvestmentDialogs} />}
       <InvestmentImportDialog open={investmentImportOpen} onClose={() => setInvestmentImportOpen(false)} onFinished={setInvestmentImportFeedback} />
       <FixedIncomeRedemption position={redemption} onClose={() => setRedemption(null)} />
       <IncomeDialog position={incomePosition} onClose={() => setIncomePosition(null)} />
@@ -265,17 +274,23 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [eventDate, setEventDate] = useState(today);
   const [error, setError] = useState('');
+  const [dismissed, setDismissed] = useState(false);
   const [fixedForm, setFixedForm] = useState<InvestmentPositionRequest>({
     assetType: 'RENDA_FIXA', symbol: null, externalId: null, name: '', quantity: null, averagePrice: null,
     principal: 0, annualRate: 12, purchaseDate: today, maturityDate: nextYear, market: 'BR', currency: 'BRL', exchange: null,
     taxRegime: 'REGRESSIVO', iofApplicable: true, fixedIncomeYieldType: 'PREFIXADO', fixedIncomeIndexer: null, dailyLiquidity: false,
   });
   const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && !selected);
-  if (!open) return null;
+  if (!open || dismissed) return null;
 
   const recordUiEvent = (action: string, eventMode = mode) => {
     // A breadcrumb is intentionally small: it helps identify blocked clicks without sending financial data.
     void api.post('/diagnostics/ui-events', { area: 'investment-trade', action, mode: eventMode }).catch(() => undefined);
+  };
+  const closeDialog = () => {
+    recordUiEvent('close-click');
+    setDismissed(true);
+    onClose();
   };
 
   const chooseAsset = (asset: InvestmentAssetSearchResponse, id: number | null = null, price?: number | null) => {
@@ -323,7 +338,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[30px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
           <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-600">Investimentos</p><h3 className="mt-1 text-xl font-semibold text-slate-950">Nova movimentação</h3></div>
-          <button className="rounded-full bg-slate-100 p-2 text-slate-500 hover:text-slate-900" type="button" onClick={() => { recordUiEvent('close-click'); onClose(); }}><X size={20} /></button>
+          <button className="rounded-full bg-slate-100 p-2 text-slate-500 hover:text-slate-900" type="button" onClick={closeDialog}><X size={20} /></button>
         </div>
         <form className="space-y-5 p-6" onSubmit={submit}>
           {mode === 'SALDO_INICIAL' ? <><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-900">Importar posição existente</p><p className="mt-1 text-xs leading-5 text-slate-500">Use o saldo e o preço médio da sua corretora. Não será criada uma despesa antiga no financeiro.</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Voltar</button></div></> : <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
