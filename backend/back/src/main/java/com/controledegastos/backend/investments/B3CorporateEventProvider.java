@@ -85,7 +85,7 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         connection.setConnectTimeout(8_000);
         connection.setReadTimeout(15_000);
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "FarolFinanceiro/1.4.4 corporate-event-sync");
+        connection.setRequestProperty("User-Agent", "FarolFinanceiro/1.4.5-beta.1 corporate-event-pilot");
 
         int status = connection.getResponseCode();
         if (status < 200 || status >= 300) {
@@ -121,28 +121,43 @@ public class B3CorporateEventProvider implements MarketDataProvider {
                 continue;
             }
             String isin = text(item, "isinCode");
-            String symbol = resolveSymbol(requestedRoot, candidateSymbols, text(item, "assetIssued"), isin);
+            String symbol = resolveSymbol(candidateSymbols, text(item, "assetIssued"), isin);
             BigDecimal taxRate = eventType == CorporateEvent.EventType.JCP ? new BigDecimal("15.0000") : BigDecimal.ZERO;
-            String sourceReference = "b3:" + symbol + ":" + eventType + ":" + isin + ":" + recordDate + ":" + paymentDate + ":" + amount.toPlainString();
-            parsed.add(new CorporateEventData(sourceReference, symbol, eventType, null, amount, taxRate,
-                    recordDate, paymentDate, "B3_EXPERIMENTAL"));
+            String sourceReference = "b3:" + requestedRoot + ":" + eventType + ":" + isin + ":" + recordDate + ":" + paymentDate + ":" + amount.toPlainString();
+            parsed.add(new CorporateEventData(sourceReference, symbol, isin, eventType, null, amount, taxRate,
+                    recordDate, paymentDate, "B3_EXPERIMENTAL", symbol == null ? "TICKER_AMBIGUO" : "VALIDO"));
         }
         return parsed;
     }
 
-    private static String resolveSymbol(String requestedRoot, Set<String> candidateSymbols, String assetIssued, String isin) {
+    private static String resolveSymbol(Set<String> candidateSymbols, String assetIssued, String isin) {
         String candidate = assetIssued == null ? "" : assetIssued.trim().toUpperCase(Locale.ROOT);
-        if (candidate.matches("[A-Z]{4}\\d{1,2}")) return candidate;
-        if (candidateSymbols.size() == 1) return candidateSymbols.iterator().next();
+        if (candidate.matches("[A-Z]{4}\\d{1,2}")) {
+            // An explicit class is safe only when that exact class is held in the wallet.
+            return candidateSymbols.contains(candidate) ? candidate : null;
+        }
+        if (candidateSymbols.size() == 1) {
+            String symbol = candidateSymbols.iterator().next();
+            return isUnambiguousFor(symbol, isin) ? symbol : null;
+        }
         String normalizedIsin = isin == null ? "" : isin.toUpperCase(Locale.ROOT);
         if (normalizedIsin.contains("OR")) {
-            return candidateSymbols.stream().filter(symbol -> symbol.endsWith("3")).findFirst().orElse(requestedRoot);
+            return candidateSymbols.stream().filter(symbol -> symbol.endsWith("3")).findFirst().orElse(null);
         }
         if (normalizedIsin.contains("PR")) {
             return candidateSymbols.stream().filter(symbol -> symbol.endsWith("4")).findFirst()
-                    .orElseGet(() -> candidateSymbols.stream().filter(symbol -> symbol.endsWith("5") || symbol.endsWith("6")).findFirst().orElse(requestedRoot));
+                    .orElseGet(() -> candidateSymbols.stream().filter(symbol -> symbol.endsWith("5") || symbol.endsWith("6")).findFirst().orElse(null));
         }
-        return candidateSymbols.stream().sorted().findFirst().orElse(requestedRoot);
+        return null;
+    }
+
+    private static boolean isUnambiguousFor(String symbol, String isin) {
+        String normalizedSymbol = symbol.trim().toUpperCase(Locale.ROOT);
+        String normalizedIsin = isin == null ? "" : isin.toUpperCase(Locale.ROOT);
+        if (normalizedSymbol.endsWith("11")) return true;
+        if (normalizedSymbol.endsWith("3")) return normalizedIsin.contains("OR");
+        if (normalizedSymbol.endsWith("4")) return normalizedIsin.contains("PR");
+        return false;
     }
 
     private static CorporateEvent.EventType mapEventType(String label) {
@@ -150,7 +165,10 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         if (normalized.contains("JRS CAP PROPRIO") || normalized.contains("JUROS") && normalized.contains("CAPITAL")) {
             return CorporateEvent.EventType.JCP;
         }
-        if (normalized.contains("DIVIDENDO") || normalized.contains("RENDIMENTO")) {
+        if (normalized.contains("RENDIMENTO")) {
+            return CorporateEvent.EventType.RENDIMENTO;
+        }
+        if (normalized.contains("DIVIDENDO")) {
             return CorporateEvent.EventType.DIVIDENDO;
         }
         return null;

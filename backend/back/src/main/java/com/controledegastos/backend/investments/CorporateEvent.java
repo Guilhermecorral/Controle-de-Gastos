@@ -21,6 +21,9 @@ public class CorporateEvent {
     @Column(nullable = false, length = 30)
     private String symbol;
 
+    @Column(name = "isin_code", length = 24)
+    private String isinCode;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false, length = 20)
     private EventType eventType;
@@ -51,5 +54,5 @@ public class CorporateEvent {
 
     @PrePersist void onCreate() { createdAt = LocalDateTime.now(); }
 
-    public enum EventType { DIVIDENDO, JCP }
+    public enum EventType { DIVIDENDO, JCP, RENDIMENTO }
 }

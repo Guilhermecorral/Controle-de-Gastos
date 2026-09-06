@@ -78,7 +78,7 @@ public class AssetCatalogService {
 
     private List<AssetSearchResponse> searchBrazilianAssets(String query, InvestmentPosition.AssetType type) throws Exception {
         String uri = brapiBaseUrl + "/api/quote/list?search=" + encode(query) + "&limit=12"
-                + (type == InvestmentPosition.AssetType.FII ? "&type=fund&subType=fii" : "&type=stock");
+                + (type == InvestmentPosition.AssetType.FII || type == InvestmentPosition.AssetType.FIAGRO ? "&type=fund&subType=fii" : "&type=stock");
         if (brapiToken != null && !brapiToken.isBlank()) uri += "&token=" + encode(brapiToken);
         JsonNode stocks = send(uri, null).path("stocks");
         List<AssetSearchResponse> results = new ArrayList<>();
@@ -101,7 +101,7 @@ public class AssetCatalogService {
             if (providerSymbol.isBlank() || !(quoteType.equals("EQUITY") || quoteType.equals("ETF"))) continue;
             boolean brazilian = providerSymbol.endsWith(".SA");
             if (!brazilian && !isUnitedStatesExchange(quote.path("exchange").asText(""))) continue;
-            if (type == InvestmentPosition.AssetType.FII && !brazilian) continue;
+            if ((type == InvestmentPosition.AssetType.FII || type == InvestmentPosition.AssetType.FIAGRO) && !brazilian) continue;
 
             String symbol = brazilian ? providerSymbol.substring(0, providerSymbol.length() - 3) : providerSymbol;
             String name = quote.path("longname").asText(quote.path("shortname").asText(symbol));

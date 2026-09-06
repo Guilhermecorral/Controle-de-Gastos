@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useDeferredValue, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useDeferredValue, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, BarChart3, CalendarDays, Clock3, Plus, Search, X } from 'lucide-react';
 import {
   InvestmentAssetSearchResponse,
@@ -39,11 +39,12 @@ import {
   useUpdateInvestmentGoalMutation,
   useAdjustWalletEarningMutation,
   useConfirmWalletEarningMutation,
-  useSynchronizeWalletEarningsMutation,
+  useCorporateEventPilotAccessQuery,
+  useCorporateEventPreviewMutation,
+  usePublishCorporateEventPreviewMutation,
   useWalletEarningsQuery,
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
-import api from '../../../lib/api';
 import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import { FixedIncomeRedemption, TaxRegimeFields } from '../components/FixedIncomeTools';
@@ -95,13 +96,6 @@ export default function InvestmentsPage() {
     setTradeSession((current) => current + 1);
     setTradeOpen(true);
   };
-  useEffect(() => {
-    void api.post('/diagnostics/ui-events', {
-      area: 'investment-page',
-      action: tradeOpen ? 'trade-open' : 'trade-closed',
-      mode: importInitial ? 'SALDO_INICIAL' : 'MOVIMENTO',
-    }).catch(() => undefined);
-  }, [importInitial, tradeOpen, tradeSession]);
   const [projection, setProjection] = useState<InvestmentProjectionRequest>({
     initialAmount: 1000,
     monthlyContribution: 500,
@@ -110,7 +104,7 @@ export default function InvestmentsPage() {
     timelinePeriod: 'MONTHLY',
     startDate: today,
     endDate: nextYear,
-    taxRegime: 'REGRESSIVO', iofApplicable: true,
+    taxRegime: 'REGRESSIVO', iofApplicable: true, annualInflationRate: 4.5,
   });
   if (portfolioQuery.isLoading) return <LoadingCard label="Buscando sua carteira e atualizando as cotações." />;
   if (portfolioQuery.isError) return <UnavailableCard label={getApiErrorMessage(portfolioQuery.error, 'Não foi possível carregar os investimentos.')} />;
@@ -120,7 +114,7 @@ export default function InvestmentsPage() {
   const distribution = positions.reduce<Record<InvestmentAssetType, number>>((totals, position) => {
     totals[position.assetType] += position.currentValue;
     return totals;
-  }, { ACAO: 0, FII: 0, CRIPTO: 0, RENDA_FIXA: 0 });
+  }, { ACAO: 0, FII: 0, FIAGRO: 0, CRIPTO: 0, RENDA_FIXA: 0 });
 
   return (
     <div className="space-y-6">
@@ -235,11 +229,12 @@ export default function InvestmentsPage() {
           <Field label="Período da taxa"><select className={inputClass} value={projection.ratePeriod} onChange={(event) => setProjection({ ...projection, ratePeriod: event.target.value as 'MONTHLY' | 'ANNUAL' })}><option value="MONTHLY">Mensal</option><option value="ANNUAL">Anual</option></select></Field>
           <DateField label="Data inicial" value={projection.startDate} onChange={(startDate) => setProjection({ ...projection, startDate })} />
           <DateField label="Data final" value={projection.endDate} onChange={(endDate) => setProjection({ ...projection, endDate })} />
+          <NumberField label="IPCA / inflação projetada (% a.a.)" value={projection.annualInflationRate} onChange={(annualInflationRate) => setProjection({ ...projection, annualInflationRate })} step="0.01" />
           <Field label="Exibir evolução"><select className={inputClass} value={projection.timelinePeriod} onChange={(event) => setProjection({ ...projection, timelinePeriod: event.target.value as 'MONTHLY' | 'YEARLY' })}><option value="MONTHLY">Por mês</option><option value="YEARLY">Por ano</option></select></Field>
           <div className="flex items-end"><button className="h-12 w-full rounded-2xl bg-emerald-500 px-5 font-semibold text-white hover:bg-emerald-600 disabled:bg-slate-300" disabled={projectionMutation.isPending || projection.initialAmount + projection.monthlyContribution <= 0} type="button" onClick={() => projectionMutation.mutate(projection)}>{projectionMutation.isPending ? 'Calculando...' : 'Calcular evolução'}</button></div>
         </div>
         {projectionMutation.isError && <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{getApiErrorMessage(projectionMutation.error, 'Não foi possível calcular esta simulação.')}</p>}
-        {projectionMutation.data && <ProjectionResults result={projectionMutation.data} />}
+        {projectionMutation.data && <ProjectionResults result={projectionMutation.data} startDate={projection.startDate} />}
       </SectionCard>
 
       {tradeOpen && <TradeDialog key={`${importInitial ? 'opening' : 'new'}-${tradeSession}`} open positions={portfolio?.positions ?? []} initialMode={importInitial} onClose={closeInvestmentDialogs} />}
@@ -283,12 +278,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
   const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && !selected);
   if (!open || dismissed) return null;
 
-  const recordUiEvent = (action: string, eventMode = mode) => {
-    // A breadcrumb is intentionally small: it helps identify blocked clicks without sending financial data.
-    void api.post('/diagnostics/ui-events', { area: 'investment-trade', action, mode: eventMode }).catch(() => undefined);
-  };
   const closeDialog = () => {
-    recordUiEvent('close-click');
     setDismissed(true);
     onClose();
   };
@@ -334,7 +324,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
 
   const sellable = positions.filter((position) => position.assetType !== 'RENDA_FIXA' && (position.quantity ?? 0) > 0);
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação" onPointerDownCapture={() => recordUiEvent('pointer-down')}>
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[30px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
           <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-600">Investimentos</p><h3 className="mt-1 text-xl font-semibold text-slate-950">Nova movimentação</h3></div>
@@ -342,13 +332,13 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
         </div>
         <form className="space-y-5 p-6" onSubmit={submit}>
           {mode === 'SALDO_INICIAL' ? <><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-900">Importar posição existente</p><p className="mt-1 text-xs leading-5 text-slate-500">Use o saldo e o preço médio da sua corretora. Não será criada uma despesa antiga no financeiro.</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Voltar</button></div></> : <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
-            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode !== 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('variable-click', 'COMPRA'); setMode('COMPRA'); resetSelection(); }}>Renda variável</button>
-            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('fixed-income-click', 'RENDA_FIXA'); setMode('RENDA_FIXA'); resetSelection(); }}>Renda fixa</button>
+            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode !== 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Renda variável</button>
+            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('RENDA_FIXA'); resetSelection(); }}>Renda fixa</button>
           </div>}
-          {mode !== 'RENDA_FIXA' && mode !== 'SALDO_INICIAL' && <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1"><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'COMPRA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('buy-click', 'COMPRA'); setMode('COMPRA'); resetSelection(); }}>Compra</button><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'VENDA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('sell-click', 'VENDA'); setMode('VENDA'); resetSelection(); }}>Venda</button></div>}
+          {mode !== 'RENDA_FIXA' && mode !== 'SALDO_INICIAL' && <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1"><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'COMPRA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Compra</button><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'VENDA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('VENDA'); resetSelection(); }}>Venda</button></div>}
 
           {!selected && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && <>
-            <div className="flex flex-wrap gap-2">{(['ACAO', 'FII', 'CRIPTO'] as TradableType[]).map((type) => <button key={type} className={`rounded-full border px-4 py-2 text-sm font-semibold ${assetType === type ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 text-slate-600'}`} type="button" onClick={() => { setAssetType(type); setQuery(''); }}>{assetLabel(type)}</button>)}</div>
+            <div className="flex flex-wrap gap-2">{(['ACAO', 'FII', 'FIAGRO', 'CRIPTO'] as TradableType[]).map((type) => <button key={type} className={`rounded-full border px-4 py-2 text-sm font-semibold ${assetType === type ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 text-slate-600'}`} type="button" onClick={() => { setAssetType(type); setQuery(''); }}>{assetLabel(type)}</button>)}</div>
             <Field label="Busque pelo ticker ou nome do ativo"><div className="relative"><Search className="absolute left-4 top-3.5 text-slate-400" size={19} /><input autoFocus className={`${inputClass} pl-11`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={assetType === 'CRIPTO' ? 'Bitcoin, Ethereum...' : 'ITUB4, Itaú, Apple...'} /></div></Field>
             <div className="space-y-2">
               {search.isFetching && <p className="py-4 text-center text-sm text-slate-500">Consultando o catálogo...</p>}
@@ -371,7 +361,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
           </div>}
 
           {selected && <>
-            <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={() => { recordUiEvent('change-asset-click'); resetSelection(); }}>Trocar</button></div>
+            <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={resetSelection}>Trocar</button></div>
             <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step="0.00000001" /><NumberField label={mode === 'SALDO_INICIAL' ? 'Custo médio' : 'Preço unitário'} value={unitPrice} onChange={setUnitPrice} step="0.000001" /><DateField label={mode === 'SALDO_INICIAL' ? 'Data de início do acompanhamento' : 'Data da operação'} value={eventDate} onChange={setEventDate} max={today} /></div>
             {mode !== 'SALDO_INICIAL' && <details className="rounded-2xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Custos da operação / Nota de corretagem (opcional)</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><NumberField label="Corretagem" value={brokerageFee} onChange={setBrokerageFee} /><NumberField label="Taxas B3" value={b3Fee} onChange={setB3Fee} /><NumberField label="Outros custos" value={fees} onChange={setFees} />{mode === 'VENDA' && <NumberField label="IRRF antecipado" value={withheldTax} onChange={setWithheldTax} />}</div><p className="mt-3 text-xs text-slate-500">Valores da operação, na moeda do ativo. IRRF é crédito tributário e não compõe os custos.</p></details>}
             {selected.currency !== 'BRL' && mode !== 'SALDO_INICIAL' && <NumberField label={`Câmbio da operação (R$ por ${selected.currency})`} value={exchangeRate} onChange={setExchangeRate} step="0.000001" />}
@@ -488,9 +478,10 @@ function EvolutionMetric({ label, value, tone = 'neutral' }: { label: string; va
   return <div className="rounded-[18px] border border-slate-100 bg-white px-4 py-3"><p className="text-xs font-semibold uppercase tracking-[.1em] text-slate-400">{label}</p><p className={`mt-1 text-base font-semibold ${valueTone}`}>{value}</p></div>;
 }
 
-function ProjectionResults({ result }: { result: InvestmentProjectionResponse }) {
+function ProjectionResults({ result, startDate }: { result: InvestmentProjectionResponse; startDate: string }) {
   const investedShare = result.projectedBalance > 0 ? Math.min(100, (result.totalInvested / result.projectedBalance) * 100) : 0;
   const hasTaxEstimate = [result.incomeTax, result.iof, result.netBalance].every((value) => Number.isFinite(Number(value)));
+  const milestones = projectionMilestones(result, startDate);
   return (
     <div className="mt-6 overflow-hidden rounded-[26px] bg-slate-950 text-white">
       <div className="grid gap-5 p-6 md:grid-cols-3">
@@ -500,6 +491,7 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
         <ProjectionMetric label="IR estimado" value={formatOptionalCurrency(result.incomeTax)} />
         <ProjectionMetric label="IOF estimado" value={formatOptionalCurrency(result.iof)} />
         <ProjectionMetric label="Líquido no resgate" value={formatOptionalCurrency(result.netBalance)} />
+        <ProjectionMetric label="Poder de compra real" value={formatOptionalCurrency(result.realNetBalance)} />
       </div>
       {!hasTaxEstimate && <p className="border-t border-amber-300/20 bg-amber-400/10 px-6 py-3 text-sm text-amber-100">Os impostos ainda não foram calculados porque esta API não enviou os campos fiscais da v1.4.1. Atualize o backend e tente novamente.</p>}
       <div className="border-y border-white/10 px-6 py-5">
@@ -510,13 +502,37 @@ function ProjectionResults({ result }: { result: InvestmentProjectionResponse })
       <ProjectionLineChart result={result} />
       <div className="overflow-x-auto bg-white text-slate-800">
         <table className="w-full min-w-[980px] text-left text-sm">
-          <thead className="bg-slate-100 text-xs uppercase tracking-[.1em] text-slate-500"><tr>{['Período', 'Data', 'Taxa mensal equivalente', 'Aportes', 'Juros do período', 'Investido', 'Juros acumulados', 'Saldo bruto', 'IR estimado', 'IOF estimado', 'Saldo líquido'].map((label) => <th key={label} className="px-5 py-4">{label}</th>)}</tr></thead>
-          <tbody>{result.timeline.map((point) => <tr key={point.month} className="border-t border-slate-100"><td className="px-5 py-4 font-semibold">{result.timelinePeriod === 'YEARLY' ? `${Math.ceil(point.month / 12)}º ano` : `${point.month}º período`}</td><td className="px-5 py-4 text-slate-500">{formatDate(point.date)}</td><td className="px-5 py-4">{result.effectiveMonthlyRate.toFixed(4).replace('.', ',')}%</td>{[point.contribution, point.interest, point.totalInvested, point.totalInterest, point.balance].map((amount, index) => <td key={index} className="px-5 py-4 text-right">{currency(amount)}</td>)}{[point.incomeTax, point.iof, point.netBalance].map((amount, index) => <td key={index} className="px-5 py-4 text-right">{formatOptionalCurrency(amount)}</td>)}</tr>)}</tbody>
+          <thead className="bg-slate-100 text-xs uppercase tracking-[.1em] text-slate-500"><tr>{['Marco', 'Mês/Ano', 'Aportes', 'Investido', 'Saldo bruto', 'IR estimado', 'IOF estimado', 'Saldo líquido'].map((label) => <th key={label} className="px-5 py-4">{label}</th>)}</tr></thead>
+          <tbody>{milestones.map(({ label, point }) => <tr key={`${label}-${point.month}`} className="border-t border-slate-100"><td className="px-5 py-4 font-semibold">{label}</td><td className="px-5 py-4 text-slate-500">{monthYear(point.date)}</td>{[point.contribution, point.totalInvested, point.balance, point.incomeTax, point.iof, point.netBalance].map((amount, index) => <td key={index} className="px-5 py-4 text-right">{formatOptionalCurrency(amount)}</td>)}</tr>)}</tbody>
         </table>
       </div>
       <p className="px-6 py-4 text-xs leading-6 text-slate-400">{result.disclaimer}</p>
     </div>
   );
+}
+
+function projectionMilestones(result: InvestmentProjectionResponse, startDate: string) {
+  const initialPoint: InvestmentProjectionResponse['timeline'][number] = { month: 0, date: startDate, contribution: 0, interest: 0, totalInvested: result.initialAmount, totalInterest: 0, balance: result.initialAmount, incomeTax: 0, iof: 0, netBalance: result.initialAmount };
+  const points = [initialPoint, ...result.timeline];
+  const definitions = [['Início', 0], ['25% do prazo', result.months * 0.25], ['50% do prazo', result.months * 0.5], ['75% do prazo', result.months * 0.75], ['Vencimento', result.months]] as const;
+  return definitions.map(([label, target]) => ({ label, point: interpolateProjectionPoint(points, target, startDate) }));
+}
+
+function interpolateProjectionPoint(points: InvestmentProjectionResponse['timeline'], targetMonth: number, startDate: string): InvestmentProjectionResponse['timeline'][number] {
+  const before = [...points].reverse().find((point) => point.month <= targetMonth) ?? points[0];
+  const after = points.find((point) => point.month >= targetMonth) ?? points.at(-1)!;
+  if (before.month === after.month) return before;
+  const ratio = (targetMonth - before.month) / (after.month - before.month);
+  const interpolate = (field: Exclude<keyof typeof before, 'month' | 'date'>) => Number(before[field]) + (Number(after[field]) - Number(before[field])) * ratio;
+  const targetDate = new Date(`${startDate}T12:00:00`);
+  targetDate.setMonth(targetDate.getMonth() + Math.round(targetMonth));
+  return {
+    month: Math.round(targetMonth),
+    date: targetDate.toISOString().slice(0, 10),
+    contribution: interpolate('contribution'), interest: interpolate('interest'), totalInvested: interpolate('totalInvested'),
+    totalInterest: interpolate('totalInterest'), balance: interpolate('balance'), incomeTax: interpolate('incomeTax'),
+    iof: interpolate('iof'), netBalance: interpolate('netBalance'),
+  };
 }
 
 function ProjectionLineChart({ result }: { result: InvestmentProjectionResponse }) {
@@ -574,7 +590,6 @@ function ReconciliationBadge({ status }: { status: 'CONCILIADO' | 'GERADO_PELO_F
 function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { schedules: InvestmentIncomeScheduleResponse[]; automaticEarnings: WalletEarningResponse[]; loading: boolean; onAdd: () => void }) {
   const receiveMutation = useReceiveInvestmentIncomeScheduleMutation();
   const deleteMutation = useDeleteInvestmentIncomeScheduleMutation();
-  const synchronizeMutation = useSynchronizeWalletEarningsMutation();
   const confirmEarningMutation = useConfirmWalletEarningMutation();
   const adjustEarningMutation = useAdjustWalletEarningMutation();
   const [error, setError] = useState('');
@@ -588,10 +603,6 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
   const remove = (id: number) => {
     setError('');
     deleteMutation.mutate(id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover o provento.')) });
-  };
-  const synchronize = () => {
-    setError('');
-    synchronizeMutation.mutate(undefined, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível atualizar a agenda automática.')) });
   };
   const adjust = (earning: WalletEarningResponse) => {
     const gross = window.prompt('Valor bruto recebido (R$).', String(earning.grossAmount));
@@ -612,11 +623,50 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
   return <SectionCard title="Agenda de proventos">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div><p className="text-sm text-slate-500">Eventos automáticos congelam a quantidade na Data Com e só viram receita após sua confirmação.</p><p className="mt-2 text-sm font-semibold text-emerald-700">{currency(upcomingValue)} líquidos aguardando</p></div>
-      <div className="flex flex-wrap gap-2"><button className="rounded-full border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" disabled={synchronizeMutation.isPending} type="button" onClick={synchronize}>{synchronizeMutation.isPending ? 'Atualizando...' : 'Atualizar agenda'}</button><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Agendar manualmente</button></div>
+      <div className="flex flex-wrap gap-2"><CorporateEventPilotPanel /><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Agendar manualmente</button></div>
     </div>
     {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-    {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : schedules.length === 0 && automaticEarnings.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">Nenhum provento previsto</p><p className="mt-1 text-sm text-slate-500">A fonte atual pode estar em modo demonstrativo. Eventos só aparecem quando a compra ocorreu até a Data Com; para testar qualquer data, registre um evento manual.</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{automaticEarnings.map((earning) => <article key={`automatic-${earning.id}`} className="rounded-[20px] border border-emerald-100 bg-emerald-50/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{earning.symbol || earning.assetName}</p><WalletEarningBadge status={earning.status} /></div><p className="mt-1 text-xs text-slate-500">{earning.eventType === 'JCP' ? 'JCP' : 'Dividendo'} automático · fonte {earning.source}{earning.payerCnpj ? ` · CNPJ ${earning.payerCnpj}` : ''}</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(earning.netAmount)}</p><p className="text-xs text-slate-500">líquido previsto</p></div></div><div className="mt-3 grid gap-2 border-t border-emerald-100 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{formatDate(earning.exDate)}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(earning.paymentDate)}</strong></span><span>{formatQuantity(earning.quantityEligible)} cotas · <strong className="text-slate-700">{currency(earning.grossAmount)} bruto</strong></span></div><p className="mt-2 text-xs text-slate-500">{earning.eventType === 'JCP' ? `JCP com IRRF de 15,00%: ${currency(earning.withheldAmount)} retidos.` : `Dividendo sem retenção prevista: ${currency(earning.withheldAmount)} retidos.`}</p>{(earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO') && <div className="mt-3 flex flex-wrap justify-end gap-3"><button className="text-sm font-semibold text-slate-600 hover:text-slate-950" disabled={adjustEarningMutation.isPending} type="button" onClick={() => adjust(earning)}>Ajustar valor</button><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={adjustEarningMutation.isPending} type="button" onClick={() => cancel(earning)}>Cancelar</button>{earning.status === 'PENDENTE_CONCILIACAO' && <button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={confirmEarningMutation.isPending} type="button" onClick={() => confirmEarningMutation.mutate(earning.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível confirmar o recebimento.')) })}>{confirmEarningMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button>}</div>}</article>)}{schedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">Manual · {schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
+    {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : schedules.length === 0 && automaticEarnings.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">Nenhum provento previsto</p><p className="mt-1 text-sm text-slate-500">Use o teste beta para revisar eventos encontrados na B3 ou registre um evento manual. Uma previsão só vale se a compra ocorreu até a Data Com.</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{automaticEarnings.map((earning) => <article key={`automatic-${earning.id}`} className="rounded-[20px] border border-emerald-100 bg-emerald-50/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{earning.symbol || earning.assetName}</p><WalletEarningBadge status={earning.status} /></div><p className="mt-1 text-xs text-slate-500">{earning.eventType === 'JCP' ? 'JCP' : earning.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} automático · fonte {earning.source}{earning.payerCnpj ? ` · CNPJ ${earning.payerCnpj}` : ''}</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(earning.netAmount)}</p><p className="text-xs text-slate-500">líquido previsto</p></div></div><div className="mt-3 grid gap-2 border-t border-emerald-100 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{formatDate(earning.exDate)}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(earning.paymentDate)}</strong></span><span>{formatQuantity(earning.quantityEligible)} cotas · <strong className="text-slate-700">{currency(earning.grossAmount)} bruto</strong></span></div><p className="mt-2 text-xs text-slate-500">{earning.eventType === 'JCP' ? `JCP com IRRF de 15,00%: ${currency(earning.withheldAmount)} retidos.` : `${earning.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} sem retenção prevista: ${currency(earning.withheldAmount)} retidos.`}</p>{(earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO') && <div className="mt-3 flex flex-wrap justify-end gap-3"><button className="text-sm font-semibold text-slate-600 hover:text-slate-950" disabled={adjustEarningMutation.isPending} type="button" onClick={() => adjust(earning)}>Ajustar valor</button><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={adjustEarningMutation.isPending} type="button" onClick={() => cancel(earning)}>Cancelar</button>{earning.status === 'PENDENTE_CONCILIACAO' && <button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={confirmEarningMutation.isPending} type="button" onClick={() => confirmEarningMutation.mutate(earning.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível confirmar o recebimento.')) })}>{confirmEarningMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button>}</div>}</article>)}{schedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">Manual · {schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
   </SectionCard>;
+}
+
+function CorporateEventPilotPanel() {
+  const accessQuery = useCorporateEventPilotAccessQuery();
+  const previewMutation = useCorporateEventPreviewMutation();
+  const publishMutation = usePublishCorporateEventPreviewMutation();
+  const [selectedReferences, setSelectedReferences] = useState<string[]>([]);
+  const [error, setError] = useState('');
+  const preview = previewMutation.data ?? [];
+  const validCount = preview.filter((event) => event.status === 'VALIDO').length;
+  const toggle = (reference: string) => setSelectedReferences((current) => current.includes(reference)
+    ? current.filter((item) => item !== reference)
+    : [...current, reference]);
+  const loadPreview = () => {
+    setError('');
+    previewMutation.mutate(undefined, {
+      onSuccess: (events) => setSelectedReferences(events.filter((event) => event.status === 'VALIDO').map((event) => event.sourceReference)),
+      onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível consultar a fonte experimental da B3.')),
+    });
+  };
+  const publish = () => {
+    setError('');
+    publishMutation.mutate(selectedReferences, {
+      onSuccess: () => { setSelectedReferences([]); },
+      onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível adicionar as previsões à Agenda.')),
+    });
+  };
+  if (!accessQuery.data?.available) return null;
+
+  return <div className="w-full">
+    <button className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 disabled:bg-slate-100 disabled:text-slate-400" disabled={previewMutation.isPending} type="button" onClick={loadPreview}>{previewMutation.isPending ? 'Consultando B3...' : 'Atualizar agenda (beta)'}</button>
+    {(previewMutation.data || error) && <div className="mt-3 w-full rounded-[20px] border border-amber-200 bg-amber-50/70 p-4 text-sm text-slate-700">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-amber-900">Agenda de Proventos Experimental</p><p className="mt-1 max-w-2xl text-xs leading-5 text-amber-800">Dados obtidos de fonte pública da B3, em fase de desenvolvimento. Confira valor, Data Com e pagamento antes de considerar o recebimento. Nenhuma receita é criada automaticamente.</p></div><span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-800">{validCount} previsão(ões) válida(s)</span></div>
+      {error && <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</p>}
+      {preview.length > 0 && <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">{preview.map((event) => <label key={event.sourceReference} className={`flex gap-3 rounded-xl border p-3 ${event.status === 'VALIDO' ? 'border-emerald-200 bg-white' : 'border-slate-200 bg-slate-100/80'}`}><input className="mt-1" type="checkbox" checked={selectedReferences.includes(event.sourceReference)} disabled={event.status !== 'VALIDO'} onChange={() => toggle(event.sourceReference)} /><span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-2"><b>{event.symbol || 'Ticker não identificado'}</b><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${event.status === 'VALIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>{event.status === 'VALIDO' ? 'Pronto' : 'Revisar'}</span></span><span className="mt-1 block text-xs text-slate-500">{event.eventType === 'JCP' ? 'JCP' : event.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} · ISIN {event.isinCode || 'não informado'} · Data Com {formatDate(event.exDate)} · Pagamento {formatDate(event.paymentDate)}</span><span className="mt-1 block text-xs text-slate-600">{event.status === 'VALIDO' ? `${formatQuantity(event.quantityEligible)} cotas · ${currency(event.netAmount)} líquido previsto` : event.reason}</span></span></label>)}</div>}
+      {preview.length === 0 && !error && <p className="mt-3 text-xs text-slate-600">Nenhum evento foi encontrado na janela de teste.</p>}
+      {selectedReferences.length > 0 && <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-slate-600">Adicionar cria somente previsões. O recebimento continua dependendo de confirmação manual.</p><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={publishMutation.isPending} type="button" onClick={publish}>{publishMutation.isPending ? 'Adicionando...' : 'Adicionar previsões à Agenda'}</button></div>}
+    </div>}
+  </div>;
 }
 
 function WalletEarningBadge({ status }: { status: WalletEarningResponse['status'] }) {
@@ -780,7 +830,7 @@ function DateField({ label, value, onChange, max }: { label: string; value: stri
 function PositionDatum({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">{label}</p><p className="mt-1 font-semibold text-slate-800">{value}</p></div>; }
 function ProjectionMetric({ label, value }: { label: string; value: string }) { return <div><p className="text-xs uppercase tracking-[.16em] text-emerald-300">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div>; }
 function EmptyPortfolio({ onAdd }: { onAdd: () => void }) { return <div className="rounded-[22px] border border-dashed border-slate-200 p-8 text-center"><p className="text-sm leading-7 text-slate-500">Sua carteira começa vazia. Busque um ativo verificado para fazer a primeira compra.</p><button className="mt-4 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white" type="button" onClick={onAdd}>Buscar primeiro ativo</button></div>; }
-function assetLabel(type: InvestmentAssetType) { return ({ ACAO: 'Ações', FII: 'FIIs', CRIPTO: 'Cripto', RENDA_FIXA: 'Renda fixa' })[type]; }
+function assetLabel(type: InvestmentAssetType) { return ({ ACAO: 'Ações', FII: 'FIIs', FIAGRO: 'Fiagros', CRIPTO: 'Cripto', RENDA_FIXA: 'Renda fixa' })[type]; }
 function currency(value: number) { return numberCurrency(value, 'BRL'); }
 function numberCurrency(value: number, code: string) { try { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: code || 'BRL' }).format(value); } catch { return `${code} ${value.toFixed(2)}`; } }
 function formatOptionalCurrency(value: number | null | undefined) { return Number.isFinite(Number(value)) ? currency(Number(value)) : 'A calcular'; }
@@ -790,6 +840,7 @@ function signedCurrency(value: number) { return `${value >= 0 ? '+' : '-'} ${cur
 function signedPercent(value: number) { return `${value >= 0 ? '+' : '-'} ${Math.abs(value).toFixed(2).replace('.', ',')}%`; }
 function formatQuantity(value: number | null) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 8 }).format(value ?? 0); }
 function formatDate(value: string) { return new Intl.DateTimeFormat('pt-BR').format(new Date(`${value}T12:00:00`)); }
+function monthYear(value: string) { return new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00`)); }
 function shortDate(value: string) { return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(`${value}T12:00:00`)).replace('.', ''); }
 function formatTimestamp(value: string) { return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
 function formatMonths(months: number) { const years = Math.floor(months / 12); const remainingMonths = months % 12; return [years > 0 ? `${years} ano${years === 1 ? '' : 's'}` : '', remainingMonths > 0 ? `${remainingMonths} mês${remainingMonths === 1 ? '' : 'es'}` : ''].filter(Boolean).join(' e '); }

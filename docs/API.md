@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.4.4. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão 1.4.5-beta.1. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -123,7 +123,9 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `POST` | `/api/investments/income-schedules` | Agenda provento com Data Com, pagamento e imposto |
 | `POST` | `/api/investments/income-schedules/{id}/receive` | Confirma o recebimento de um provento agendado |
 | `GET` | `/api/investments/wallet-earnings` | Lista proventos automáticos e atualiza o estado quando a data de pagamento chega |
-| `POST` | `/api/investments/wallet-earnings/sync` | Consulta o provedor configurado e cria previsões elegíveis pela Data Com |
+| `GET` | `/api/investments/wallet-earnings/pilot-access` | Informa se a conta pode usar o piloto B3 |
+| `POST` | `/api/investments/wallet-earnings/preview` | Consulta a B3 e retorna candidatos sem gravar previsões ou transações; 403 fora do piloto |
+| `POST` | `/api/investments/wallet-earnings/publish` | Publica na Agenda apenas previsões selecionadas e válidas; 403 fora do piloto |
 | `POST` | `/api/investments/wallet-earnings/{id}/confirm` | Confirma o valor recebido e cria a receita `INVESTIMENTO` vinculada |
 | `PUT` | `/api/investments/wallet-earnings/{id}` | Ajusta bruto/retenção ou cancela uma previsão ainda não efetivada |
 | `GET` | `/api/investments/goals` | Lista metas de patrimônio e seus saldos próprios |
@@ -141,7 +143,7 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 Pesquisa de ativos:
 
 - `query`: código ou parte do nome.
-- `type`: `ACAO`, `FII`, `CRIPTO` ou `RENDA_FIXA`.
+- `type`: `ACAO`, `FII`, `FIAGRO`, `CRIPTO` ou `RENDA_FIXA`.
 
 Consulta de cotação:
 
@@ -157,6 +159,7 @@ Simulação de renda fixa:
 | `initialAmount` | Não | Valor inicial da simulação |
 | `monthlyContribution` | Não | Aporte mensal, padrão `0` |
 | `interestRate` | Não | Taxa informada pelo usuário |
+| `annualInflationRate` | Não | Inflação anual usada apenas para apresentar poder de compra real, padrão `0` |
 | `ratePeriod` | Não | `MONTHLY` ou `ANNUAL`; padrão `ANNUAL` |
 | `timelinePeriod` | Não | Resultado por `MONTHLY` ou `YEARLY`; padrão `MONTHLY` |
 | `startDate` | Não | Data inicial em `AAAA-MM-DD` |

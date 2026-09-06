@@ -61,6 +61,9 @@ app:
     corporate-events:
       sync-cron: ${APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON:-}
       provider: ${APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER:mock}
+      pilot-enabled: ${APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED:false}
+      pilot-emails: ${APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_EMAILS:}
+      automatic-sync-enabled: ${APP_INVESTMENTS_CORPORATE_EVENTS_AUTOMATIC_SYNC_ENABLED:false}
       b3-base-url: ${APP_INVESTMENTS_CORPORATE_EVENTS_B3_BASE_URL:https://sistemaswebb3-listados.b3.com.br}
       b3-minimum-delay-ms: ${APP_INVESTMENTS_CORPORATE_EVENTS_B3_MINIMUM_DELAY_MS:300}
     imports:

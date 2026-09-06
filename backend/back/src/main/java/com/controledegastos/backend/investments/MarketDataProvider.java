@@ -12,7 +12,7 @@ public interface MarketDataProvider {
      */
     List<CorporateEventData> corporateEvents(LocalDate referenceDate, Set<String> symbols);
 
-    record CorporateEventData(String sourceReference, String symbol, CorporateEvent.EventType eventType,
+    record CorporateEventData(String sourceReference, String symbol, String isinCode, CorporateEvent.EventType eventType,
                               String payerCnpj, BigDecimal amountPerUnit, BigDecimal taxRate,
-                              LocalDate exDate, LocalDate paymentDate, String source) {}
+                              LocalDate exDate, LocalDate paymentDate, String source, String resolutionStatus) {}
 }

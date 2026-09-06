@@ -8,6 +8,7 @@ import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,8 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class CorporateEventService {
+    private static final int PILOT_LOOKBACK_DAYS = 90;
+    private static final int PILOT_LOOKAHEAD_DAYS = 180;
     private final CorporateEventRepository corporateEventRepository;
     private final WalletEarningRepository walletEarningRepository;
     private final InvestmentPositionRepository positionRepository;
@@ -29,12 +32,46 @@ public class CorporateEventService {
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
     private final MarketDataProvider marketDataProvider;
+    private final CorporateEventPilotAccess pilotAccess;
     private final com.controledegastos.backend.security.AuthenticatedUserService authenticatedUserService;
+
+    @Value("${app.investments.corporate-events.automatic-sync-enabled:false}")
+    private boolean automaticSyncEnabled;
 
     @Transactional
     public List<WalletEarningResponse> synchronizeCurrentUser() {
         User user = authenticatedUserService.getAuthenticatedUser();
         synchronize(user);
+        return responses(user);
+    }
+
+    @Transactional(readOnly = true)
+    public InvestmentDtos.CorporateEventPilotAccessResponse pilotAccess() {
+        return new InvestmentDtos.CorporateEventPilotAccessResponse(pilotAccess.canUse(authenticatedUserService.getAuthenticatedUser()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<InvestmentDtos.CorporateEventPreviewResponse> previewCurrentUser() {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        pilotAccess.require(user);
+        return pilotCandidates(user).stream().map(PilotCandidate::response).toList();
+    }
+
+    @Transactional
+    public List<WalletEarningResponse> publishCurrentUser(InvestmentDtos.CorporateEventPublishRequest request) {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        pilotAccess.require(user);
+        Set<String> selected = Set.copyOf(request.sourceReferences());
+        List<PilotCandidate> accepted = pilotCandidates(user).stream()
+                .filter(candidate -> candidate.isPublishable() && selected.contains(candidate.data().sourceReference()))
+                .toList();
+        if (accepted.isEmpty()) {
+            throw new IllegalArgumentException("Selecione ao menos uma previsão válida da prévia atual");
+        }
+        for (PilotCandidate candidate : accepted) {
+            CorporateEvent event = upsert(candidate.data());
+            createEarningIfNeeded(user, candidate.position(), event);
+        }
         return responses(user);
     }
 
@@ -49,8 +86,11 @@ public class CorporateEventService {
     @Scheduled(cron = "${app.investments.corporate-events.sync-cron:-}")
     @Transactional
     public void synchronizeAllWallets() {
+        if (!automaticSyncEnabled) return;
         List<InvestmentPosition> allPositions = positionRepository.findAll();
-        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(allPositions)).stream().map(this::upsert).toList();
+        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(allPositions)).stream()
+                .filter(data -> "VALIDO".equals(data.resolutionStatus()) && data.symbol() != null)
+                .map(this::upsert).toList();
         for (User user : userRepository.findAll()) {
             List<InvestmentPosition> positions = allPositions.stream().filter(position -> position.getUser().getId().equals(user.getId())).toList();
             synchronize(user, positions, events);
@@ -74,11 +114,12 @@ public class CorporateEventService {
         CorporateEvent event = earning.getCorporateEvent();
         String reference = "wallet-earning:" + earning.getId();
         InvestmentMovement movement = movementRepository.save(InvestmentMovement.builder()
-                .user(user).position(position).movementType(InvestmentMovement.MovementType.DIVIDENDO)
+                .user(user).position(position).movementType(event.getEventType() == CorporateEvent.EventType.RENDIMENTO
+                        ? InvestmentMovement.MovementType.RENDIMENTO : InvestmentMovement.MovementType.DIVIDENDO)
                 .amount(earning.getNetAmount()).eventDate(event.getPaymentDate()).automatic(true)
                 .externalReference(reference).build());
         transactionRepository.save(Transaction.builder().user(user).type(Transaction.TransactionType.RECEITA)
-                .description((event.getEventType() == CorporateEvent.EventType.JCP ? "JCP - " : "Dividendo - ") + position.getName())
+                .description(eventLabel(event) + " - " + position.getName())
                 .category(Transaction.TransactionCategory.INVESTIMENTO).amount(earning.getNetAmount())
                 .investmentMovementId(movement.getId()).paymentMethod(Transaction.PaymentMethod.TRANSFERENCIA)
                 .installments(1).transactionDate(event.getPaymentDate()).build());
@@ -132,9 +173,12 @@ public class CorporateEventService {
     }
 
     private CorporateEvent upsert(MarketDataProvider.CorporateEventData data) {
+        if (data.symbol() == null || data.symbol().isBlank()) {
+            throw new IllegalArgumentException("O evento B3 não possui um ticker resolvido com segurança");
+        }
         return corporateEventRepository.findBySourceReference(data.sourceReference()).orElseGet(() -> corporateEventRepository.save(CorporateEvent.builder()
                 .sourceReference(data.sourceReference()).symbol(data.symbol().trim().toUpperCase())
-                .eventType(data.eventType()).payerCnpj(data.payerCnpj()).amountPerUnit(data.amountPerUnit())
+                .isinCode(data.isinCode()).eventType(data.eventType()).payerCnpj(data.payerCnpj()).amountPerUnit(data.amountPerUnit())
                 .taxRate(data.taxRate()).exDate(data.exDate()).paymentDate(data.paymentDate()).source(data.source()).build()));
     }
 
@@ -197,4 +241,63 @@ public class CorporateEventService {
     }
 
     private BigDecimal money(BigDecimal value) { return value.setScale(2, RoundingMode.HALF_UP); }
+
+    private List<PilotCandidate> pilotCandidates(User user) {
+        List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
+        LocalDate today = LocalDate.now();
+        return marketDataProvider.corporateEvents(today, symbolsOf(positions)).stream()
+                .map(data -> pilotCandidate(data, positions, today))
+                .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
+                .toList();
+    }
+
+    private PilotCandidate pilotCandidate(MarketDataProvider.CorporateEventData data, List<InvestmentPosition> positions, LocalDate today) {
+        if (!"VALIDO".equals(data.resolutionStatus()) || data.symbol() == null || data.symbol().isBlank()) {
+            return PilotCandidate.rejected(data, "TICKER_AMBIGUO", "A B3 retornou uma classe de ação que não pôde ser vinculada ao ticker da carteira.");
+        }
+        InvestmentPosition position = positions.stream().filter(item -> isEligibleAsset(item, asEvent(data))).findFirst().orElse(null);
+        if (position == null) return PilotCandidate.rejected(data, "ATIVO_FORA_DA_CARTEIRA", "O ativo do evento não está disponível na carteira atual.");
+        if (data.paymentDate().isBefore(today.minusDays(PILOT_LOOKBACK_DAYS)) || data.paymentDate().isAfter(today.plusDays(PILOT_LOOKAHEAD_DAYS))) {
+            return PilotCandidate.rejected(data, "FORA_DA_JANELA", "O piloto mostra pagamentos dos últimos 90 e dos próximos 180 dias.");
+        }
+        BigDecimal quantity = eligibleQuantity(position, data.exDate());
+        if (quantity.signum() <= 0) return PilotCandidate.rejected(data, position, "SEM_COTAS_ELEGIVEIS", "Não havia cotas elegíveis na Data Com.");
+        BigDecimal gross = money(quantity.multiply(data.amountPerUnit()));
+        BigDecimal withheld = money(gross.multiply(data.taxRate()).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
+        return PilotCandidate.accepted(data, position, quantity, gross, withheld, money(gross.subtract(withheld)));
+    }
+
+    private CorporateEvent asEvent(MarketDataProvider.CorporateEventData data) {
+        return CorporateEvent.builder().symbol(data.symbol()).eventType(data.eventType()).exDate(data.exDate())
+                .paymentDate(data.paymentDate()).build();
+    }
+
+    private String eventLabel(CorporateEvent event) {
+        return switch (event.getEventType()) {
+            case JCP -> "JCP";
+            case RENDIMENTO -> "Rendimento";
+            case DIVIDENDO -> "Dividendo";
+        };
+    }
+
+    private record PilotCandidate(MarketDataProvider.CorporateEventData data, InvestmentPosition position,
+                                  BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net,
+                                  String status, String reason) {
+        static PilotCandidate accepted(MarketDataProvider.CorporateEventData data, InvestmentPosition position,
+                                       BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net) {
+            return new PilotCandidate(data, position, quantity, gross, withheld, net, "VALIDO", "Pronto para publicar na Agenda.");
+        }
+        static PilotCandidate rejected(MarketDataProvider.CorporateEventData data, String status, String reason) {
+            return rejected(data, null, status, reason);
+        }
+        static PilotCandidate rejected(MarketDataProvider.CorporateEventData data, InvestmentPosition position, String status, String reason) {
+            return new PilotCandidate(data, position, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, status, reason);
+        }
+        boolean isPublishable() { return "VALIDO".equals(status) && position != null; }
+        InvestmentDtos.CorporateEventPreviewResponse response() {
+            return new InvestmentDtos.CorporateEventPreviewResponse(data.sourceReference(), position == null ? null : position.getId(), data.symbol(),
+                    position == null ? "Ativo não identificado" : position.getName(), data.isinCode(), data.eventType(), data.amountPerUnit(), quantity,
+                    gross, withheld, net, data.taxRate(), data.exDate(), data.paymentDate(), data.source(), status, reason);
+        }
+    }
 }

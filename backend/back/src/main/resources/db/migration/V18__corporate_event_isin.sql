@@ -1,0 +1,1 @@
+ALTER TABLE corporate_events ADD COLUMN IF NOT EXISTS isin_code VARCHAR(24);

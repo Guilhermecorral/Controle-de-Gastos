@@ -4,7 +4,7 @@ Atualizado em 06/09/2026. Este documento e a referencia de continuidade para as 
 
 ## Estado atual
 
-- Versao em desenvolvimento: `1.4.4`.
+- Versao em desenvolvimento: `1.4.5-beta.1`.
 - A carteira ja se integra ao fluxo financeiro para compra, venda, aplicacao, resgate e confirmacao de proventos.
 - A importacao de investimentos por CSV, Excel e OFX usa staging, revisao editavel e confirmacao explicita antes de alterar a carteira.
 - A Agenda de Proventos esta pronta no produto, mas a fonte de eventos ainda e `MOCK`; portanto nao deve ser apresentada como dado de mercado real.
@@ -169,7 +169,25 @@ O cache de cotacoes deve ser evoluido de memoria local para armazenamento compar
 - Day trade completo, cripto/exterior e classificacao fiscal avancada.
 - Creditar proventos sem conciliacao humana.
 
-## v1.4.5 - Central de tributos da pessoa fisica
+## v1.4.5-beta.1 - Agenda B3 em piloto controlado
+
+### Objetivo
+
+Permitir que administradores e contas liberadas por ambiente validem previsões reais de proventos, sem criar saldo automaticamente e sem expor a fonte experimental a usuários comuns.
+
+### Regras do piloto
+
+- Acesso apenas com `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED=true` e e-mail em `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_EMAILS`, ou papel `ADMIN`.
+- `APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON` permanece `-`; a atualização é manual e passa por prévia.
+- A B3 produz candidatos para os últimos 90 e os próximos 180 dias. O usuário seleciona quais previsões publicar.
+- Evento ambíguo por ticker/ISIN, sem posição ou sem cotas na Data Com não entra na Agenda.
+- Receita só nasce em `Confirmar recebimento`; previsões podem ser corrigidas ou canceladas.
+
+### Critério para promover a 1.4.5
+
+Validar ações, FIIs e FIAGROs contra documentos do emissor por ciclos suficientes, sem associação incorreta de classe de ação, duplicidade ou crédito financeiro automático.
+
+## v1.4.6 - Central de tributos da pessoa fisica
 
 ### Objetivo
 

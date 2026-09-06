@@ -28,6 +28,8 @@ import {
   InvestmentImportConfirmItem,
   InvestmentImportConfirmResponse,
   InvestmentImportPreviewResponse,
+  CorporateEventPilotAccessResponse,
+  CorporateEventPreviewResponse,
   WalletEarningAdjustmentRequest,
   WalletEarningResponse,
   InvestmentGoalRequest,
@@ -239,10 +241,25 @@ export function useWalletEarningsQuery() {
   })
 }
 
-export function useSynchronizeWalletEarningsMutation() {
+export function useCorporateEventPilotAccessQuery() {
+  return useQuery({
+    queryKey: ['investments', 'corporate-event-pilot-access'],
+    queryFn: async () => (await api.get<CorporateEventPilotAccessResponse>('/investments/wallet-earnings/pilot-access')).data,
+    staleTime: 60_000,
+  })
+}
+
+export function useCorporateEventPreviewMutation() {
+  return useMutation({
+    mutationFn: async () => (await api.post<CorporateEventPreviewResponse[]>('/investments/wallet-earnings/preview')).data,
+  })
+}
+
+export function usePublishCorporateEventPreviewMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => (await api.post<WalletEarningResponse[]>('/investments/wallet-earnings/sync')).data,
+    mutationFn: async (sourceReferences: string[]) =>
+      (await api.post<WalletEarningResponse[]>('/investments/wallet-earnings/publish', { sourceReferences })).data,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investments'] }),
   })
 }

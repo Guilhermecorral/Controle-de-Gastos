@@ -13,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -105,6 +106,21 @@ public class ApiExceptionHandler {
                 request.getRequestURI(),
                 List.of()
         );
+    }
+
+    /**
+     * Preserva status deliberados por regras de produto, como um piloto restrito a contas autorizadas.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiErrorResponse> handleResponseStatus(
+            ResponseStatusException exception,
+            HttpServletRequest request
+    ) {
+        HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+        String message = exception.getReason() == null || exception.getReason().isBlank()
+                ? status.getReasonPhrase()
+                : exception.getReason();
+        return buildResponse(status, message, request.getRequestURI(), List.of());
     }
 
     /**

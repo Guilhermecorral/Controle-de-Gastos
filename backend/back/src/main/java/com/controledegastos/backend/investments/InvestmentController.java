@@ -114,8 +114,16 @@ public class InvestmentController {
     @GetMapping("/wallet-earnings")
     public List<WalletEarningResponse> walletEarnings() { return corporateEventService.walletEarnings(); }
 
-    @PostMapping("/wallet-earnings/sync")
-    public List<WalletEarningResponse> synchronizeWalletEarnings() { return corporateEventService.synchronizeCurrentUser(); }
+    @GetMapping("/wallet-earnings/pilot-access")
+    public CorporateEventPilotAccessResponse corporateEventPilotAccess() { return corporateEventService.pilotAccess(); }
+
+    @PostMapping("/wallet-earnings/preview")
+    public List<CorporateEventPreviewResponse> previewWalletEarnings() { return corporateEventService.previewCurrentUser(); }
+
+    @PostMapping("/wallet-earnings/publish")
+    public List<WalletEarningResponse> publishWalletEarnings(@Valid @RequestBody CorporateEventPublishRequest request) {
+        return corporateEventService.publishCurrentUser(request);
+    }
 
     @PostMapping("/wallet-earnings/{id}/confirm")
     public WalletEarningResponse confirmWalletEarning(@PathVariable Long id) { return corporateEventService.confirm(id); }
@@ -195,11 +203,12 @@ public class InvestmentController {
                                          @RequestParam(defaultValue = "REGRESSIVO") FixedIncomeTax.Regime taxRegime,
                                          @RequestParam(required = false) BigDecimal manualTaxRate,
                                          @RequestParam(defaultValue = "true") boolean iofApplicable,
+                                         @RequestParam(defaultValue = "0") BigDecimal annualInflationRate,
                                          @RequestParam(required = false) BigDecimal principal,
                                          @RequestParam(required = false) BigDecimal annualRate,
                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maturityDate) {
         return investmentService.projection(initialAmount != null ? initialAmount : principal, monthlyContribution,
                 interestRate != null ? interestRate : annualRate, ratePeriod, timelinePeriod, startDate,
-                endDate != null ? endDate : maturityDate, taxRegime, manualTaxRate, iofApplicable);
+                endDate != null ? endDate : maturityDate, taxRegime, manualTaxRate, iofApplicable, annualInflationRate);
     }
 }

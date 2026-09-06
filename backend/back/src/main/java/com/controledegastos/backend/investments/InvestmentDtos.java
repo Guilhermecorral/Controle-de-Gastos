@@ -180,7 +180,35 @@ public final class InvestmentDtos {
             String disclaimer,
             BigDecimal incomeTax,
             BigDecimal iof,
-            BigDecimal netBalance
+            BigDecimal netBalance,
+            BigDecimal annualInflationRate,
+            BigDecimal realNetBalance
+    ) {}
+
+    public record CorporateEventPilotAccessResponse(boolean available) {}
+
+    public record CorporateEventPreviewResponse(
+            String sourceReference,
+            Long positionId,
+            String symbol,
+            String assetName,
+            String isinCode,
+            CorporateEvent.EventType eventType,
+            BigDecimal amountPerUnit,
+            BigDecimal quantityEligible,
+            BigDecimal grossAmount,
+            BigDecimal withheldAmount,
+            BigDecimal netAmount,
+            BigDecimal taxRate,
+            LocalDate exDate,
+            LocalDate paymentDate,
+            String source,
+            String status,
+            String reason
+    ) {}
+
+    public record CorporateEventPublishRequest(
+            @NotNull @Size(min = 1, max = 100) List<@NotBlank String> sourceReferences
     ) {}
 
     public record IncomeRequest(

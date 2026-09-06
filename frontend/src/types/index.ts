@@ -371,7 +371,7 @@ export interface WishlistHistoryResponse {
   createdAt: string;
 }
 
-export type InvestmentAssetType = 'ACAO' | 'FII' | 'CRIPTO' | 'RENDA_FIXA';
+export type InvestmentAssetType = 'ACAO' | 'FII' | 'FIAGRO' | 'CRIPTO' | 'RENDA_FIXA';
 
 export interface InvestmentPositionRequest {
   taxRegime?: 'REGRESSIVO' | 'ISENTO' | 'MANUAL' | null;
@@ -465,6 +465,8 @@ export interface InvestmentProjectionResponse {
   incomeTax: number;
   iof: number;
   netBalance: number;
+  annualInflationRate: number;
+  realNetBalance: number;
   initialAmount: number;
   monthlyContribution: number;
   interestRate: number;
@@ -494,6 +496,7 @@ export interface InvestmentProjectionRequest {
   taxRegime?: 'REGRESSIVO' | 'ISENTO' | 'MANUAL';
   manualTaxRate?: number;
   iofApplicable?: boolean;
+  annualInflationRate: number;
   initialAmount: number;
   monthlyContribution: number;
   interestRate: number;
@@ -597,7 +600,7 @@ export interface WalletEarningResponse {
   positionId: number;
   symbol: string | null;
   assetName: string;
-  eventType: 'DIVIDENDO' | 'JCP';
+  eventType: 'DIVIDENDO' | 'JCP' | 'RENDIMENTO';
   payerCnpj: string | null;
   source: string;
   amountPerUnit: number;
@@ -609,6 +612,30 @@ export interface WalletEarningResponse {
   exDate: string;
   paymentDate: string;
   status: 'PROVISIONADO' | 'PENDENTE_CONCILIACAO' | 'EFETIVADO' | 'CANCELADO';
+}
+
+export interface CorporateEventPilotAccessResponse {
+  available: boolean;
+}
+
+export interface CorporateEventPreviewResponse {
+  sourceReference: string;
+  positionId: number | null;
+  symbol: string | null;
+  assetName: string;
+  isinCode: string | null;
+  eventType: 'DIVIDENDO' | 'JCP' | 'RENDIMENTO';
+  amountPerUnit: number;
+  quantityEligible: number;
+  grossAmount: number;
+  withheldAmount: number;
+  netAmount: number;
+  taxRate: number;
+  exDate: string;
+  paymentDate: string;
+  source: string;
+  status: 'VALIDO' | 'TICKER_AMBIGUO' | 'ATIVO_FORA_DA_CARTEIRA' | 'FORA_DA_JANELA' | 'SEM_COTAS_ELEGIVEIS';
+  reason: string;
 }
 
 export interface WalletEarningAdjustmentRequest {

@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.4` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a base estável da 1.4.0 com agenda controlada, importação assistida e fontes experimentais revisáveis.
+Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a base estável da 1.4.0 com agenda B3 em piloto controlado, importação assistida e fontes experimentais revisáveis.
 
 ## Entregue nesta etapa
 
@@ -26,7 +26,7 @@ Status: `1.4.4` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
 - O simulador combina métricas, tabela por período e gráfico de linha do saldo projetado.
 - Eventos corporativos e proventos do usuário são separados: `CorporateEvent` guarda o anúncio global e `WalletEarning` congela quantidade, bruto, IRRF e líquido pela Data Com.
-- A agenda automática usa `MarketDataProvider`; por padrão, `MockMarketDataProvider` fornece PETR4 e BBAS3 identificados como `MOCK` quando o usuário seleciona **Atualizar agenda**. O provedor `B3CorporateEventProvider` é experimental e só entra em operação com `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`; ele consulta serialmente os ativos da carteira, preserva Data Com e pagamento, e não cria saldo sem confirmação.
+- A Agenda de Proventos usa `MarketDataProvider`. O provedor `B3CorporateEventProvider` é experimental e só entra em operação com `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`, piloto habilitado e acesso autorizado. Ele consulta serialmente os ativos da carteira, preserva Data Com e pagamento, e produz apenas uma prévia revisável: não cria saldo, receita ou lançamento sem confirmação.
 - Proventos ficam provisionados até a data de pagamento e só criam uma receita `INVESTIMENTO` após a confirmação do usuário. JCP exibe IRRF de 15% no fluxo desta versão.
 - Importação de investimentos recebe CSV, XLS, XLSX e OFX de investimentos em um lote de staging. Ticker, data, operação, quantidade, preço, custos e IRRF são editáveis; possíveis duplicidades são avisadas e só a confirmação cria movimentações e fluxo financeiro.
 - PDFs SINACOR nativos podem gerar uma prévia de importação sob `APP_INVESTMENTS_IMPORTS_PDF_ENABLED`. O parser extrai operações, custos e IRRF para o staging; PDF escaneado/OCR e layouts não validados não são suportados, e nenhuma operação é efetivada sem confirmação.
@@ -48,7 +48,9 @@ Status: `1.4.4` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a
 | POST | /api/investments/tax/payments | Registra pagamento realizado e despesa vinculada |
 | PUT | /api/investments/tax-events/{movementId} | Ajusta o estado fiscal ou a retenção de provento, venda ou resgate |
 | GET | /api/investments/wallet-earnings | Lista agenda automática com quantidade congelada na Data Com |
-| POST | /api/investments/wallet-earnings/sync | Sincroniza eventos do provedor configurado para a carteira atual |
+| GET | /api/investments/wallet-earnings/pilot-access | Informa se a conta pode usar o piloto B3 |
+| POST | /api/investments/wallet-earnings/preview | Gera a prévia B3 auditável; retorna 403 fora do piloto |
+| POST | /api/investments/wallet-earnings/publish | Publica previsões selecionadas na Agenda; retorna 403 fora do piloto |
 | POST | /api/investments/wallet-earnings/{id}/confirm | Efetiva o provento e cria receita vinculada |
 | PUT | /api/investments/wallet-earnings/{id} | Corrige bruto/retenção ou cancela previsão não efetivada |
 
@@ -81,7 +83,7 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta release, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
 - Importação de PDF B3 e notas de corretagem; a prévia SINACOR nativa existe, mas novos layouts exigem mapeamento e validação humana.
 
-## Roadmap 1.4.0 a 1.4.4
+## Roadmap 1.4.0 a 1.4.5-beta.1
 
 | Item | Status | Observação |
 | --- | --- | --- |
@@ -89,7 +91,8 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 | Renda fixa com IR/IOF e liquidez diária | Entregue | Estimativa por aporte e perfil do título; produto complexo continua exigindo conferência. |
 | Correção de compra/venda e evento fiscal | Entregue | Recalcula carteira e caixa; edição detalhada de aplicação/resgate segue pendente. |
 | Fechamento mensal guiado | Parcial | Ações B3 e FIIs em BRL têm estimativa; day trade, cripto, exterior, ETFs/BDRs seguem em revisão. |
-| Proventos automáticos | Entregue com mock | Data Com, snapshot, estados de conciliação, ajuste/cancelamento e confirmação financeira; provedor externo real continua pendente. |
+| Proventos B3 em piloto | Parcial | Prévia B3 e publicação manual disponíveis apenas para e-mails piloto e ADMIN; não cria receita sem confirmação. |
+| FIAGRO | Parcial | Tipo visual separado; classificação deve ser confirmada pelo usuário ou catálogo validado. |
 | Estabilidade de sessão | Entregue | Sem access cookie, `/auth/me` responde 401 e o frontend chama o refresh persistido; `JWT_SECRET` permanece de ambiente e o token vale 30 dias por padrão. |
 | Importação de investimentos CSV/Excel/OFX | Entregue | Staging, revisão editável, alerta de duplicidade e confirmação explícita antes de criar compra/venda. |
 | Importação PDF SINACOR nativo | Parcial | Prévia com operações, custos e IRRF no staging; requer revisão humana e não cobre documento escaneado ou todas as corretoras. |
@@ -99,7 +102,7 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 
 PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quantidade, preço, taxas e liquidação. A primeira leitura SINACOR nativa já cria upload e prévia revisável; como não há layout único e alguns documentos são imagens digitalizadas, a confirmação humana continua obrigatória e OCR não foi iniciado.
 
-## 1.4.1 a 1.4.4
+## 1.4.1 a 1.4.5-beta.1
 
 1.4.1: agenda automática entregue com CNPJ pagador, Data Com, data de pagamento, quantidade elegível congelada, ajuste/cancelamento e confirmação. A fonte atual é mock, portanto os eventos servem ao fluxo e aos testes, não como informação de mercado para decisão financeira.
 
@@ -108,6 +111,8 @@ PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quanti
 1.4.3: a mesma revisão de investimentos está disponível também no Histórico Financeiro. PDF SINACOR nativo entra somente em staging, e o provedor B3 experimental pode ser ativado manualmente por ambiente para os ativos da carteira. Os dois recursos exigem conferência do usuário e não representam cobertura de mercado contratada.
 
 1.4.4: o fluxo de compra/venda atualiza somente os dados afetados, evitando recargas globais duplicadas depois de uma venda. A elegibilidade da Agenda possui regressão para compra retroativa de BBAS3 antes da Data Com; o modo MOCK continua explícito e não substitui uma fonte real de proventos.
+
+1.4.5-beta.1: a B3 passa a alimentar uma prévia auditável para o piloto autorizado por ambiente. Eventos ambíguos são rejeitados, previsões exigem publicação explícita e somente a confirmação do recebimento cria receita `INVESTIMENTO`. O cron continua desligado e a fonte pública não possui SLA.
 
 ## Referencias fiscais verificadas
 

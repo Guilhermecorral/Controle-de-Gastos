@@ -1,6 +1,6 @@
 # Arquitetura do Farol Financeiro
 
-Este documento apresenta a arquitetura técnica da versão 1.4.4 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
+Este documento apresenta a arquitetura técnica da versão 1.4.5-beta.1 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
 
 ## Visão geral
 
@@ -112,6 +112,8 @@ A camada de mercado tenta obter dados em provedores externos e mantém um catál
 
 A rentabilidade da posição compara o custo médio das compras com a cotação atual. Proventos permanecem separados do ganho de capital, permitindo analisar valorização e renda recebida sem misturar os conceitos.
 
+O piloto de proventos B3 usa uma fonte pública sem SLA. O backend autoriza a prévia e a publicação apenas para administradores ou e-mails configurados no ambiente; dados ambíguos por ticker/ISIN são devolvidos para revisão e nunca viram receita antes da confirmação manual.
+
 ## Importação de dados
 
 O pipeline de extratos aceita OFX, CSV, TSV, XLS e XLSX. Para investimentos, CSV, Excel e OFX de investimentos entram primeiro em tabelas de staging, recebem alertas de duplicidade e só são transformados em compras ou vendas após a confirmação explícita do usuário.
@@ -130,6 +132,8 @@ flowchart LR
 Comprovantes PDF, JPG e PNG seguem um fluxo próprio. A associação automática deve ser tratada como sugestão quando houver ambiguidade, nunca como prova contábil definitiva.
 
 O parser SINACOR de nota B3 em PDF é uma entrada experimental de staging, controlada por `APP_INVESTMENTS_IMPORTS_PDF_ENABLED`. Ele aceita apenas PDF nativo com texto selecionável, produz uma prévia editável e nunca cria lançamento sem confirmação; OCR, documentos escaneados e layouts não validados continuam fora do suporte.
+
+A Agenda B3 é um piloto manual protegido por `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED` e pela lista `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_EMAILS`; contas `ADMIN` também podem acessá-la. Mesmo habilitada, a sincronização automática permanece desligada por `APP_INVESTMENTS_CORPORATE_EVENTS_AUTOMATIC_SYNC_ENABLED=false`: a B3 gera somente uma prévia e uma receita `INVESTIMENTO` só é criada ao confirmar o recebimento.
 
 ## Migrações
 

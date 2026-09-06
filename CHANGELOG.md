@@ -2,11 +2,18 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.5-beta.1] - 2026-09-06
+
+- A Agenda de Proventos B3 virou um piloto controlado: somente administradores e e-mails autorizados por ambiente podem consultar a prévia e publicar previsões revisáveis.
+- A consulta B3 não cria receita, transação ou saldo; somente a confirmação explícita de recebimento gera a receita `INVESTIMENTO` vinculada.
+- Eventos com classe de ação ambígua, como uma PN retornada para uma carteira que possui apenas BBDC3, são rejeitados antes de entrar na Agenda.
+- FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.
+- O simulador de renda fixa mostra marcos de prazo e poder de compra real a partir da inflação anual informada pelo usuário.
+
 ## [1.4.4] - 2026-09-06
 
 - Compra e venda de investimentos passam a invalidar somente Carteira, Transações, Painel e Análise Mensal, removendo a atualização global duplicada que podia deixar o modal sem resposta após uma venda.
 - O diálogo de movimentação é desmontado ao fechar, abre acima de outros overlays e encerra diálogos concorrentes para impedir estado residual ou uma camada invisível de bloquear Compra, Venda, Renda Fixa, Trocar e Fechar.
-- Diagnóstico temporário do modal registra no backend somente a sequência de interação e o modo selecionado, para diferenciar clique bloqueado de falha de renderização sem registrar dados financeiros.
 - Cada abertura de Nova movimentação agora cria uma sessão isolada e o botão Fechar descarta o próprio diálogo imediatamente, sem depender do ciclo de atualização da tela de Investimentos.
 - Compra retroativa de BBAS3 foi coberta junto da Agenda: quando a operação é anterior à Data Com, ela permanece salva, gera despesa de investimento e participa da quantidade elegível.
 - Agenda vazia explica que a fonte pode estar no modo demonstrativo e que operações posteriores à Data Com não têm direito ao evento já anunciado.

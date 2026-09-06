@@ -19,6 +19,13 @@ public final class FixedIncomeProjection {
     public static ProjectionResponse calculate(BigDecimal initial, BigDecimal contribution, BigDecimal rate,
             RatePeriod ratePeriod, TimelinePeriod timelinePeriod, LocalDate start, LocalDate end,
             FixedIncomeTax.Regime regime, BigDecimal manualRate, boolean iofApplicable) {
+        return calculate(initial, contribution, rate, ratePeriod, timelinePeriod, start, end, regime, manualRate,
+                iofApplicable, BigDecimal.ZERO);
+    }
+
+    public static ProjectionResponse calculate(BigDecimal initial, BigDecimal contribution, BigDecimal rate,
+            RatePeriod ratePeriod, TimelinePeriod timelinePeriod, LocalDate start, LocalDate end,
+            FixedIncomeTax.Regime regime, BigDecimal manualRate, boolean iofApplicable, BigDecimal annualInflationRate) {
         if (end.isAfter(start.plusYears(100))) throw new IllegalArgumentException("O periodo maximo e de 100 anos");
         double monthly = ratePeriod == RatePeriod.MONTHLY ? rate.doubleValue() / 100 : Math.pow(1 + rate.doubleValue() / 100, 1.0 / 12) - 1;
         List<Lot> lots = new ArrayList<>();
@@ -61,9 +68,11 @@ public final class FixedIncomeProjection {
             }
             previous = date;
         }
+        BigDecimal realNetBalance = BigDecimal.valueOf(money(balance.subtract(ir).subtract(iof)).doubleValue()
+                / Math.pow(1 + annualInflationRate.doubleValue() / 100, ChronoUnit.DAYS.between(start, end) / 365.25));
         return new ProjectionResponse(money(initial), money(contribution), rate, ratePeriod, timelinePeriod,
                 BigDecimal.valueOf(monthly * 100), money(invested), money(balance), money(interest), month, points,
-                "Taxa constante. Aportes no aniversario mensal, ao fim do periodo. Dias parciais proporcionais ao intervalo mensal. Impostos estimados por aporte como se resgatado na data exibida; nao sao descontos mensais. Sem taxas ou inflacao.",
-                money(ir), money(iof), money(balance.subtract(ir).subtract(iof)));
+                "Taxa constante. Aportes no aniversario mensal, ao fim do periodo. Dias parciais proporcionais ao intervalo mensal. Impostos estimados por aporte como se resgatado na data exibida; nao sao descontos mensais. O poder de compra usa a inflação projetada informada e não substitui uma previsão oficial.",
+                money(ir), money(iof), money(balance.subtract(ir).subtract(iof)), annualInflationRate, money(realNetBalance));
     }
 }

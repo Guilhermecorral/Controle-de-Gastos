@@ -668,12 +668,20 @@ public class InvestmentService {
                                          RatePeriod ratePeriod, TimelinePeriod timelinePeriod,
                                          LocalDate startDate, LocalDate endDate) {
         return projection(initialAmount, monthlyContribution, interestRate, ratePeriod, timelinePeriod, startDate, endDate,
-                FixedIncomeTax.Regime.REGRESSIVO, null, true);
+                FixedIncomeTax.Regime.REGRESSIVO, null, true, BigDecimal.ZERO);
     }
 
     public ProjectionResponse projection(BigDecimal initialAmount, BigDecimal monthlyContribution, BigDecimal interestRate,
                                          RatePeriod ratePeriod, TimelinePeriod timelinePeriod, LocalDate startDate, LocalDate endDate,
                                          FixedIncomeTax.Regime regime, BigDecimal manualRate, boolean iofApplicable) {
+        return projection(initialAmount, monthlyContribution, interestRate, ratePeriod, timelinePeriod, startDate, endDate,
+                regime, manualRate, iofApplicable, BigDecimal.ZERO);
+    }
+
+    public ProjectionResponse projection(BigDecimal initialAmount, BigDecimal monthlyContribution, BigDecimal interestRate,
+                                         RatePeriod ratePeriod, TimelinePeriod timelinePeriod, LocalDate startDate, LocalDate endDate,
+                                         FixedIncomeTax.Regime regime, BigDecimal manualRate, boolean iofApplicable,
+                                         BigDecimal annualInflationRate) {
         BigDecimal initial = initialAmount == null ? BigDecimal.ZERO : initialAmount;
         BigDecimal contribution = monthlyContribution == null ? BigDecimal.ZERO : monthlyContribution;
         if (initial.signum() < 0 || contribution.signum() < 0 || initial.add(contribution).signum() <= 0) {
@@ -685,12 +693,16 @@ public class InvestmentService {
         if (rate.signum() < 0 || rate.compareTo(new BigDecimal("1000")) > 0) {
             throw new IllegalArgumentException("A taxa informada é inválida");
         }
+        BigDecimal inflation = annualInflationRate == null ? BigDecimal.ZERO : annualInflationRate;
+        if (inflation.signum() < 0 || inflation.compareTo(new BigDecimal("1000")) > 0) {
+            throw new IllegalArgumentException("A inflação projetada é inválida");
+        }
         LocalDate start = startDate == null ? LocalDate.now() : startDate;
         LocalDate end = endDate == null ? start.plusYears(1) : endDate;
         if (!end.isAfter(start)) throw new IllegalArgumentException("A data final deve ser posterior à data inicial");
 
         return FixedIncomeProjection.calculate(initial, contribution, rate, selectedRatePeriod, selectedTimelinePeriod,
-                start, end, regime, manualRate, iofApplicable);
+                start, end, regime, manualRate, iofApplicable, inflation);
     }
 
     public ProjectionResponse projection(BigDecimal principal, BigDecimal annualRate, LocalDate startDate, LocalDate maturityDate) {
