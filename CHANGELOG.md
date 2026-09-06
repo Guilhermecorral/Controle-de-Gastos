@@ -2,6 +2,13 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.4] - 2026-09-06
+
+- Compra e venda de investimentos passam a invalidar somente Carteira, Transações, Painel e Análise Mensal, removendo a atualização global duplicada que podia deixar o modal sem resposta após uma venda.
+- Compra retroativa de BBAS3 foi coberta junto da Agenda: quando a operação é anterior à Data Com, ela permanece salva, gera despesa de investimento e participa da quantidade elegível.
+- Agenda vazia explica que a fonte pode estar no modo demonstrativo e que operações posteriores à Data Com não têm direito ao evento já anunciado.
+- O fluxo de renovação silenciosa continua coberto para access token ausente/expirado no navegador e refresh token persistido válido.
+
 ## [1.4.3] - 2026-09-06
 
 - GET /api/auth/me agora devolve 401 quando não há sessão de acesso válida, permitindo que o frontend use o refresh token persistido antes de declarar logout após um F5.

@@ -85,7 +85,7 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         connection.setConnectTimeout(8_000);
         connection.setReadTimeout(15_000);
         connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "FarolFinanceiro/1.4.3 corporate-event-sync");
+        connection.setRequestProperty("User-Agent", "FarolFinanceiro/1.4.4 corporate-event-sync");
 
         int status = connection.getResponseCode();
         if (status < 200 || status >= 300) {

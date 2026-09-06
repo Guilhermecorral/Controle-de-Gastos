@@ -4,7 +4,7 @@ Atualizado em 06/09/2026. Este documento e a referencia de continuidade para as 
 
 ## Estado atual
 
-- Versao em desenvolvimento: `1.4.3`.
+- Versao em desenvolvimento: `1.4.4`.
 - A carteira ja se integra ao fluxo financeiro para compra, venda, aplicacao, resgate e confirmacao de proventos.
 - A importacao de investimentos por CSV, Excel e OFX usa staging, revisao editavel e confirmacao explicita antes de alterar a carteira.
 - A Agenda de Proventos esta pronta no produto, mas a fonte de eventos ainda e `MOCK`; portanto nao deve ser apresentada como dado de mercado real.
@@ -65,6 +65,14 @@ Substituir a agenda de proventos de demonstracao por uma rotina rastreavel que c
 | Entrada no Historico Financeiro | Entregue | Reutiliza exatamente o mesmo dialogo de staging e confirmacao de Investimentos. |
 | Coletor B3 | Parcial | Adaptador experimental, manual e configuravel preserva Data Com e pagamento para os ativos da carteira. Ainda requer validacao semantica com RI e observacao de cobertura real. |
 | PDF SINACOR nativo | Parcial | Operacoes, custos e IRRF alimentam apenas a previa revisavel. Nao cobre OCR, PDF escaneado nem todo layout de corretora. |
+
+## v1.4.4 - Estabilidade de compra, venda e agenda
+
+| Item | Status | Observacao |
+| --- | --- | --- |
+| Atualizacao apos compra/venda | Entregue | A invalidacao e limitada a Carteira, Transacoes, Painel e Analise Mensal; o fechamento do modal nao volta a invalidar todas as consultas. |
+| Compra retroativa | Entregue | Regressao cobre BBAS3: operacao anterior a Data Com persiste, cria fluxo financeiro e entra no snapshot elegivel. |
+| Agenda em modo MOCK | Esclarecido | A fonte demonstrativa permanece para testes. Ela nao consulta proventos reais e uma compra posterior a Data Com nao pode receber o evento. |
 
 ### Fonte de eventos corporativos
 

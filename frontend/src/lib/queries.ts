@@ -87,12 +87,21 @@ export function useInvestmentAssetSearchQuery(query: string, type: Exclude<Inves
   })
 }
 
+function invalidateInvestmentCashFlow(queryClient: ReturnType<typeof useQueryClient>) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['investments'] }),
+    queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] }),
+  ])
+}
+
 export function useRecordInvestmentTradeMutation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (data: InvestmentTradeRequest) =>
       (await api.post<InvestmentMovementResponse>('/investments/movements/trades', data)).data,
-    onSuccess: () => queryClient.invalidateQueries(),
+    onSuccess: () => invalidateInvestmentCashFlow(queryClient),
   })
 }
 

@@ -191,6 +191,27 @@ class InvestmentCashFlowIntegrationTest {
                 });
     }
 
+    @Test void retroactiveBbasPurchaseIsPersistedAndEligibleWhenItPrecedesTheRecordDate() {
+        LocalDate today = LocalDate.now();
+        var purchase = new TradeRequest(null, InvestmentMovement.MovementType.COMPRA, InvestmentPosition.AssetType.ACAO,
+                "BBAS3", "BBAS3.SA", "Banco do Brasil", "BR", "B3", "BRL", n("10"), n("21.23"), n("0"),
+                today.minusDays(3), new OperationCosts(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO), null);
+
+        investments.recordTrade(purchase);
+        var earnings = corporateEvents.synchronizeCurrentUser();
+
+        assertThat(investments.portfolio().positions()).singleElement().satisfies(position ->
+                assertThat(position.quantity()).isEqualByComparingTo("10"));
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).singleElement().satisfies(transaction -> {
+            assertThat(transaction.getCategory()).isEqualTo(Transaction.TransactionCategory.INVESTIMENTO);
+            assertThat(transaction.getType()).isEqualTo(Transaction.TransactionType.DESPESA);
+        });
+        assertThat(earnings).filteredOn(earning -> earning.symbol().equals("BBAS3")).singleElement().satisfies(earning -> {
+            assertThat(earning.quantityEligible()).isEqualByComparingTo("10");
+            assertThat(earning.exDate()).isEqualTo(today.minusDays(2));
+        });
+    }
+
     @Test void foreignTradeUsesHistoricalExchangeRateInCashAndReconciliation() {
         investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.COMPRA, InvestmentPosition.AssetType.ACAO,
                 "AAPL", "AAPL", "Apple", "US", "NASDAQ", "USD", n("2"), n("100"), n("0"),

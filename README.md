@@ -7,9 +7,9 @@
 [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Version](https://img.shields.io/badge/release-1.4.3-10B981)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/release-1.4.4-10B981)](CHANGELOG.md)
 
-**Em desenvolvimento: v1.4.3.** A sessão se recupera por refresh token persistido após recarregar a página, e toda importação
+**Em desenvolvimento: v1.4.4.** A sessão se recupera por refresh token persistido após recarregar a página, e toda importação
 de investimentos passa por uma revisão obrigatória antes de alterar a carteira. Consulte o [escopo, testes e limitações](docs/INVESTMENTS-1.4.md)
 e o [roadmap do produto](docs/ROADMAP.md).
 
@@ -167,7 +167,7 @@ Para relatar uma vulnerabilidade, prefira um contato privado com o mantenedor em
 
 ## Estado do Projeto
 
-A versão em desenvolvimento é a **1.4.3**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco na conferência de importações e em integrações financeiras experimentais, sempre revisadas pelo usuário.
+A versão em desenvolvimento é a **1.4.4**. O desenvolvimento segue incrementalmente pelo [changelog](CHANGELOG.md), com foco na conferência de importações e em integrações financeiras experimentais, sempre revisadas pelo usuário.
 
 ## Autoria
 

@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.3` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a base estável da 1.4.0 com agenda controlada, importação assistida e fontes experimentais revisáveis.
+Status: `1.4.4` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a base estável da 1.4.0 com agenda controlada, importação assistida e fontes experimentais revisáveis.
 
 ## Entregue nesta etapa
 
@@ -79,9 +79,9 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Obrigacoes persistidas com versao da memoria de calculo, revisoes e ajustes de pagamentos; hoje a estimativa e recalculada e o pagamento guarda os dados efetivos.
 - Calendario fiscal de vencimento e tratamento de guias complementares, multas e juros; nesta release o vencimento vem da guia Sicalc.
 - Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta release, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
-- Importação de PDF B3 e notas de corretagem; a estrutura está reservada, mas o parser permanece desativado até haver mapeamento de layouts e validação humana.
+- Importação de PDF B3 e notas de corretagem; a prévia SINACOR nativa existe, mas novos layouts exigem mapeamento e validação humana.
 
-## Roadmap 1.4.0 a 1.4.3
+## Roadmap 1.4.0 a 1.4.4
 
 | Item | Status | Observação |
 | --- | --- | --- |
@@ -99,13 +99,15 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 
 PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quantidade, preço, taxas e liquidação. A primeira leitura SINACOR nativa já cria upload e prévia revisável; como não há layout único e alguns documentos são imagens digitalizadas, a confirmação humana continua obrigatória e OCR não foi iniciado.
 
-## 1.4.1 a 1.4.3
+## 1.4.1 a 1.4.4
 
 1.4.1: agenda automática entregue com CNPJ pagador, Data Com, data de pagamento, quantidade elegível congelada, ajuste/cancelamento e confirmação. A fonte atual é mock, portanto os eventos servem ao fluxo e aos testes, não como informação de mercado para decisão financeira.
 
 1.4.2: importação assistida de investimentos em CSV, Excel e OFX, revisão obrigatória, alerta de duplicidade e estabilidade de sessão por refresh token persistido.
 
 1.4.3: a mesma revisão de investimentos está disponível também no Histórico Financeiro. PDF SINACOR nativo entra somente em staging, e o provedor B3 experimental pode ser ativado manualmente por ambiente para os ativos da carteira. Os dois recursos exigem conferência do usuário e não representam cobertura de mercado contratada.
+
+1.4.4: o fluxo de compra/venda atualiza somente os dados afetados, evitando recargas globais duplicadas depois de uma venda. A elegibilidade da Agenda possui regressão para compra retroativa de BBAS3 antes da Data Com; o modo MOCK continua explícito e não substitui uma fonte real de proventos.
 
 ## Referencias fiscais verificadas
 

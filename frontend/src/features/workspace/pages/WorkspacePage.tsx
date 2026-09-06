@@ -868,7 +868,6 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
           setTransactionModalOpen(false);
         }}
         onInvestmentRecorded={(operation) => {
-          queryClient.invalidateQueries();
           setTransactionDraft(buildTransactionDraft('DESPESA'));
           setTransactionReceiptFile(null);
           setTransactionCategoryTouched(false);
