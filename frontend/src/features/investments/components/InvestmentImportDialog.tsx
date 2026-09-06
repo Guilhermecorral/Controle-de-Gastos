@@ -98,10 +98,10 @@ export default function InvestmentImportDialog({ open, onClose, onFinished }: In
         <div className="max-h-[calc(96vh-112px)] overflow-y-auto p-6 sm:p-8">
           {!batchId && <label className="flex cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-emerald-200 bg-emerald-50/50 px-6 py-10 text-center transition hover:border-emerald-400 hover:bg-emerald-50">
             {previewMutation.isPending ? <LoaderCircle className="animate-spin text-emerald-600" size={28} /> : <FileUp className="text-emerald-600" size={28} />}
-            <span className="mt-4 font-semibold text-slate-900">{previewMutation.isPending ? 'Lendo e organizando o arquivo...' : 'Selecionar CSV, Excel ou OFX de investimentos'}</span>
+            <span className="mt-4 font-semibold text-slate-900">{previewMutation.isPending ? 'Lendo e organizando o arquivo...' : 'Selecionar CSV, Excel, OFX ou PDF SINACOR'}</span>
             <span className="mt-2 text-sm text-slate-500">Colunas sugeridas: Data, Ticker, Operação, Quantidade, Preço, Corretagem, Taxa B3 e IRRF.</span>
-            <span className="mt-1 text-xs text-slate-400">OFX bancário comum continua no importador de extrato. Máximo de 5 MB.</span>
-            <input className="sr-only" type="file" accept=".csv,.tsv,.xls,.xlsx,.ofx" onChange={loadFile} disabled={previewMutation.isPending} />
+            <span className="mt-1 text-xs text-slate-400">PDF precisa ser a nota original com texto selecionável. OFX bancário comum continua no importador de extrato. Máximo de 5 MB.</span>
+            <input className="sr-only" type="file" accept=".csv,.tsv,.xls,.xlsx,.ofx,.pdf" onChange={loadFile} disabled={previewMutation.isPending} />
           </label>}
 
           {batchId && <>

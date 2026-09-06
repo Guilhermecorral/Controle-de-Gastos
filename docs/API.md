@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.4.2. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão 1.4.3. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -65,7 +65,7 @@ Respostas comuns:
 | --- | --- | --- |
 | `POST` | `/api/auth/register` | Cria uma conta |
 | `POST` | `/api/auth/login` | Autentica e cria a sessão |
-| `GET` | `/api/auth/me` | Retorna o usuário da sessão |
+| `GET` | `/api/auth/me` | Retorna o usuário da sessão; responde 401 sem access token válido para permitir a renovação por refresh token |
 | `POST` | `/api/auth/refresh` | Rotaciona o refresh token persistido e renova a sessão |
 | `POST` | `/api/auth/logout` | Revoga o refresh token atual e limpa cookies |
 | `POST` | `/api/auth/forgot-password` | Solicita recuperação de senha |

@@ -1,6 +1,6 @@
 # Arquitetura do Farol Financeiro
 
-Este documento apresenta a arquitetura técnica da versão 1.4.2 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
+Este documento apresenta a arquitetura técnica da versão 1.4.3 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
 
 ## Visão geral
 
@@ -82,7 +82,7 @@ sequenceDiagram
     A-->>B: novo cookie de acesso
 ```
 
-A API usa access token assinado e refresh token persistido. O token de acesso é enviado em cookie `HttpOnly` com escopo geral, enquanto o de renovação possui escopo restrito à rota de autenticação, é armazenado por hash no PostgreSQL e rotacionado ao renovar a sessão. Com `JWT_SECRET` fixo no ambiente, reinícios não invalidam sessões válidas. Em produção, os cookies usam transporte seguro e as origens permitidas são configuradas explicitamente.
+A API usa access token assinado e refresh token persistido. O token de acesso é enviado em cookie `HttpOnly` com escopo geral, enquanto o de renovação possui escopo restrito à rota de autenticação, é armazenado por hash no PostgreSQL e rotacionado ao renovar a sessão. Sem access token válido, `GET /api/auth/me` responde 401 para que o frontend solicite a renovação; com `JWT_SECRET` fixo no ambiente, reinícios não invalidam sessões válidas. Em produção, os cookies usam transporte seguro e as origens permitidas são configuradas explicitamente.
 
 O segundo fator usa TOTP. O segredo é armazenado de forma cifrada; por isso, a chave de criptografia da aplicação deve ser tratada como segredo de produção e nunca versionada.
 
@@ -129,7 +129,7 @@ flowchart LR
 
 Comprovantes PDF, JPG e PNG seguem um fluxo próprio. A associação automática deve ser tratada como sugestão quando houver ambiguidade, nunca como prova contábil definitiva.
 
-O parser de nota B3 em PDF ainda não é exposto. Existe somente uma feature flag desligada por padrão (`APP_INVESTMENTS_IMPORTS_PDF_ENABLED=false`) para reservar o ponto de extensão sem permitir que um layout não validado produza lançamentos.
+O parser SINACOR de nota B3 em PDF é uma entrada experimental de staging, controlada por `APP_INVESTMENTS_IMPORTS_PDF_ENABLED`. Ele aceita apenas PDF nativo com texto selecionável, produz uma prévia editável e nunca cria lançamento sem confirmação; OCR, documentos escaneados e layouts não validados continuam fora do suporte.
 
 ## Migrações
 

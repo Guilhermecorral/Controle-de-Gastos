@@ -15,6 +15,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.mock.web.MockMultipartFile;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -229,5 +235,49 @@ class InvestmentCashFlowIntegrationTest {
         });
         assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).singleElement().satisfies(transaction ->
                 assertThat(transaction.getCategory()).isEqualTo(Transaction.TransactionCategory.INVESTIMENTO));
+    }
+
+    @Test void nativeSinacorPdfCreatesOnlyReviewItemsUntilTheUserConfirmsThem() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", "nota-sinacor.pdf", "application/pdf", nativeSinacorPdf());
+
+        var preview = investmentImports.preview(file);
+
+        assertThat(preview.items()).hasSize(3);
+        assertThat(preview.items()).extracting(item -> item.symbol())
+                .containsExactly("PETR4", "MXRF11", "KNCA11");
+        assertThat(preview.items()).allSatisfy(item -> {
+            assertThat(item.eventDate()).isEqualTo(LocalDate.of(2026, 9, 2));
+            assertThat(item.warning()).contains("Leitura experimental");
+        });
+        assertThat(investments.movements()).isEmpty();
+        assertThat(preview.warnings()).anySatisfy(warning -> assertThat(warning).contains("prévia"));
+    }
+
+    private byte[] nativeSinacorPdf() throws Exception {
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage();
+            document.addPage(page);
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                content.beginText();
+                content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
+                content.newLineAtOffset(50, 740);
+                for (String line : List.of(
+                        "Data do pregao: 02/09/2026",
+                        "C VISTA PETR4 2 30,50 61,00 D",
+                        "V VISTA MXRF11 10 9,50 95,00 C",
+                        "C VISTA KNCA11 4 100,00 400,00 D",
+                        "Corretagem: 1,00",
+                        "Taxa de liquidacao: 0,50",
+                        "Emolumentos: 0,20",
+                        "IRRF: 0,01"
+                )) {
+                    content.showText(line);
+                    content.newLineAtOffset(0, -18);
+                }
+                content.endText();
+            }
+            document.save(output);
+            return output.toByteArray();
+        }
     }
 }

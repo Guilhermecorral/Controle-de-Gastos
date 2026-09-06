@@ -1,15 +1,18 @@
 package com.controledegastos.backend.investments;
 
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 @Component
+@ConditionalOnProperty(name = "app.investments.corporate-events.provider", havingValue = "mock", matchIfMissing = true)
 public class MockMarketDataProvider implements MarketDataProvider {
     @Override
-    public List<CorporateEventData> corporateEvents(LocalDate referenceDate) {
+    public List<CorporateEventData> corporateEvents(LocalDate referenceDate, Set<String> symbols) {
         LocalDate exDate = referenceDate.minusDays(2);
         return List.of(
                 new CorporateEventData("mock:PETR4:DIVIDENDO:" + exDate, "PETR4", CorporateEvent.EventType.DIVIDENDO,

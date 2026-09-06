@@ -2,6 +2,14 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.3] - 2026-09-06
+
+- GET /api/auth/me agora devolve 401 quando não há sessão de acesso válida, permitindo que o frontend use o refresh token persistido antes de declarar logout após um F5.
+- A importação assistida de investimentos também está disponível no Histórico Financeiro e abre o mesmo lote de staging, revisão de duplicidades e confirmação explícita da Carteira.
+- Novo provedor B3 experimental, ativado somente por configuração, consulta em série os ativos já presentes na carteira e preserva Data Com e data de pagamento sem criar saldo automaticamente.
+- PDFs SINACOR nativos entram apenas como prévia revisável: operações, custos e IRRF podem ser ajustados antes de qualquer confirmação; OCR e PDFs escaneados permanecem fora do suporte.
+- Testes de sessão, parser B3 para ações/FIIs/Fiagros e staging de PDF nativo adicionados; referências de versão sincronizadas para 1.4.3.
+
 ## [1.4.2] - 2026-09-05
 
 - Refresh tokens agora são persistidos e rotacionados no PostgreSQL, com revogação no logout e validade padrão de 30 dias; a assinatura continua dependente de `JWT_SECRET` fixo no ambiente.

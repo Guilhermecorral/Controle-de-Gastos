@@ -81,7 +81,9 @@ public class AuthController {
         AuthResponseDTO currentUser = authService.getCurrentUserIfAuthenticated();
         log.info("Consulta de sessao atual concluida: autenticado={}", currentUser != null);
         return currentUser == null
-                ? ResponseEntity.noContent().build()
+                // The frontend renews an expired access cookie only after a 401.
+                // Returning 204 here made a valid persisted refresh token unreachable after a reload.
+                ? ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
                 : ResponseEntity.ok(currentUser);
     }
 

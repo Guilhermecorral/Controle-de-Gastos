@@ -3,11 +3,13 @@ import type { TransactionResponse, WishlistListResponse } from '../../../types';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import ReceiptBatchUploader from '../components/ReceiptBatchUploader';
 import WishlistImportUploader from '../components/WishlistImportUploader';
+import InvestmentImportDialog from '../../investments/components/InvestmentImportDialog';
 
-type Mode = 'transactions' | 'wishlist' | 'receipts';
+type Mode = 'transactions' | 'investments' | 'wishlist' | 'receipts';
 
 const modes: Array<{ id: Mode; label: string; helper: string }> = [
   { id: 'transactions', label: 'Transações', helper: 'OFX, CSV, TSV e Excel' },
+  { id: 'investments', label: 'Investimentos', helper: 'CSV, Excel, OFX ou PDF textual' },
   { id: 'wishlist', label: 'Lista de desejos', helper: 'TXT, PDF, CSV e Excel' },
   { id: 'receipts', label: 'Notas fiscais', helper: 'PDF, JPG, PNG ou pasta' },
 ];
@@ -20,6 +22,8 @@ export default function FinancialHistoryPage({
   wishlistLists: WishlistListResponse[];
 }) {
   const [mode, setMode] = useState<Mode>('transactions');
+  const [investmentImportOpen, setInvestmentImportOpen] = useState(false);
+  const [investmentFeedback, setInvestmentFeedback] = useState<string | null>(null);
 
   return (
     <section className="space-y-6">
@@ -29,7 +33,7 @@ export default function FinancialHistoryPage({
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
           Escolha o que deseja trazer para o Farol Financeiro. Nenhuma transação, desejo ou nota é gravada antes da sua confirmação.
         </p>
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {modes.map((item) => (
             <button
               key={item.id}
@@ -45,8 +49,16 @@ export default function FinancialHistoryPage({
       </div>
 
       {mode === 'transactions' && <OFXUploader />}
+      {mode === 'investments' && <section className="rounded-[28px] border border-emerald-100 bg-emerald-50/50 p-6 shadow-[0_18px_45px_rgba(16,185,129,0.08)]">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Carteira e financeiro</p>
+        <h4 className="mt-2 text-xl font-semibold text-slate-900">Importe operações antes de alterar a carteira</h4>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">Compras e vendas passam pela mesma revisão usada em Investimentos. O Farol sinaliza possíveis duplicidades e só cria a movimentação financeira depois da sua confirmação.</p>
+        {investmentFeedback && <p className="mt-4 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-emerald-800">{investmentFeedback}</p>}
+        <button className="mt-5 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800" type="button" onClick={() => setInvestmentImportOpen(true)}>Importar investimentos</button>
+      </section>}
       {mode === 'wishlist' && <WishlistImportUploader lists={wishlistLists} />}
       {mode === 'receipts' && <ReceiptBatchUploader transactions={transactions} />}
+      <InvestmentImportDialog open={investmentImportOpen} onClose={() => setInvestmentImportOpen(false)} onFinished={setInvestmentFeedback} />
     </section>
   );
 }

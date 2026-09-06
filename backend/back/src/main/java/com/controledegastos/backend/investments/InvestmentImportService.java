@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -54,6 +55,7 @@ public class InvestmentImportService {
     private final InvestmentImportItemRepository itemRepository;
     private final InvestmentMovementRepository movementRepository;
     private final InvestmentService investmentService;
+    private final ObjectProvider<SinacorPdfParser> sinacorPdfParser;
 
     @Transactional
     public PreviewResponse preview(MultipartFile file) {
@@ -65,7 +67,8 @@ public class InvestmentImportService {
             case "csv", "tsv" -> parseCsv(file, "tsv".equals(extension), warnings);
             case "xls", "xlsx" -> parseWorkbook(file, warnings);
             case "ofx" -> parseInvestmentOfx(file, warnings);
-            default -> throw new IllegalArgumentException("Envie um arquivo CSV, XLS, XLSX ou OFX.");
+            case "pdf" -> parseSinacorPdf(file, warnings);
+            default -> throw new IllegalArgumentException("Envie um arquivo CSV, XLS, XLSX, OFX ou PDF SINACOR.");
         };
 
         if (parsed.size() > MAX_ROWS) {
@@ -256,6 +259,14 @@ public class InvestmentImportService {
         }
     }
 
+    private List<ParsedRow> parseSinacorPdf(MultipartFile file, List<String> warnings) {
+        SinacorPdfParser parser = sinacorPdfParser.getIfAvailable();
+        if (parser == null) {
+            throw new IllegalArgumentException("A leitura de PDF de investimentos está desativada neste ambiente.");
+        }
+        return parser.parse(file, warnings);
+    }
+
     private ParsedRow buildRow(int sourceRow, String ticker, String operation, String date, String quantity, String price,
                                String brokerage, String b3Fee, String otherCosts, String irrf, String exchangeRate,
                                String name, String assetType) {
@@ -338,11 +349,11 @@ public class InvestmentImportService {
     private String joinWarning(String first, String second) { return first == null || first.isBlank() ? second : first + " " + second; }
 
     private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) throw new IllegalArgumentException("Selecione um arquivo CSV, Excel ou OFX.");
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("Selecione um arquivo CSV, Excel, OFX ou PDF SINACOR.");
         if (file.getSize() > MAX_BYTES) throw new IllegalArgumentException("O arquivo pode ter no máximo 5 MB.");
     }
 
-    private record ParsedRow(int sourceRow, InvestmentMovement.MovementType movementType, InvestmentPosition.AssetType assetType,
+    static record ParsedRow(int sourceRow, InvestmentMovement.MovementType movementType, InvestmentPosition.AssetType assetType,
                              String symbol, String name, String market, String exchange, String currency, BigDecimal quantity,
                              BigDecimal unitPrice, OperationCosts costs, BigDecimal exchangeRate, LocalDate eventDate, String warning) { }
 }

@@ -17,6 +17,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -48,8 +49,12 @@ public class CorporateEventService {
     @Scheduled(cron = "${app.investments.corporate-events.sync-cron:-}")
     @Transactional
     public void synchronizeAllWallets() {
-        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now()).stream().map(this::upsert).toList();
-        for (User user : userRepository.findAll()) synchronize(user, events);
+        List<InvestmentPosition> allPositions = positionRepository.findAll();
+        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(allPositions)).stream().map(this::upsert).toList();
+        for (User user : userRepository.findAll()) {
+            List<InvestmentPosition> positions = allPositions.stream().filter(position -> position.getUser().getId().equals(user.getId())).toList();
+            synchronize(user, positions, events);
+        }
     }
 
     @Transactional
@@ -105,17 +110,25 @@ public class CorporateEventService {
     }
 
     private void synchronize(User user) {
-        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now()).stream().map(this::upsert).toList();
-        synchronize(user, events);
+        List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
+        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(positions)).stream().map(this::upsert).toList();
+        synchronize(user, positions, events);
     }
 
-    private void synchronize(User user, List<CorporateEvent> events) {
-        List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
+    private void synchronize(User user, List<InvestmentPosition> positions, List<CorporateEvent> events) {
         for (CorporateEvent event : events) {
             if (event.getExDate().isAfter(LocalDate.now())) continue;
             positions.stream().filter(position -> isEligibleAsset(position, event)).forEach(position -> createEarningIfNeeded(user, position, event));
         }
         refreshStatuses(user);
+    }
+
+    private Set<String> symbolsOf(List<InvestmentPosition> positions) {
+        return positions.stream()
+                .filter(position -> position.getAssetType() != InvestmentPosition.AssetType.RENDA_FIXA)
+                .filter(position -> position.getSymbol() != null && !position.getSymbol().isBlank())
+                .map(InvestmentPosition::getSymbol)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     private CorporateEvent upsert(MarketDataProvider.CorporateEventData data) {
