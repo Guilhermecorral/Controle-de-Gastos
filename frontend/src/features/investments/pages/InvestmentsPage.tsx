@@ -43,6 +43,7 @@ import {
   useWalletEarningsQuery,
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
+import api from '../../../lib/api';
 import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import { FixedIncomeRedemption, TaxRegimeFields } from '../components/FixedIncomeTools';
@@ -272,6 +273,11 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
   const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && !selected);
   if (!open) return null;
 
+  const recordUiEvent = (action: string, eventMode = mode) => {
+    // A breadcrumb is intentionally small: it helps identify blocked clicks without sending financial data.
+    void api.post('/diagnostics/ui-events', { area: 'investment-trade', action, mode: eventMode }).catch(() => undefined);
+  };
+
   const chooseAsset = (asset: InvestmentAssetSearchResponse, id: number | null = null, price?: number | null) => {
     setSelected(asset); setPositionId(id); setUnitPrice(price ?? asset.currentPrice ?? 0); setError(''); setRequestId(crypto.randomUUID());
   };
@@ -313,18 +319,18 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
 
   const sellable = positions.filter((position) => position.assetType !== 'RENDA_FIXA' && (position.quantity ?? 0) > 0);
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Nova movimentação" onPointerDownCapture={() => recordUiEvent('pointer-down')}>
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] bg-white shadow-2xl sm:max-w-2xl sm:rounded-[30px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
           <div><p className="text-xs font-semibold uppercase tracking-[.18em] text-emerald-600">Investimentos</p><h3 className="mt-1 text-xl font-semibold text-slate-950">Nova movimentação</h3></div>
-          <button className="rounded-full bg-slate-100 p-2 text-slate-500 hover:text-slate-900" type="button" onClick={onClose}><X size={20} /></button>
+          <button className="rounded-full bg-slate-100 p-2 text-slate-500 hover:text-slate-900" type="button" onClick={() => { recordUiEvent('close-click'); onClose(); }}><X size={20} /></button>
         </div>
         <form className="space-y-5 p-6" onSubmit={submit}>
           {mode === 'SALDO_INICIAL' ? <><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-900">Importar posição existente</p><p className="mt-1 text-xs leading-5 text-slate-500">Use o saldo e o preço médio da sua corretora. Não será criada uma despesa antiga no financeiro.</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Voltar</button></div></> : <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
-            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode !== 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Renda variável</button>
-            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('RENDA_FIXA'); resetSelection(); }}>Renda fixa</button>
+            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode !== 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('variable-click', 'COMPRA'); setMode('COMPRA'); resetSelection(); }}>Renda variável</button>
+            <button className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${mode === 'RENDA_FIXA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('fixed-income-click', 'RENDA_FIXA'); setMode('RENDA_FIXA'); resetSelection(); }}>Renda fixa</button>
           </div>}
-          {mode !== 'RENDA_FIXA' && mode !== 'SALDO_INICIAL' && <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1"><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'COMPRA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('COMPRA'); resetSelection(); }}>Compra</button><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'VENDA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { setMode('VENDA'); resetSelection(); }}>Venda</button></div>}
+          {mode !== 'RENDA_FIXA' && mode !== 'SALDO_INICIAL' && <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1"><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'COMPRA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('buy-click', 'COMPRA'); setMode('COMPRA'); resetSelection(); }}>Compra</button><button className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${mode === 'VENDA' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500'}`} type="button" onClick={() => { recordUiEvent('sell-click', 'VENDA'); setMode('VENDA'); resetSelection(); }}>Venda</button></div>}
 
           {!selected && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && <>
             <div className="flex flex-wrap gap-2">{(['ACAO', 'FII', 'CRIPTO'] as TradableType[]).map((type) => <button key={type} className={`rounded-full border px-4 py-2 text-sm font-semibold ${assetType === type ? 'border-slate-950 bg-slate-950 text-white' : 'border-slate-200 text-slate-600'}`} type="button" onClick={() => { setAssetType(type); setQuery(''); }}>{assetLabel(type)}</button>)}</div>
@@ -350,7 +356,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
           </div>}
 
           {selected && <>
-            <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={resetSelection}>Trocar</button></div>
+            <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={() => { recordUiEvent('change-asset-click'); resetSelection(); }}>Trocar</button></div>
             <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step="0.00000001" /><NumberField label={mode === 'SALDO_INICIAL' ? 'Custo médio' : 'Preço unitário'} value={unitPrice} onChange={setUnitPrice} step="0.000001" /><DateField label={mode === 'SALDO_INICIAL' ? 'Data de início do acompanhamento' : 'Data da operação'} value={eventDate} onChange={setEventDate} max={today} /></div>
             {mode !== 'SALDO_INICIAL' && <details className="rounded-2xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Custos da operação / Nota de corretagem (opcional)</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><NumberField label="Corretagem" value={brokerageFee} onChange={setBrokerageFee} /><NumberField label="Taxas B3" value={b3Fee} onChange={setB3Fee} /><NumberField label="Outros custos" value={fees} onChange={setFees} />{mode === 'VENDA' && <NumberField label="IRRF antecipado" value={withheldTax} onChange={setWithheldTax} />}</div><p className="mt-3 text-xs text-slate-500">Valores da operação, na moeda do ativo. IRRF é crédito tributário e não compõe os custos.</p></details>}
             {selected.currency !== 'BRL' && mode !== 'SALDO_INICIAL' && <NumberField label={`Câmbio da operação (R$ por ${selected.currency})`} value={exchangeRate} onChange={setExchangeRate} step="0.000001" />}
