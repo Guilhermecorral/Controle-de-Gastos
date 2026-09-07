@@ -204,7 +204,44 @@ class InvestmentCashFlowIntegrationTest {
                 .singleElement().satisfies(event -> {
                     assertThat(event.status()).isEqualTo(TaxStatus.RETIDO_INTEGRAL);
                     assertThat(event.withheldAmount()).isEqualByComparingTo("0.06");
-                });
+        });
+    }
+
+    @Test void confirmedAutomaticEarningCanBeRevertedWithoutLeavingCashOrTaxEffects() {
+        LocalDate today = LocalDate.now();
+        investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", today.minusDays(3)));
+
+        var earning = corporateEvents.synchronizeCurrentUser().stream()
+                .filter(item -> item.eventType() == CorporateEvent.EventType.JCP)
+                .findFirst()
+                .orElseThrow();
+        corporateEvents.confirm(earning.id());
+
+        var reverted = corporateEvents.revert(earning.id());
+
+        assertThat(reverted.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO);
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user))
+                .noneMatch(transaction -> transaction.getDescription().startsWith("JCP -"));
+        assertThat(investments.taxSummary(today.getYear()).events())
+                .noneMatch(event -> event.eventType().equals("JCP"));
+        assertThat(corporateEvents.walletEarnings()).filteredOn(item -> item.id().equals(earning.id()))
+                .singleElement().satisfies(item -> assertThat(item.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO));
+    }
+
+    @Test void cancelledAutomaticEarningCanBeRestoredForReview() {
+        LocalDate today = LocalDate.now();
+        investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", today.minusDays(3)));
+        var earning = corporateEvents.synchronizeCurrentUser().stream()
+                .filter(item -> item.eventType() == CorporateEvent.EventType.JCP)
+                .findFirst()
+                .orElseThrow();
+
+        var cancelled = corporateEvents.adjust(earning.id(), new WalletEarningAdjustmentRequest(null, null, true, null));
+        var restored = corporateEvents.adjust(earning.id(), new WalletEarningAdjustmentRequest(null, null, null, true));
+
+        assertThat(cancelled.status()).isEqualTo(WalletEarning.Status.CANCELADO);
+        assertThat(restored.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO);
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).hasSize(1);
     }
 
     @Test void retroactiveBbasPurchaseIsPersistedAndEligibleWhenItPrecedesTheRecordDate() {
