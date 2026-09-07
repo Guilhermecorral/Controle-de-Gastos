@@ -25,7 +25,6 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class CorporateEventService {
-    private static final int PILOT_LOOKBACK_DAYS = 90;
     private static final int PILOT_LOOKAHEAD_DAYS = 180;
     private final CorporateEventRepository corporateEventRepository;
     private final WalletEarningRepository walletEarningRepository;
@@ -154,6 +153,19 @@ public class CorporateEventService {
     }
 
     @Transactional
+    public List<WalletEarningResponse> applyBatchHistoryAction(InvestmentDtos.WalletEarningBatchActionRequest request) {
+        List<Long> earningIds = request.earningIds().stream().distinct().toList();
+        if (earningIds.size() != request.earningIds().size()) {
+            throw new IllegalArgumentException("A seleção de proventos contém itens repetidos");
+        }
+        return earningIds.stream().map(id -> switch (request.action()) {
+            case CANCEL -> adjust(id, new WalletEarningAdjustmentRequest(null, null, true, null));
+            case REVERT -> revert(id);
+            case RESTORE -> adjust(id, new WalletEarningAdjustmentRequest(null, null, null, true));
+        }).toList();
+    }
+
+    @Transactional
     public WalletEarningResponse adjust(Long id, WalletEarningAdjustmentRequest request) {
         WalletEarning earning = walletEarningRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Provento automático não encontrado"));
@@ -231,7 +243,11 @@ public class CorporateEventService {
     }
 
     private BigDecimal eligibleQuantity(InvestmentPosition position, LocalDate exDate) {
-        return movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(position.getUser()).stream()
+        return eligibleQuantity(position, exDate, movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(position.getUser()));
+    }
+
+    private BigDecimal eligibleQuantity(InvestmentPosition position, LocalDate exDate, List<InvestmentMovement> movements) {
+        return movements.stream()
                 .filter(movement -> movement.getPosition().getId().equals(position.getId()))
                 .filter(movement -> !movement.getEventDate().isAfter(exDate))
                 .map(movement -> switch (movement.getMovementType()) {
@@ -275,6 +291,7 @@ public class CorporateEventService {
 
     private List<PilotCandidate> pilotCandidates(User user) {
         List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
+        List<InvestmentMovement> movements = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user);
         LocalDate today = LocalDate.now();
         List<MarketDataProvider.CorporateEventData> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(today, symbolsOf(positions)));
         if (events.isEmpty()) return List.of();
@@ -283,7 +300,7 @@ public class CorporateEventService {
                 .collect(java.util.stream.Collectors.toSet()));
         return events.stream()
                 .filter(data -> !existingReferences.contains(data.sourceReference()))
-                .map(data -> pilotCandidate(data, positions, today))
+                .map(data -> pilotCandidate(data, positions, movements, today))
                 .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
                 .toList();
     }
@@ -307,6 +324,11 @@ public class CorporateEventService {
                         || earning.getStatus() == WalletEarning.Status.PENDENTE_CONCILIACAO)
                 .sorted(Comparator.comparing(WalletEarning::getCreatedAt).thenComparing(WalletEarning::getId))
                 .forEach(earning -> {
+                    if (isTechnicalFundSeries(earning)) {
+                        earning.setStatus(WalletEarning.Status.CANCELADO);
+                        walletEarningRepository.save(earning);
+                        return;
+                    }
                     String key = earning.getPosition().getId() + ":" + earning.getCorporateEvent().getEventType() + ":"
                             + earning.getCorporateEvent().getExDate() + ":" + earning.getCorporateEvent().getPaymentDate() + ":"
                             + earning.getCorporateEvent().getAmountPerUnit().stripTrailingZeros().toPlainString() + ":"
@@ -318,16 +340,29 @@ public class CorporateEventService {
                 });
     }
 
-    private PilotCandidate pilotCandidate(MarketDataProvider.CorporateEventData data, List<InvestmentPosition> positions, LocalDate today) {
+    private boolean isTechnicalFundSeries(WalletEarning earning) {
+        String symbol = earning.getPosition().getSymbol();
+        if (symbol == null || !symbol.matches("[A-Z]+11")) return false;
+        String isin = earning.getCorporateEvent().getIsinCode();
+        String root = symbol.substring(0, symbol.length() - 2).toUpperCase();
+        return isin == null || !isin.toUpperCase().startsWith("BR" + root + "CTF");
+    }
+
+    private PilotCandidate pilotCandidate(MarketDataProvider.CorporateEventData data, List<InvestmentPosition> positions,
+                                          List<InvestmentMovement> movements, LocalDate today) {
         if (!"VALIDO".equals(data.resolutionStatus()) || data.symbol() == null || data.symbol().isBlank()) {
             return PilotCandidate.rejected(data, "TICKER_AMBIGUO", "A B3 retornou uma classe de ação que não pôde ser vinculada ao ticker da carteira.");
         }
         InvestmentPosition position = positions.stream().filter(item -> isEligibleAsset(item, asEvent(data))).findFirst().orElse(null);
         if (position == null) return PilotCandidate.rejected(data, "ATIVO_FORA_DA_CARTEIRA", "O ativo do evento não está disponível na carteira atual.");
-        if (data.paymentDate().isBefore(today.minusDays(PILOT_LOOKBACK_DAYS)) || data.paymentDate().isAfter(today.plusDays(PILOT_LOOKAHEAD_DAYS))) {
-            return PilotCandidate.rejected(data, "FORA_DA_JANELA", "O piloto mostra pagamentos dos últimos 90 e dos próximos 180 dias.");
+        if (data.paymentDate().isAfter(today.plusDays(PILOT_LOOKAHEAD_DAYS))) {
+            return PilotCandidate.rejected(data, "FORA_DA_JANELA", "O piloto mostra pagamentos já realizados e até os próximos 180 dias.");
         }
-        BigDecimal quantity = eligibleQuantity(position, data.exDate());
+        LocalDate firstHoldingDate = firstHoldingDate(position, movements);
+        if (firstHoldingDate != null && data.exDate().isBefore(firstHoldingDate)) {
+            return PilotCandidate.rejected(data, position, "ANTES_DA_POSICAO", "A posição ainda não existia na Data Com deste provento.");
+        }
+        BigDecimal quantity = eligibleQuantity(position, data.exDate(), movements);
         if (quantity.signum() <= 0) return PilotCandidate.rejected(data, position, "SEM_COTAS_ELEGIVEIS", "Não havia cotas elegíveis na Data Com.");
         BigDecimal gross = money(quantity.multiply(data.amountPerUnit()));
         BigDecimal withheld = money(gross.multiply(data.taxRate()).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
@@ -337,6 +372,16 @@ public class CorporateEventService {
     private CorporateEvent asEvent(MarketDataProvider.CorporateEventData data) {
         return CorporateEvent.builder().symbol(data.symbol()).eventType(data.eventType()).exDate(data.exDate())
                 .paymentDate(data.paymentDate()).build();
+    }
+
+    private LocalDate firstHoldingDate(InvestmentPosition position, List<InvestmentMovement> movements) {
+        return movements.stream()
+                .filter(movement -> movement.getPosition().getId().equals(position.getId()))
+                .filter(movement -> movement.getMovementType() == InvestmentMovement.MovementType.COMPRA
+                        || movement.getMovementType() == InvestmentMovement.MovementType.SALDO_INICIAL)
+                .map(InvestmentMovement::getEventDate)
+                .min(LocalDate::compareTo)
+                .orElse(null);
     }
 
     private String eventLabel(CorporateEvent event) {

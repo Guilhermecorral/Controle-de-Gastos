@@ -59,6 +59,36 @@ class CorporateEventServiceTest {
                 .containsExactly(newEvent.sourceReference());
     }
 
+    @Test
+    void includesEventsSinceTheFirstPositionMovementInsteadOfOnlyTheLastNinetyDays() {
+        User user = User.builder().id(7L).email("pessoa@example.com").build();
+        InvestmentPosition position = InvestmentPosition.builder().id(3L).user(user)
+                .assetType(InvestmentPosition.AssetType.FII).symbol("MXRF11").name("Maxi Renda")
+                .quantity(new BigDecimal("100")).averagePrice(new BigDecimal("9.20")).build();
+        LocalDate today = LocalDate.now();
+        LocalDate purchaseDate = today.minusMonths(8);
+        LocalDate exDate = today.minusMonths(5);
+        InvestmentMovement purchase = InvestmentMovement.builder().position(position)
+                .movementType(InvestmentMovement.MovementType.COMPRA).quantity(new BigDecimal("100")).eventDate(purchaseDate).build();
+        var event = new MarketDataProvider.CorporateEventData("b3:mxrf11:historic", "MXRF11", "BRMXRFCTF008", CorporateEvent.EventType.RENDIMENTO,
+                null, new BigDecimal("0.10"), BigDecimal.ZERO, exDate, exDate.plusDays(14), "B3_EXPERIMENTAL", "VALIDO");
+
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        doNothing().when(pilotAccess).require(user);
+        when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
+        when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(event));
+        when(walletEarningRepository.findSourceReferencesAlreadyInAgenda(any(), anySet())).thenReturn(Set.of());
+
+        List<CorporateEventPreviewResponse> preview = service.previewCurrentUser();
+
+        assertThat(preview).singleElement().satisfies(item -> {
+            assertThat(item.status()).isEqualTo("VALIDO");
+            assertThat(item.quantityEligible()).isEqualByComparingTo("100");
+            assertThat(item.grossAmount()).isEqualByComparingTo("10.00");
+        });
+    }
+
     private MarketDataProvider.CorporateEventData event(String sourceReference, LocalDate exDate) {
         return new MarketDataProvider.CorporateEventData(sourceReference, "PETR4", "BRPETRACNPR6", CorporateEvent.EventType.DIVIDENDO,
                 null, new BigDecimal("0.10"), BigDecimal.ZERO, exDate, exDate.plusDays(5), "B3_EXPERIMENTAL", "VALIDO");

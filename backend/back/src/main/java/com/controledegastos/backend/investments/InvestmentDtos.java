@@ -1,6 +1,7 @@
 package com.controledegastos.backend.investments;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -267,6 +268,13 @@ public final class InvestmentDtos {
             @DecimalMin(value = "0.00") BigDecimal withheldAmount,
             Boolean cancelled,
             Boolean reopened
+    ) {}
+
+    public enum WalletEarningBatchAction { CANCEL, REVERT, RESTORE }
+
+    public record WalletEarningBatchActionRequest(
+            @NotEmpty @Size(max = 100) List<@NotNull Long> earningIds,
+            @NotNull WalletEarningBatchAction action
     ) {}
 
     public record GoalRequest(

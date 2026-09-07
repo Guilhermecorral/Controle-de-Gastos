@@ -240,6 +240,7 @@ function InvestmentOperationForm({ onCancel, onRecorded }: { onCancel: () => voi
   const [positionId, setPositionId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
+  const [cryptoInvestmentAmount, setCryptoInvestmentAmount] = useState(0);
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
   const [exchangeRate, setExchangeRate] = useState(0);
   const [error, setError] = useState('');
@@ -247,36 +248,48 @@ function InvestmentOperationForm({ onCancel, onRecorded }: { onCancel: () => voi
   const trade = useRecordInvestmentTradeMutation();
   const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, operation === 'COMPRA' && !selected);
   const sellable = (portfolio.data?.positions ?? []).filter((position) => position.assetType !== 'RENDA_FIXA' && (position.quantity ?? 0) > 0);
-  const total = Math.max(0, quantity * unitPrice);
+  const isCryptoPurchase = operation === 'COMPRA' && selected?.assetType === 'CRIPTO';
+  const calculatedCryptoQuantity = unitPrice > 0 ? cryptoInvestmentAmount / unitPrice : 0;
+  const effectiveQuantity = isCryptoPurchase ? calculatedCryptoQuantity : quantity;
+  const total = Math.max(0, isCryptoPurchase ? cryptoInvestmentAmount : quantity * unitPrice);
 
   const reset = () => {
     setSelected(null);
     setPositionId(null);
     setQuery('');
+    setQuantity(1);
     setUnitPrice(0);
+    setCryptoInvestmentAmount(0);
     setExchangeRate(0);
     setError('');
   };
   const chooseAsset = (asset: InvestmentAssetSearchResponse, id: number | null = null, price?: number | null) => {
     setSelected(asset);
     setPositionId(id);
+    setQuantity(asset.assetType === 'CRIPTO' && operation === 'COMPRA' ? 0 : 1);
     setUnitPrice(price ?? asset.currentPrice ?? 0);
+    setCryptoInvestmentAmount(0);
     setError('');
   };
-  const choosePosition = (position: InvestmentPositionResponse) => chooseAsset({
-    assetType: position.assetType as TradableAssetType,
-    symbol: position.symbol ?? '',
-    externalId: position.externalId ?? '',
-    name: position.name,
-    market: (position.market ?? 'BR') as 'BR' | 'US' | 'GLOBAL',
-    exchange: position.exchange ?? '',
-    currency: position.currency ?? position.quote.currency,
-    currentPrice: position.quote.price,
-    source: position.quote.source,
-  }, position.id, position.quote.price ?? position.averagePrice);
+  const choosePosition = (position: InvestmentPositionResponse) => {
+    chooseAsset({
+      assetType: position.assetType as TradableAssetType,
+      symbol: position.symbol ?? '',
+      externalId: position.externalId ?? '',
+      name: position.name,
+      market: (position.market ?? 'BR') as 'BR' | 'US' | 'GLOBAL',
+      exchange: position.exchange ?? '',
+      currency: position.currency ?? position.quote.currency,
+      currentPrice: position.quote.price,
+      source: position.quote.source,
+    }, position.id, position.quote.price ?? position.averagePrice);
+    setQuantity(Math.min(1, position.quantity ?? 1));
+  };
   const submit = () => {
-    if (!selected || quantity <= 0 || unitPrice <= 0) {
-      setError('Selecione um ativo e informe quantidade e preço maiores que zero.');
+    if (!selected || effectiveQuantity <= 0 || unitPrice <= 0) {
+      setError(isCryptoPurchase
+        ? 'Informe quanto foi investido e o preço do criptoativo na operação.'
+        : 'Selecione um ativo e informe quantidade e preço maiores que zero.');
       return;
     }
     if (selected.currency !== 'BRL' && exchangeRate <= 0) {
@@ -294,7 +307,7 @@ function InvestmentOperationForm({ onCancel, onRecorded }: { onCancel: () => voi
       market: selected.market,
       exchange: selected.exchange,
       currency: selected.currency,
-      quantity,
+      quantity: effectiveQuantity,
       unitPrice,
       fees: 0,
       eventDate,
@@ -334,7 +347,15 @@ function InvestmentOperationForm({ onCancel, onRecorded }: { onCancel: () => voi
       </div>
     </>}
     {!selected && operation === 'VENDA' && <div className="space-y-2"><p className="text-sm font-medium text-slate-700">Escolha uma posição da sua carteira</p>{sellable.length === 0 ? <p className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">Ainda não há ativos disponíveis para venda.</p> : sellable.map((position) => <button key={position.id} type="button" className="flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 p-4 text-left hover:border-rose-200" onClick={() => choosePosition(position)}><span><b className="text-slate-950">{position.symbol || position.name}</b><span className="ml-2 text-sm text-slate-500">Disponível: {position.quantity}</span></span><span className="text-sm font-semibold text-slate-700">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: position.currency ?? 'BRL' }).format(position.quote.price ?? position.averagePrice ?? 0)}</span></button>)}</div>}
-    {selected && <><div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-emerald-700">Ativo selecionado</p><p className="mt-1 font-semibold text-slate-950">{selected.symbol} · {selected.name}</p></div><button type="button" className="text-sm font-semibold text-slate-600" onClick={reset}>Trocar</button></div><div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">Quantidade<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.00000001" step="0.00000001" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Preço unitário ({selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={unitPrice} onChange={(event) => setUnitPrice(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Data<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label></div>{selected.currency !== 'BRL' && <label className="block text-sm font-medium text-slate-700">Câmbio da operação (R$ por {selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(event) => setExchangeRate(Number(event.target.value))} /></label>}<div className="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3"><span className="text-sm text-slate-600">Total da {operation === 'COMPRA' ? 'compra' : 'venda'}</span><strong className="text-slate-950">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selected.currency || 'BRL' }).format(total)}</strong></div></>}
+    {selected && <>
+      <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.14em] text-emerald-700">Ativo selecionado</p><p className="mt-1 font-semibold text-slate-950">{selected.symbol} · {selected.name}</p></div><button type="button" className="text-sm font-semibold text-slate-600" onClick={reset}>Trocar</button></div>
+      {isCryptoPurchase ? <>
+        <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">Valor investido ({selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.01" step="0.01" value={cryptoInvestmentAmount || ''} onChange={(event) => setCryptoInvestmentAmount(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Preço por {selected.symbol} ({selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={unitPrice || ''} onChange={(event) => setUnitPrice(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Data<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label></div>
+        <p className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">Você receberá aproximadamente <b>{calculatedCryptoQuantity.toFixed(8)}</b> {selected.symbol}. O Farol registra a fração, não uma unidade inteira.</p>
+      </> : <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">Quantidade<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.00000001" step="0.00000001" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Preço unitário ({selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={unitPrice} onChange={(event) => setUnitPrice(Number(event.target.value))} /></label><label className="text-sm font-medium text-slate-700">Data<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label></div>}
+      {selected.currency !== 'BRL' && <label className="block text-sm font-medium text-slate-700">Câmbio da operação (R$ por {selected.currency})<input className="mt-1 h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4" type="number" min="0.000001" step="0.000001" value={exchangeRate} onChange={(event) => setExchangeRate(Number(event.target.value))} /></label>}
+      <div className="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3"><span className="text-sm text-slate-600">Total da {operation === 'COMPRA' ? 'compra' : 'venda'}</span><strong className="text-slate-950">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: selected.currency || 'BRL' }).format(total)}</strong></div>
+    </>}
     {error && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <button type="button" onClick={submit} disabled={!selected || trade.isPending} className="w-full rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-white disabled:bg-slate-300">{trade.isPending ? 'Registrando...' : operation === 'COMPRA' ? 'Comprar e atualizar carteira' : 'Vender e atualizar carteira'}</button>
     </>}

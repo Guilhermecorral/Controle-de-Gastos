@@ -131,6 +131,11 @@ public class InvestmentController {
     @PostMapping("/wallet-earnings/{id}/revert")
     public WalletEarningResponse revertWalletEarning(@PathVariable Long id) { return corporateEventService.revert(id); }
 
+    @PostMapping("/wallet-earnings/batch")
+    public List<WalletEarningResponse> applyWalletEarningBatchAction(@Valid @RequestBody WalletEarningBatchActionRequest request) {
+        return corporateEventService.applyBatchHistoryAction(request);
+    }
+
     @PutMapping("/wallet-earnings/{id}")
     public WalletEarningResponse adjustWalletEarning(@PathVariable Long id,
                                                       @Valid @RequestBody WalletEarningAdjustmentRequest request) {

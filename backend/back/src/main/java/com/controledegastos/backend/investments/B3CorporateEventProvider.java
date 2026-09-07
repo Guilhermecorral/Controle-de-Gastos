@@ -141,6 +141,9 @@ public class B3CorporateEventProvider implements MarketDataProvider {
                 continue;
             }
             String isin = text(item, "isinCode");
+            if (isTechnicalFundSeries(candidateSymbols, isin)) {
+                continue;
+            }
             String symbol = resolveSymbol(candidateSymbols, text(item, "assetIssued"), isin);
             BigDecimal taxRate = eventType == CorporateEvent.EventType.JCP ? new BigDecimal("15.0000") : BigDecimal.ZERO;
             String sourceReference = sourceReference(requestedRoot, symbol, eventType, isin, recordDate, paymentDate, amount);
@@ -174,7 +177,7 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         String candidate = assetIssued == null ? "" : assetIssued.trim().toUpperCase(Locale.ROOT);
         if (candidate.matches("[A-Z]{4}\\d{1,2}")) {
             // An explicit class is safe only when that exact class is held in the wallet.
-            return candidateSymbols.contains(candidate) ? candidate : null;
+            return candidateSymbols.contains(candidate) && isUnambiguousFor(candidate, isin) ? candidate : null;
         }
         if (candidateSymbols.size() == 1) {
             String symbol = candidateSymbols.iterator().next();
@@ -194,10 +197,21 @@ public class B3CorporateEventProvider implements MarketDataProvider {
     private static boolean isUnambiguousFor(String symbol, String isin) {
         String normalizedSymbol = symbol.trim().toUpperCase(Locale.ROOT);
         String normalizedIsin = isin == null ? "" : isin.toUpperCase(Locale.ROOT);
-        if (normalizedSymbol.endsWith("11")) return true;
+        if (normalizedSymbol.endsWith("11")) return isCanonicalFundIsin(normalizedSymbol, normalizedIsin);
         if (normalizedSymbol.endsWith("3")) return normalizedIsin.contains("OR");
         if (normalizedSymbol.endsWith("4")) return normalizedIsin.contains("PR");
         return false;
+    }
+
+    private static boolean isTechnicalFundSeries(Set<String> candidateSymbols, String isin) {
+        return candidateSymbols.stream().anyMatch(symbol -> symbol.endsWith("11"))
+                && candidateSymbols.stream().filter(symbol -> symbol.endsWith("11"))
+                .noneMatch(symbol -> isCanonicalFundIsin(symbol, isin == null ? "" : isin.toUpperCase(Locale.ROOT)));
+    }
+
+    private static boolean isCanonicalFundIsin(String symbol, String isin) {
+        String root = tickerRoot(symbol);
+        return isin.startsWith("BR" + root + "CTF");
     }
 
     private static CorporateEvent.EventType mapEventType(String label) {

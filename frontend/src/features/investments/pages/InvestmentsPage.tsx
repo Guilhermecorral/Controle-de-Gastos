@@ -38,6 +38,7 @@ import {
   useUpdateInvestmentTaxEventMutation,
   useUpdateInvestmentGoalMutation,
   useAdjustWalletEarningMutation,
+  useBatchWalletEarningActionMutation,
   useConfirmWalletEarningMutation,
   useRevertWalletEarningMutation,
   useCorporateEventPilotAccessQuery,
@@ -578,12 +579,15 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
   const confirmEarningMutation = useConfirmWalletEarningMutation();
   const revertEarningMutation = useRevertWalletEarningMutation();
   const adjustEarningMutation = useAdjustWalletEarningMutation();
+  const batchEarningMutation = useBatchWalletEarningActionMutation();
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [adjustingEarning, setAdjustingEarning] = useState<WalletEarningResponse | null>(null);
   const [cancellingEarning, setCancellingEarning] = useState<WalletEarningResponse | null>(null);
   const [revertingEarning, setRevertingEarning] = useState<WalletEarningResponse | null>(null);
+  const [batchRevertingEarnings, setBatchRevertingEarnings] = useState<WalletEarningResponse[]>([]);
+  const [batchCancellingEarnings, setBatchCancellingEarnings] = useState<WalletEarningResponse[]>([]);
   const pending = schedules.filter((schedule) => schedule.status === 'AGUARDANDO');
   const automaticPending = automaticEarnings.filter((earning) => earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO');
   const receivedSchedules = schedules.filter((schedule) => schedule.status === 'RECEBIDO');
@@ -621,7 +625,15 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
         onSuccess: () => setNotice('Previsão restaurada na Agenda para nova revisão.'),
         onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível restaurar a previsão.')),
       });
-    }} busy={adjustEarningMutation.isPending || revertEarningMutation.isPending} />}
+    }} onBatchRevert={setBatchRevertingEarnings} onBatchRestore={(earnings) => {
+      setError('');
+      setNotice('');
+      batchEarningMutation.mutate({ earningIds: earnings.map((earning) => earning.id), action: 'RESTORE' }, {
+        onSuccess: () => setNotice(`${earnings.length} previsão(ões) restaurada(s) na Agenda para nova revisão.`),
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível restaurar as previsões selecionadas.')),
+      });
+    }} busy={adjustEarningMutation.isPending || revertEarningMutation.isPending || batchEarningMutation.isPending} />}
+    {!showHistory && automaticPending.length > 1 && <WalletEarningAgendaBatchActions earnings={automaticPending} onCancel={setBatchCancellingEarnings} busy={adjustEarningMutation.isPending || batchEarningMutation.isPending} />}
     {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : visibleSchedules.length === 0 && visibleAutomaticEarnings.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">{showHistory ? 'Nenhum registro no histórico' : 'Nenhum provento aguardando'}</p><p className="mt-1 text-sm text-slate-500">{showHistory ? 'Os proventos confirmados aparecem no Histórico Financeiro como receitas de investimento.' : 'Atualize a agenda beta para revisar os eventos encontrados na B3. Se uma fonte ainda não trouxer o evento, use o agendamento manual como contingência.'}</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{visibleAutomaticEarnings.map((earning) => <article key={`automatic-${earning.id}`} className="rounded-[20px] border border-emerald-100 bg-emerald-50/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{earning.symbol || earning.assetName}</p><WalletEarningBadge status={earning.status} /></div><p className="mt-1 text-xs text-slate-500">{earning.eventType === 'JCP' ? 'JCP' : earning.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} automático · fonte {earning.source}{earning.payerCnpj ? ` · CNPJ ${earning.payerCnpj}` : ''}</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(earning.netAmount)}</p><p className="text-xs text-slate-500">{earning.status === 'EFETIVADO' ? 'recebido' : 'líquido previsto'}</p></div></div><div className="mt-3 grid gap-2 border-t border-emerald-100 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{formatDate(earning.exDate)}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(earning.paymentDate)}</strong></span><span>{formatQuantity(earning.quantityEligible)} cotas · <strong className="text-slate-700">{currency(earning.grossAmount)} bruto</strong></span></div><p className="mt-2 text-xs text-slate-500">{earning.eventType === 'JCP' ? `JCP com IRRF de 15,00%: ${currency(earning.withheldAmount)} retidos.` : `${earning.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} sem retenção prevista: ${currency(earning.withheldAmount)} retidos.`}</p>{(earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO') && <div className="mt-3 flex flex-wrap justify-end gap-3"><button className="text-sm font-semibold text-slate-600 hover:text-slate-950" disabled={adjustEarningMutation.isPending} type="button" onClick={() => adjust(earning)}>Ajustar valor</button><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={adjustEarningMutation.isPending} type="button" onClick={() => cancel(earning)}>Cancelar</button>{earning.status === 'PENDENTE_CONCILIACAO' && <button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={confirmEarningMutation.isPending} type="button" onClick={() => confirmEarningMutation.mutate(earning.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível confirmar o recebimento.')) })}>{confirmEarningMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button>}</div>}</article>)}{visibleSchedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">Manual · {schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
     </SectionCard>
     <WalletEarningAdjustmentDialog earning={adjustingEarning} busy={adjustEarningMutation.isPending} onClose={() => setAdjustingEarning(null)} onSave={(grossAmount, withheldAmount) => {
@@ -650,13 +662,49 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
         onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível desfazer o recebimento.')),
       });
     }} />
+    <ConfirmationDialog open={batchRevertingEarnings.length > 0} title="Desfazer recebimentos selecionados" description={`Isso removerá ${batchRevertingEarnings.length} receita(s) do Histórico Financeiro, seus movimentos vinculados e reflexos fiscais. As previsões voltarão para a Agenda para nova revisão.`} confirmLabel="Desfazer selecionados" busy={batchEarningMutation.isPending} onClose={() => setBatchRevertingEarnings([])} onConfirm={() => {
+      setError('');
+      batchEarningMutation.mutate({ earningIds: batchRevertingEarnings.map((earning) => earning.id), action: 'REVERT' }, {
+        onSuccess: () => {
+          setNotice(`${batchRevertingEarnings.length} recebimento(s) foram desfeitos e voltaram para a Agenda.`);
+          setBatchRevertingEarnings([]);
+        },
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível desfazer os recebimentos selecionados.')),
+      });
+    }} />
+    <ConfirmationDialog open={batchCancellingEarnings.length > 0} title="Cancelar previsões selecionadas" description={`${batchCancellingEarnings.length} previsão(ões) sairão da Agenda sem criar receita. Você poderá restaurá-las pelo histórico se mudar de ideia.`} confirmLabel="Cancelar selecionadas" busy={batchEarningMutation.isPending} onClose={() => setBatchCancellingEarnings([])} onConfirm={() => {
+      setError('');
+      batchEarningMutation.mutate({ earningIds: batchCancellingEarnings.map((earning) => earning.id), action: 'CANCEL' }, {
+        onSuccess: () => {
+          setNotice(`${batchCancellingEarnings.length} previsão(ões) foram canceladas e ficaram disponíveis no histórico.`);
+          setBatchCancellingEarnings([]);
+        },
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível cancelar as previsões selecionadas.')),
+      });
+    }} />
   </>;
 }
 
-function WalletEarningHistoryActions({ earnings, onRevert, onRestore, busy }: { earnings: WalletEarningResponse[]; onRevert: (earning: WalletEarningResponse) => void; onRestore: (earning: WalletEarningResponse) => void; busy: boolean }) {
+function WalletEarningHistoryActions({ earnings, onRevert, onRestore, onBatchRevert, onBatchRestore, busy }: { earnings: WalletEarningResponse[]; onRevert: (earning: WalletEarningResponse) => void; onRestore: (earning: WalletEarningResponse) => void; onBatchRevert: (earnings: WalletEarningResponse[]) => void; onBatchRestore: (earnings: WalletEarningResponse[]) => void; busy: boolean }) {
   const reversible = earnings.filter((earning) => earning.status === 'EFETIVADO' || earning.status === 'CANCELADO');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  useEffect(() => setSelectedIds((current) => current.filter((id) => reversible.some((earning) => earning.id === id))), [earnings]);
   if (reversible.length === 0) return null;
-  return <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-semibold text-slate-800">Correções do histórico</p><p className="mt-1 text-xs leading-5 text-slate-500">Recebimentos confirmados podem ser desfeitos com segurança. Previsões canceladas podem voltar para a Agenda.</p><div className="mt-3 space-y-2">{reversible.map((earning) => <div key={earning.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"><span className="text-sm font-semibold text-slate-700">{earning.symbol || earning.assetName} · {currency(earning.netAmount)}</span>{earning.status === 'EFETIVADO' ? <button className="text-xs font-semibold text-rose-700 hover:text-rose-900 disabled:text-slate-300" type="button" disabled={busy} onClick={() => onRevert(earning)}>Desfazer recebimento</button> : <button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 disabled:text-slate-300" type="button" disabled={busy} onClick={() => onRestore(earning)}>Restaurar previsão</button>}</div>)}</div></div>;
+  const selected = reversible.filter((earning) => selectedIds.includes(earning.id));
+  const confirmed = selected.filter((earning) => earning.status === 'EFETIVADO');
+  const cancelled = selected.filter((earning) => earning.status === 'CANCELADO');
+  const toggle = (id: number) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const allSelected = selectedIds.length === reversible.length;
+  return <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">Correções do histórico</p><p className="mt-1 text-xs leading-5 text-slate-500">Selecione itens do mesmo estado para corrigir todos de uma vez.</p></div><label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" checked={allSelected} onChange={() => setSelectedIds(allSelected ? [] : reversible.map((earning) => earning.id))} /> Selecionar todos</label></div><div className="mt-3 flex flex-wrap gap-2"><button className="rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 disabled:border-slate-200 disabled:text-slate-300" type="button" disabled={busy || confirmed.length === 0 || confirmed.length !== selected.length} onClick={() => onBatchRevert(confirmed)}>Desfazer selecionados ({confirmed.length})</button><button className="rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 disabled:border-slate-200 disabled:text-slate-300" type="button" disabled={busy || cancelled.length === 0 || cancelled.length !== selected.length} onClick={() => onBatchRestore(cancelled)}>Restaurar selecionados ({cancelled.length})</button></div><div className="mt-3 space-y-2">{reversible.map((earning) => <div key={earning.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"><label className="flex min-w-0 cursor-pointer items-center gap-3"><input type="checkbox" checked={selectedIds.includes(earning.id)} onChange={() => toggle(earning.id)} /><span className="text-sm font-semibold text-slate-700">{earning.symbol || earning.assetName} · {currency(earning.netAmount)}</span></label>{earning.status === 'EFETIVADO' ? <button className="text-xs font-semibold text-rose-700 hover:text-rose-900 disabled:text-slate-300" type="button" disabled={busy} onClick={() => onRevert(earning)}>Desfazer recebimento</button> : <button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 disabled:text-slate-300" type="button" disabled={busy} onClick={() => onRestore(earning)}>Restaurar previsão</button>}</div>)}</div></div>;
+}
+
+function WalletEarningAgendaBatchActions({ earnings, onCancel, busy }: { earnings: WalletEarningResponse[]; onCancel: (earnings: WalletEarningResponse[]) => void; busy: boolean }) {
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  useEffect(() => setSelectedIds((current) => current.filter((id) => earnings.some((earning) => earning.id === id))), [earnings]);
+  const selected = earnings.filter((earning) => selectedIds.includes(earning.id));
+  const toggle = (id: number) => setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const allSelected = selectedIds.length === earnings.length;
+  return <div className="mb-3 rounded-[20px] border border-amber-200 bg-amber-50/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold text-amber-950">Limpar previsões da Agenda</p><p className="mt-1 text-xs leading-5 text-amber-900">Use para descartar resultados de teste ou itens repetidos. Nenhuma receita é alterada.</p></div><label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-amber-900"><input type="checkbox" checked={allSelected} onChange={() => setSelectedIds(allSelected ? [] : earnings.map((earning) => earning.id))} /> Selecionar todos</label></div><div className="mt-3 max-h-40 space-y-2 overflow-y-auto pr-1">{earnings.map((earning) => <label key={earning.id} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-sm text-slate-700"><span className="flex min-w-0 items-center gap-3"><input type="checkbox" checked={selectedIds.includes(earning.id)} onChange={() => toggle(earning.id)} /><span>{earning.symbol || earning.assetName} · {formatDate(earning.exDate)} · {currency(earning.netAmount)}</span></span></label>)}</div><button className="mt-3 rounded-full border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 disabled:border-slate-200 disabled:text-slate-300" type="button" disabled={busy || selected.length === 0} onClick={() => onCancel(selected)}>Cancelar selecionadas ({selected.length})</button></div>;
 }
 
 function WalletEarningAdjustmentDialog({ earning, busy, onClose, onSave }: { earning: WalletEarningResponse | null; busy: boolean; onClose: () => void; onSave: (grossAmount: number, withheldAmount: number) => void }) {

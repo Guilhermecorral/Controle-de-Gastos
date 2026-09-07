@@ -33,13 +33,13 @@ class B3CorporateEventProviderTest {
                   \"cashDividends\": [{
                     \"label\": \"%s\",
                     \"assetIssued\": \"%s\",
-                    \"isinCode\": \"BRTESTE\",
+                    \"isinCode\": \"%s\",
                     \"rate\": \"0,12345678\",
                     \"lastDatePrior\": \"01/09/2026\",
                     \"paymentDate\": \"15/09/2026\"
                   }]
                 }
-                """.formatted(label, symbol);
+                """.formatted(label, symbol, isinFor(symbol));
 
         var events = B3CorporateEventProvider.parseResponse(symbol, Set.of(symbol), objectMapper.readTree(response));
 
@@ -107,6 +107,24 @@ class B3CorporateEventProviderTest {
     }
 
     @org.junit.jupiter.api.Test
+    void ignoresTechnicalFundSeriesInsteadOfTreatingThemAsFundShares() throws Exception {
+        String response = """
+                { "cashDividends": [
+                  { "label": "RENDIMENTO", "assetIssued": "MXRF11", "isinCode": "BRMXRFCTF008", "rate": "0,10000000", "lastDatePrior": "31/07/2026", "paymentDate": "14/08/2026" },
+                  { "label": "RENDIMENTO", "assetIssued": "MXRF11", "isinCode": "BRMXRFR24M16", "rate": "0,02000000", "lastDatePrior": "31/07/2026", "paymentDate": "14/08/2026" },
+                  { "label": "RENDIMENTO", "assetIssued": "MXRF11", "isinCode": "BRMXRFR25M15", "rate": "0,06000000", "lastDatePrior": "31/07/2026", "paymentDate": "14/08/2026" }
+                ] }
+                """;
+
+        var events = B3CorporateEventProvider.parseResponse("MXRF", Set.of("MXRF11"), objectMapper.readTree(response));
+
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.symbol()).isEqualTo("MXRF11");
+            assertThat(event.amountPerUnit()).isEqualByComparingTo("0.10");
+        });
+    }
+
+    @org.junit.jupiter.api.Test
     void keepsResolvedEventsWhenAnAmbiguousClassHasNoTicker() {
         LocalDate exDate = LocalDate.of(2026, 9, 1);
         var ambiguous = new MarketDataProvider.CorporateEventData("b3:ambiguous", null, "BRBBDCACNPR8", EventType.JCP,
@@ -118,5 +136,11 @@ class B3CorporateEventProviderTest {
 
         assertThat(events).extracting(MarketDataProvider.CorporateEventData::symbol)
                 .containsExactly("BBAS3", null);
+    }
+
+    private String isinFor(String symbol) {
+        String root = symbol.replaceAll("\\d+$", "");
+        if (symbol.endsWith("11")) return "BR" + root + "CTF001";
+        return "BRTESTE" + (symbol.endsWith("3") ? "OR1" : "PR1");
     }
 }

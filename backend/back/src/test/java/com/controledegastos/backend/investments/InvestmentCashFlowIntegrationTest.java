@@ -217,7 +217,8 @@ class InvestmentCashFlowIntegrationTest {
                 .orElseThrow();
         corporateEvents.confirm(earning.id());
 
-        var reverted = corporateEvents.revert(earning.id());
+        var reverted = corporateEvents.applyBatchHistoryAction(new WalletEarningBatchActionRequest(
+                List.of(earning.id()), WalletEarningBatchAction.REVERT)).getFirst();
 
         assertThat(reverted.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO);
         assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user))
@@ -236,8 +237,10 @@ class InvestmentCashFlowIntegrationTest {
                 .findFirst()
                 .orElseThrow();
 
-        var cancelled = corporateEvents.adjust(earning.id(), new WalletEarningAdjustmentRequest(null, null, true, null));
-        var restored = corporateEvents.adjust(earning.id(), new WalletEarningAdjustmentRequest(null, null, null, true));
+        var cancelled = corporateEvents.applyBatchHistoryAction(new WalletEarningBatchActionRequest(
+                List.of(earning.id()), WalletEarningBatchAction.CANCEL)).getFirst();
+        var restored = corporateEvents.applyBatchHistoryAction(new WalletEarningBatchActionRequest(
+                List.of(earning.id()), WalletEarningBatchAction.RESTORE)).getFirst();
 
         assertThat(cancelled.status()).isEqualTo(WalletEarning.Status.CANCELADO);
         assertThat(restored.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO);

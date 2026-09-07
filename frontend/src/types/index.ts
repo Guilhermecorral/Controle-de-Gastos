@@ -646,6 +646,11 @@ export interface WalletEarningAdjustmentRequest {
   reopened?: boolean;
 }
 
+export interface WalletEarningBatchActionRequest {
+  earningIds: number[];
+  action: 'CANCEL' | 'REVERT' | 'RESTORE';
+}
+
 export interface InvestmentGoalRequest {
   name: string;
   targetAmount: number;
