@@ -47,7 +47,10 @@ public class CorporateEventService {
 
     @Transactional(readOnly = true)
     public InvestmentDtos.CorporateEventPilotAccessResponse pilotAccess() {
-        return new InvestmentDtos.CorporateEventPilotAccessResponse(pilotAccess.canUse(authenticatedUserService.getAuthenticatedUser()));
+        return new InvestmentDtos.CorporateEventPilotAccessResponse(
+                pilotAccess.canUse(authenticatedUserService.getAuthenticatedUser()),
+                marketDataProvider.getClass().getSimpleName()
+        );
     }
 
     @Transactional(readOnly = true)

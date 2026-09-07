@@ -85,4 +85,22 @@ class B3CorporateEventProviderTest {
             assertThat(event.resolutionStatus()).isEqualTo("TICKER_AMBIGUO");
         });
     }
+
+    @org.junit.jupiter.api.Test
+    void resolvesTheIsinFormatReturnedByB3ForBbas3() throws Exception {
+        String response = """
+                { "cashDividends": [{
+                  "label": "JRS CAP PROPRIO", "assetIssued": "BRBBASA04OR8", "isinCode": "BRBBASA04OR8",
+                  "rate": "0,10245643978", "lastDatePrior": "01/09/2026", "paymentDate": "11/09/2026"
+                }] }
+                """;
+
+        var events = B3CorporateEventProvider.parseResponse("BBAS", Set.of("BBAS3"), objectMapper.readTree(response));
+
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.symbol()).isEqualTo("BBAS3");
+            assertThat(event.resolutionStatus()).isEqualTo("VALIDO");
+            assertThat(event.paymentDate()).hasToString("2026-09-11");
+        });
+    }
 }

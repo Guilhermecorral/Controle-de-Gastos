@@ -616,6 +616,7 @@ export interface WalletEarningResponse {
 
 export interface CorporateEventPilotAccessResponse {
   available: boolean;
+  provider: string;
 }
 
 export interface CorporateEventPreviewResponse {

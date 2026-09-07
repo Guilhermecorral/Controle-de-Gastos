@@ -7,12 +7,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.io.InputStream;
 import java.math.BigDecimal;
-import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ public class B3CorporateEventProvider implements MarketDataProvider {
     // Jackson 2 remains an explicit library dependency while Spring Boot 4 exposes Jackson 3 beans.
     // Keep this adapter self-contained instead of requiring a legacy ObjectMapper bean from Spring.
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
     private final String baseUrl;
     private final long minimumDelayMs;
 
@@ -64,42 +67,42 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         for (int index = 0; index < roots.size(); index++) {
             String root = roots.get(index);
             try {
-                events.addAll(fetch(root, symbolsByRoot.get(root)));
+                List<CorporateEventData> rootEvents = fetch(root, symbolsByRoot.get(root));
+                events.addAll(rootEvents);
+                log.info("[B3_EVENTS] root={} candidates={}", root, rootEvents.size());
             } catch (Exception exception) {
                 log.warn("[B3_EVENTS] Unable to load corporate events for symbolRoot={} reason={}", root, exception.getMessage());
             }
             pauseBetweenRequests(index, roots.size());
         }
 
-        return events.stream()
+        List<CorporateEventData> eligibleEvents = events.stream()
                 .filter(event -> !event.exDate().isAfter(referenceDate))
                 .sorted(Comparator.comparing(CorporateEventData::exDate).thenComparing(CorporateEventData::symbol))
                 .toList();
+        log.info("[B3_EVENTS] symbols={} parsed={} eligibleAsOf={}", symbols.size(), events.size(), eligibleEvents.size());
+        return eligibleEvents;
     }
 
     private List<CorporateEventData> fetch(String symbolRoot, Set<String> candidateSymbols) throws Exception {
         String payload = Base64.getEncoder().encodeToString(("{\"issuingCompany\":\"" + symbolRoot + "\",\"language\":\"pt-br\"}")
                 .getBytes(StandardCharsets.UTF_8));
-        HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + SUPPLEMENT_PATH + payload).toURL().openConnection();
-        connection.setRequestMethod("GET");
-        connection.setConnectTimeout(8_000);
-        connection.setReadTimeout(15_000);
-        connection.setRequestProperty("Accept", "application/json");
-        connection.setRequestProperty("User-Agent", "FarolFinanceiro/1.4.5-beta.1 corporate-event-pilot");
-
-        int status = connection.getResponseCode();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + SUPPLEMENT_PATH + payload))
+                .timeout(Duration.ofSeconds(15))
+                .header("Accept", "application/json")
+                .header("User-Agent", "FarolFinanceiro/1.4.5-beta.1 corporate-event-pilot")
+                .GET()
+                .build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        int status = response.statusCode();
         if (status < 200 || status >= 300) {
-            throw new IllegalStateException("HTTP " + status);
+            throw new IllegalStateException("HTTP " + status + " da B3");
         }
-        try (InputStream stream = connection.getInputStream()) {
-            JsonNode root = objectMapper.readTree(stream);
-            if (root.isTextual()) {
-                root = objectMapper.readTree(root.asText());
-            }
-            return parseResponse(symbolRoot, candidateSymbols, root);
-        } finally {
-            connection.disconnect();
+        JsonNode root = objectMapper.readTree(response.body());
+        if (root.isTextual()) {
+            root = objectMapper.readTree(root.asText());
         }
+        return parseResponse(symbolRoot, candidateSymbols, root);
     }
 
     static List<CorporateEventData> parseResponse(String requestedSymbol, JsonNode root) {

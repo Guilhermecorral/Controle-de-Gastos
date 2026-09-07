@@ -185,7 +185,7 @@ public final class InvestmentDtos {
             BigDecimal realNetBalance
     ) {}
 
-    public record CorporateEventPilotAccessResponse(boolean available) {}
+    public record CorporateEventPilotAccessResponse(boolean available, String provider) {}
 
     public record CorporateEventPreviewResponse(
             String sourceReference,
