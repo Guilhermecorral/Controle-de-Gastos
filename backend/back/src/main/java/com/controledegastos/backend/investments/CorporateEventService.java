@@ -248,7 +248,13 @@ public class CorporateEventService {
     private List<PilotCandidate> pilotCandidates(User user) {
         List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
         LocalDate today = LocalDate.now();
-        return marketDataProvider.corporateEvents(today, symbolsOf(positions)).stream()
+        List<MarketDataProvider.CorporateEventData> events = marketDataProvider.corporateEvents(today, symbolsOf(positions));
+        if (events.isEmpty()) return List.of();
+        Set<String> existingReferences = walletEarningRepository.findSourceReferencesAlreadyInAgenda(user, events.stream()
+                .map(MarketDataProvider.CorporateEventData::sourceReference)
+                .collect(java.util.stream.Collectors.toSet()));
+        return events.stream()
+                .filter(data -> !existingReferences.contains(data.sourceReference()))
                 .map(data -> pilotCandidate(data, positions, today))
                 .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
                 .toList();
