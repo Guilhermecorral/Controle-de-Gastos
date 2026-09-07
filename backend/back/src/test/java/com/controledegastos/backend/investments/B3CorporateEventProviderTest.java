@@ -6,6 +6,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -102,5 +104,19 @@ class B3CorporateEventProviderTest {
             assertThat(event.resolutionStatus()).isEqualTo("VALIDO");
             assertThat(event.paymentDate()).hasToString("2026-09-11");
         });
+    }
+
+    @org.junit.jupiter.api.Test
+    void keepsResolvedEventsWhenAnAmbiguousClassHasNoTicker() {
+        LocalDate exDate = LocalDate.of(2026, 9, 1);
+        var ambiguous = new MarketDataProvider.CorporateEventData("b3:ambiguous", null, "BRBBDCACNPR8", EventType.JCP,
+                null, new BigDecimal("0.01"), new BigDecimal("15"), exDate, exDate.plusDays(10), "B3", "TICKER_AMBIGUO");
+        var resolved = new MarketDataProvider.CorporateEventData("b3:bbas3", "BBAS3", "BRBBASA04OR8", EventType.JCP,
+                null, new BigDecimal("0.10"), new BigDecimal("15"), exDate, exDate.plusDays(10), "B3", "VALIDO");
+
+        var events = B3CorporateEventProvider.sortEligibleEvents(exDate, List.of(ambiguous, resolved));
+
+        assertThat(events).extracting(MarketDataProvider.CorporateEventData::symbol)
+                .containsExactly("BBAS3", null);
     }
 }

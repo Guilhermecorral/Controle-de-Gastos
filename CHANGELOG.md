@@ -9,6 +9,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - Eventos com classe de ação ambígua, como uma PN retornada para uma carteira que possui apenas BBDC3, são rejeitados antes de entrar na Agenda.
 - O adaptador B3 não depende mais de um bean legado do Jackson 2, evitando falha de inicialização no Spring Boot 4 quando o piloto é habilitado.
 - A prévia B3 passa a informar a fonte realmente ativa e o backend registra, por atualização manual, quantos eventos foram lidos e quantos ficaram elegíveis; isso permite diagnosticar configuração ou resposta da fonte sem registrar dados pessoais.
+- Eventos B3 sem ticker resolvido não interrompem mais a prévia: eles são mantidos como itens para revisão, enquanto os ativos vinculados com segurança continuam aparecendo normalmente.
 - FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
 

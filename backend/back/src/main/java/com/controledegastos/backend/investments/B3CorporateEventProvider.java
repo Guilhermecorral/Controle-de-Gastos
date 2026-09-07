@@ -76,12 +76,19 @@ public class B3CorporateEventProvider implements MarketDataProvider {
             pauseBetweenRequests(index, roots.size());
         }
 
-        List<CorporateEventData> eligibleEvents = events.stream()
-                .filter(event -> !event.exDate().isAfter(referenceDate))
-                .sorted(Comparator.comparing(CorporateEventData::exDate).thenComparing(CorporateEventData::symbol))
-                .toList();
+        List<CorporateEventData> eligibleEvents = sortEligibleEvents(referenceDate, events);
         log.info("[B3_EVENTS] symbols={} parsed={} eligibleAsOf={}", symbols.size(), events.size(), eligibleEvents.size());
         return eligibleEvents;
+    }
+
+    static List<CorporateEventData> sortEligibleEvents(LocalDate referenceDate, List<CorporateEventData> events) {
+        return events.stream()
+                .filter(event -> !event.exDate().isAfter(referenceDate))
+                // Unresolved ON/PN classes are intentionally returned as "Revisar" in the pilot.
+                // They must not prevent confirmed tickers from appearing in the same response.
+                .sorted(Comparator.comparing(CorporateEventData::exDate)
+                        .thenComparing(CorporateEventData::symbol, Comparator.nullsLast(String::compareTo)))
+                .toList();
     }
 
     private List<CorporateEventData> fetch(String symbolRoot, Set<String> candidateSymbols) throws Exception {
