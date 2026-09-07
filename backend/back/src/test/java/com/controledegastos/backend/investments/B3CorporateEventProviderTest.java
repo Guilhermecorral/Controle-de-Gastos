@@ -89,10 +89,10 @@ class B3CorporateEventProviderTest {
     @org.junit.jupiter.api.Test
     void resolvesTheIsinFormatReturnedByB3ForBbas3() throws Exception {
         String response = """
-                { "cashDividends": [{
+                [{ "cashDividends": [{
                   "label": "JRS CAP PROPRIO", "assetIssued": "BRBBASA04OR8", "isinCode": "BRBBASA04OR8",
                   "rate": "0,10245643978", "lastDatePrior": "01/09/2026", "paymentDate": "11/09/2026"
-                }] }
+                }] }]
                 """;
 
         var events = B3CorporateEventProvider.parseResponse("BBAS", Set.of("BBAS3"), objectMapper.readTree(response));

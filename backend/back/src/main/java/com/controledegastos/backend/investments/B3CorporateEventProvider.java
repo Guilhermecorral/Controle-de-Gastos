@@ -110,6 +110,15 @@ public class B3CorporateEventProvider implements MarketDataProvider {
     }
 
     static List<CorporateEventData> parseResponse(String requestedRoot, Set<String> candidateSymbols, JsonNode root) {
+        // The public B3 endpoint wraps company data in an array, while fixtures and older
+        // responses may provide the company object directly. Support both representations.
+        if (root.isArray()) {
+            List<CorporateEventData> parsedCompanies = new ArrayList<>();
+            for (JsonNode company : root) {
+                parsedCompanies.addAll(parseResponse(requestedRoot, candidateSymbols, company));
+            }
+            return parsedCompanies;
+        }
         JsonNode events = root.path("cashDividends");
         if (!events.isArray()) {
             return List.of();
