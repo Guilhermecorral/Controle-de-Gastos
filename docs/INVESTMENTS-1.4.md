@@ -24,7 +24,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 06/09/2026. A versão a
 - Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto.
 - Eventos fiscais de proventos, vendas e resgates podem ser marcados como isentos ou ter a retenção corrigida com base no comprovante. Isso não substitui a apuração de regimes ainda pendentes.
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
-- O simulador combina métricas, tabela por período e gráfico de linha do saldo projetado.
+- O simulador combina métricas, tabela completa mês a mês e gráfico de linha com início, quartis e vencimento.
 - Eventos corporativos e proventos do usuário são separados: `CorporateEvent` guarda o anúncio global e `WalletEarning` congela quantidade, bruto, IRRF e líquido pela Data Com.
 - A Agenda de Proventos usa `MarketDataProvider`. O provedor `B3CorporateEventProvider` é experimental e só entra em operação com `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`, piloto habilitado e acesso autorizado. Ele consulta serialmente os ativos da carteira, preserva Data Com e pagamento, e produz apenas uma prévia revisável: não cria saldo, receita ou lançamento sem confirmação.
 - Proventos ficam provisionados até a data de pagamento e só criam uma receita `INVESTIMENTO` após a confirmação do usuário. JCP exibe IRRF de 15% no fluxo desta versão.

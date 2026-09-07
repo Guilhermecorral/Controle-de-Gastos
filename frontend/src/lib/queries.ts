@@ -172,7 +172,9 @@ export function useDeleteInvestmentMutation() {
 export function useInvestmentProjectionMutation() {
   return useMutation({
     mutationFn: async (params: InvestmentProjectionRequest) =>
-      (await api.get<InvestmentProjectionResponse>('/investments/projections', { params })).data,
+      (await api.get<InvestmentProjectionResponse>('/investments/projections', {
+        params: { ...params, timelinePeriod: 'MONTHLY' },
+      })).data,
   })
 }
 

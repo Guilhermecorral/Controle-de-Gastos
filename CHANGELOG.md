@@ -9,7 +9,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - Eventos com classe de ação ambígua, como uma PN retornada para uma carteira que possui apenas BBDC3, são rejeitados antes de entrar na Agenda.
 - O adaptador B3 não depende mais de um bean legado do Jackson 2, evitando falha de inicialização no Spring Boot 4 quando o piloto é habilitado.
 - FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.
-- O simulador de renda fixa mostra marcos de prazo e poder de compra real a partir da inflação anual informada pelo usuário.
+- O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
 
 ## [1.4.4] - 2026-09-06
 
