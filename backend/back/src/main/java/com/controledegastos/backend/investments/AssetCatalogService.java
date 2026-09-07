@@ -33,6 +33,11 @@ public class AssetCatalogService {
             asset(InvestmentPosition.AssetType.ACAO, "BBSE3", "BBSE3.SA", "BB Seguridade ON", "BR", "B3", "BRL"),
             asset(InvestmentPosition.AssetType.FII, "HGLG11", "HGLG11.SA", "CSHG Logística FII", "BR", "B3", "BRL"),
             asset(InvestmentPosition.AssetType.FII, "KNCR11", "KNCR11.SA", "Kinea Rendimentos Imobiliários FII", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.FIAGRO, "RURA11", "RURA11.SA", "Itaú Asset Rural Fiagro", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.FIAGRO, "KNCA11", "KNCA11.SA", "Kinea Crédito Agro Fiagro", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.FIAGRO, "XPCA11", "XPCA11.SA", "XP Crédito Agrícola Fiagro", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.FIAGRO, "IAGR11", "IAGR11.SA", "Interamericano Agro Fiagro", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.FIAGRO, "VGIA11", "VGIA11.SA", "Valora CRA Fiagro", "BR", "B3", "BRL"),
             asset(InvestmentPosition.AssetType.ACAO, "AAPL", "AAPL", "Apple Inc.", "US", "NASDAQ", "USD"),
             asset(InvestmentPosition.AssetType.ACAO, "MSFT", "MSFT", "Microsoft Corporation", "US", "NASDAQ", "USD"),
             asset(InvestmentPosition.AssetType.ACAO, "NVDA", "NVDA", "NVIDIA Corporation", "US", "NASDAQ", "USD"),
@@ -77,12 +82,14 @@ public class AssetCatalogService {
     }
 
     private List<AssetSearchResponse> searchBrazilianAssets(String query, InvestmentPosition.AssetType type) throws Exception {
+        String fundSubtype = brapiFundSubtype(type);
         String uri = brapiBaseUrl + "/api/quote/list?search=" + encode(query) + "&limit=12"
-                + (type == InvestmentPosition.AssetType.FII || type == InvestmentPosition.AssetType.FIAGRO ? "&type=fund&subType=fii" : "&type=stock");
+                + (fundSubtype == null ? "&type=stock" : "&type=fund&subType=" + fundSubtype);
         if (brapiToken != null && !brapiToken.isBlank()) uri += "&token=" + encode(brapiToken);
         JsonNode stocks = send(uri, null).path("stocks");
         List<AssetSearchResponse> results = new ArrayList<>();
         for (JsonNode stock : stocks) {
+            if (fundSubtype != null && !fundSubtype.equalsIgnoreCase(stock.path("subType").asText(""))) continue;
             String symbol = stock.path("stock").asText("").toUpperCase(Locale.ROOT);
             if (symbol.isBlank() || symbol.matches(".*\\dF$")) continue;
             BigDecimal price = stock.path("close").isNumber() ? stock.path("close").decimalValue() : null;
@@ -90,6 +97,14 @@ public class AssetCatalogService {
                     "BR", "B3", "BRL", price, "BRAPI"));
         }
         return results;
+    }
+
+    static String brapiFundSubtype(InvestmentPosition.AssetType type) {
+        return switch (type) {
+            case FII -> "fii";
+            case FIAGRO -> "fi-agro";
+            default -> null;
+        };
     }
 
     private List<AssetSearchResponse> searchExchangeAssets(String query, InvestmentPosition.AssetType type) throws Exception {

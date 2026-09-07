@@ -11,6 +11,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - A prévia B3 passa a informar a fonte realmente ativa e o backend registra, por atualização manual, quantos eventos foram lidos e quantos ficaram elegíveis; isso permite diagnosticar configuração ou resposta da fonte sem registrar dados pessoais.
 - Eventos B3 sem ticker resolvido não interrompem mais a prévia: eles são mantidos como itens para revisão, enquanto os ativos vinculados com segurança continuam aparecendo normalmente.
 - Atualizações repetidas da Agenda ocultam eventos B3 que já foram publicados, confirmados ou cancelados para o mesmo usuário, evitando que a mesma previsão volte para seleção.
+- A compra e a importação assistida passam a reconhecer FIAGRO separadamente de FII; a busca BRAPI consulta o subtipo `fi-agro` e possui catálogo de contingência para os principais tickers.
 - FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
 

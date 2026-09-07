@@ -314,6 +314,7 @@ public class InvestmentImportService {
 
     private InvestmentPosition.AssetType normalizeAssetType(String value) {
         String normalized = normalizeHeader(value);
+        if (normalized.contains("fiagro") || normalized.contains("fundoagro")) return InvestmentPosition.AssetType.FIAGRO;
         if (normalized.contains("fii") || normalized.contains("fundoimobiliario")) return InvestmentPosition.AssetType.FII;
         if (normalized.contains("cripto") || normalized.contains("crypto")) return InvestmentPosition.AssetType.CRIPTO;
         return InvestmentPosition.AssetType.ACAO;
