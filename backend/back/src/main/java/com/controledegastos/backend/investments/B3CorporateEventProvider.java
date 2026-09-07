@@ -35,16 +35,16 @@ public class B3CorporateEventProvider implements MarketDataProvider {
     private static final DateTimeFormatter B3_DATE = DateTimeFormatter.ofPattern("dd/MM/uuuu");
     private static final String SUPPLEMENT_PATH = "/listedCompaniesProxy/CompanyCall/GetListedSupplementCompany/";
 
-    private final ObjectMapper objectMapper;
+    // Jackson 2 remains an explicit library dependency while Spring Boot 4 exposes Jackson 3 beans.
+    // Keep this adapter self-contained instead of requiring a legacy ObjectMapper bean from Spring.
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final String baseUrl;
     private final long minimumDelayMs;
 
     public B3CorporateEventProvider(
-            ObjectMapper objectMapper,
             @Value("${app.investments.corporate-events.b3-base-url:https://sistemaswebb3-listados.b3.com.br}") String baseUrl,
             @Value("${app.investments.corporate-events.b3-minimum-delay-ms:300}") long minimumDelayMs
     ) {
-        this.objectMapper = objectMapper;
         this.baseUrl = baseUrl.replaceAll("/+$", "");
         this.minimumDelayMs = Math.max(0, minimumDelayMs);
     }
