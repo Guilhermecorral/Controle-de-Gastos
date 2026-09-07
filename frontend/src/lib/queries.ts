@@ -280,6 +280,19 @@ export function useConfirmWalletEarningMutation() {
   })
 }
 
+export function useRevertWalletEarningMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => (await api.post<WalletEarningResponse>(`/investments/wallet-earnings/${id}/revert`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] })
+    },
+  })
+}
+
 export function useAdjustWalletEarningMutation() {
   const queryClient = useQueryClient()
   return useMutation({

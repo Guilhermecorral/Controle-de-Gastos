@@ -128,6 +128,9 @@ public class InvestmentController {
     @PostMapping("/wallet-earnings/{id}/confirm")
     public WalletEarningResponse confirmWalletEarning(@PathVariable Long id) { return corporateEventService.confirm(id); }
 
+    @PostMapping("/wallet-earnings/{id}/revert")
+    public WalletEarningResponse revertWalletEarning(@PathVariable Long id) { return corporateEventService.revert(id); }
+
     @PutMapping("/wallet-earnings/{id}")
     public WalletEarningResponse adjustWalletEarning(@PathVariable Long id,
                                                       @Valid @RequestBody WalletEarningAdjustmentRequest request) {

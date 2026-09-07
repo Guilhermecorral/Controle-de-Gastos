@@ -43,7 +43,8 @@ class CorporateEventServiceTest {
         InvestmentMovement purchase = InvestmentMovement.builder().position(position)
                 .movementType(InvestmentMovement.MovementType.COMPRA).quantity(BigDecimal.ONE).eventDate(exDate).build();
         var published = event("b3:petr4:published", exDate);
-        var newEvent = event("b3:petr4:new", exDate);
+        var newEvent = new MarketDataProvider.CorporateEventData("b3:petr4:new", "PETR4", "BRPETRACNPR6", CorporateEvent.EventType.DIVIDENDO,
+                null, new BigDecimal("0.11"), BigDecimal.ZERO, exDate, exDate.plusDays(5), "B3_EXPERIMENTAL", "VALIDO");
 
         when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
         doNothing().when(pilotAccess).require(user);

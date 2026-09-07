@@ -22,6 +22,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -142,11 +143,31 @@ public class B3CorporateEventProvider implements MarketDataProvider {
             String isin = text(item, "isinCode");
             String symbol = resolveSymbol(candidateSymbols, text(item, "assetIssued"), isin);
             BigDecimal taxRate = eventType == CorporateEvent.EventType.JCP ? new BigDecimal("15.0000") : BigDecimal.ZERO;
-            String sourceReference = "b3:" + requestedRoot + ":" + eventType + ":" + isin + ":" + recordDate + ":" + paymentDate + ":" + amount.toPlainString();
+            String sourceReference = sourceReference(requestedRoot, symbol, eventType, isin, recordDate, paymentDate, amount);
             parsed.add(new CorporateEventData(sourceReference, symbol, isin, eventType, null, amount, taxRate,
                     recordDate, paymentDate, "B3_EXPERIMENTAL", symbol == null ? "TICKER_AMBIGUO" : "VALIDO"));
         }
-        return parsed;
+        return deduplicateEquivalentEvents(parsed);
+    }
+
+    private static String sourceReference(String requestedRoot, String symbol, CorporateEvent.EventType eventType,
+                                          String isin, LocalDate recordDate, LocalDate paymentDate, BigDecimal amount) {
+        // The B3 payload may repeat one economic event under technical ISIN variants.
+        // A resolved ticker lets us keep a stable reference without creating repeated agenda entries.
+        String identity = symbol == null || symbol.isBlank() ? requestedRoot + ":" + isin : symbol;
+        return "b3:" + identity + ":" + eventType + ":" + recordDate + ":" + paymentDate + ":" + amount.toPlainString();
+    }
+
+    private static List<CorporateEventData> deduplicateEquivalentEvents(List<CorporateEventData> events) {
+        var distinct = new LinkedHashMap<String, CorporateEventData>();
+        for (CorporateEventData event : events) {
+            String key = event.symbol() == null
+                    ? event.sourceReference()
+                    : event.symbol() + ":" + event.eventType() + ":" + event.exDate() + ":" + event.paymentDate()
+                    + ":" + event.amountPerUnit().stripTrailingZeros().toPlainString() + ":" + event.taxRate().stripTrailingZeros().toPlainString();
+            distinct.putIfAbsent(key, event);
+        }
+        return List.copyOf(distinct.values());
     }
 
     private static String resolveSymbol(Set<String> candidateSymbols, String assetIssued, String isin) {

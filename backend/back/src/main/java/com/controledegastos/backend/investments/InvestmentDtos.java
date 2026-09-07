@@ -265,7 +265,8 @@ public final class InvestmentDtos {
     public record WalletEarningAdjustmentRequest(
             @DecimalMin(value = "0.01") BigDecimal grossAmount,
             @DecimalMin(value = "0.00") BigDecimal withheldAmount,
-            Boolean cancelled
+            Boolean cancelled,
+            Boolean reopened
     ) {}
 
     public record GoalRequest(

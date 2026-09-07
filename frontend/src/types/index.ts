@@ -643,6 +643,7 @@ export interface WalletEarningAdjustmentRequest {
   grossAmount?: number;
   withheldAmount?: number;
   cancelled?: boolean;
+  reopened?: boolean;
 }
 
 export interface InvestmentGoalRequest {

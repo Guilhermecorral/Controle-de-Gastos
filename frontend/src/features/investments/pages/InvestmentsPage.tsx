@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useDeferredValue, useState } from 'react';
+import { FormEvent, ReactNode, useDeferredValue, useEffect, useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, BarChart3, CalendarDays, Clock3, Plus, Search, X } from 'lucide-react';
 import {
   InvestmentAssetSearchResponse,
@@ -39,13 +39,14 @@ import {
   useUpdateInvestmentGoalMutation,
   useAdjustWalletEarningMutation,
   useConfirmWalletEarningMutation,
+  useRevertWalletEarningMutation,
   useCorporateEventPilotAccessQuery,
   useCorporateEventPreviewMutation,
   usePublishCorporateEventPreviewMutation,
   useWalletEarningsQuery,
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
-import { Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
+import { ConfirmationDialog, Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import { FixedIncomeRedemption, TaxRegimeFields } from '../components/FixedIncomeTools';
 import TaxClosingPanel from '../components/TaxClosingPanel';
@@ -575,9 +576,13 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
   const receiveMutation = useReceiveInvestmentIncomeScheduleMutation();
   const deleteMutation = useDeleteInvestmentIncomeScheduleMutation();
   const confirmEarningMutation = useConfirmWalletEarningMutation();
+  const revertEarningMutation = useRevertWalletEarningMutation();
   const adjustEarningMutation = useAdjustWalletEarningMutation();
   const [error, setError] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [adjustingEarning, setAdjustingEarning] = useState<WalletEarningResponse | null>(null);
+  const [cancellingEarning, setCancellingEarning] = useState<WalletEarningResponse | null>(null);
+  const [revertingEarning, setRevertingEarning] = useState<WalletEarningResponse | null>(null);
   const pending = schedules.filter((schedule) => schedule.status === 'AGUARDANDO');
   const automaticPending = automaticEarnings.filter((earning) => earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO');
   const receivedSchedules = schedules.filter((schedule) => schedule.status === 'RECEBIDO');
@@ -595,29 +600,74 @@ function IncomeCalendar({ schedules, automaticEarnings, loading, onAdd }: { sche
     deleteMutation.mutate(id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover o provento.')) });
   };
   const adjust = (earning: WalletEarningResponse) => {
-    const gross = window.prompt('Valor bruto recebido (R$).', String(earning.grossAmount));
-    if (gross == null) return;
-    const withheld = window.prompt('Imposto retido na fonte (R$).', String(earning.withheldAmount));
-    if (withheld == null) return;
-    const grossAmount = Number(gross.replace(',', '.'));
-    const withheldAmount = Number(withheld.replace(',', '.'));
-    if (!Number.isFinite(grossAmount) || !Number.isFinite(withheldAmount)) return setError('Informe números válidos para o bruto e a retenção.');
-    setError('');
-    adjustEarningMutation.mutate({ id: earning.id, data: { grossAmount, withheldAmount } }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível ajustar o provento.')) });
+    setAdjustingEarning(earning);
   };
   const cancel = (earning: WalletEarningResponse) => {
-    if (!window.confirm(`Cancelar o provento previsto de ${earning.symbol || earning.assetName}?`)) return;
-    setError('');
-    adjustEarningMutation.mutate({ id: earning.id, data: { cancelled: true } }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível cancelar o provento.')) });
+    setCancellingEarning(earning);
   };
-  return <SectionCard title="Agenda de proventos">
+  return <>
+    <SectionCard title="Agenda de proventos">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div><p className="text-sm text-slate-500">Eventos automáticos congelam a quantidade na Data Com e só viram receita após sua confirmação.</p><p className="mt-2 text-sm font-semibold text-emerald-700">{currency(upcomingValue)} líquidos aguardando</p></div>
       <div className="flex flex-wrap gap-2"><CorporateEventPilotPanel />{historyCount > 0 && <button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setShowHistory((current) => !current)}>{showHistory ? 'Ocultar histórico' : `Ver histórico (${historyCount})`}</button>}<button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={onAdd}><Plus className="mr-1 inline" size={15} /> Agendar manualmente</button></div>
     </div>
     {error && <p className="mb-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
     {loading ? <p className="py-6 text-center text-sm text-slate-500">Carregando agenda...</p> : visibleSchedules.length === 0 && visibleAutomaticEarnings.length === 0 ? <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><CalendarDays className="mx-auto text-slate-400" size={24} /><p className="mt-3 text-sm font-semibold text-slate-700">{showHistory ? 'Nenhum registro no histórico' : 'Nenhum provento aguardando'}</p><p className="mt-1 text-sm text-slate-500">{showHistory ? 'Os proventos confirmados aparecem no Histórico Financeiro como receitas de investimento.' : 'Atualize a agenda beta para revisar os eventos encontrados na B3. Se uma fonte ainda não trouxer o evento, use o agendamento manual como contingência.'}</p></div> : <div className="max-h-[720px] space-y-3 overflow-y-auto overflow-x-hidden pr-2">{visibleAutomaticEarnings.map((earning) => <article key={`automatic-${earning.id}`} className="rounded-[20px] border border-emerald-100 bg-emerald-50/40 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{earning.symbol || earning.assetName}</p><WalletEarningBadge status={earning.status} /></div><p className="mt-1 text-xs text-slate-500">{earning.eventType === 'JCP' ? 'JCP' : earning.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} automático · fonte {earning.source}{earning.payerCnpj ? ` · CNPJ ${earning.payerCnpj}` : ''}</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(earning.netAmount)}</p><p className="text-xs text-slate-500">{earning.status === 'EFETIVADO' ? 'recebido' : 'líquido previsto'}</p></div></div><div className="mt-3 grid gap-2 border-t border-emerald-100 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{formatDate(earning.exDate)}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(earning.paymentDate)}</strong></span><span>{formatQuantity(earning.quantityEligible)} cotas · <strong className="text-slate-700">{currency(earning.grossAmount)} bruto</strong></span></div><p className="mt-2 text-xs text-slate-500">{earning.eventType === 'JCP' ? `JCP com IRRF de 15,00%: ${currency(earning.withheldAmount)} retidos.` : `${earning.eventType === 'RENDIMENTO' ? 'Rendimento' : 'Dividendo'} sem retenção prevista: ${currency(earning.withheldAmount)} retidos.`}</p>{(earning.status === 'PROVISIONADO' || earning.status === 'PENDENTE_CONCILIACAO') && <div className="mt-3 flex flex-wrap justify-end gap-3"><button className="text-sm font-semibold text-slate-600 hover:text-slate-950" disabled={adjustEarningMutation.isPending} type="button" onClick={() => adjust(earning)}>Ajustar valor</button><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={adjustEarningMutation.isPending} type="button" onClick={() => cancel(earning)}>Cancelar</button>{earning.status === 'PENDENTE_CONCILIACAO' && <button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={confirmEarningMutation.isPending} type="button" onClick={() => confirmEarningMutation.mutate(earning.id, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível confirmar o recebimento.')) })}>{confirmEarningMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button>}</div>}</article>)}{visibleSchedules.map((schedule) => <article key={schedule.id} className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><p className="font-semibold text-slate-900">{schedule.symbol || schedule.assetName}</p><span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${schedule.status === 'RECEBIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{schedule.status === 'RECEBIDO' ? 'Recebido' : 'Aguardando'}</span></div><p className="mt-1 text-xs text-slate-500">Manual · {schedule.incomeType === 'DIVIDENDO' ? 'Dividendo' : 'Rendimento'} · {schedule.amountPerUnit.toFixed(4).replace('.', ',')} por cota</p></div><div className="text-right"><p className="font-semibold text-slate-900">{currency(schedule.netAmount)}</p><p className="text-xs text-slate-500">líquido estimado</p></div></div><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-500 sm:grid-cols-3"><span>Data Com: <strong className="text-slate-700">{schedule.exDate ? formatDate(schedule.exDate) : 'Não informada'}</strong></span><span>Pagamento: <strong className="text-slate-700">{formatDate(schedule.paymentDate)}</strong></span><span>Imposto: <strong className="text-slate-700">{schedule.taxRate.toFixed(2).replace('.', ',')}% · {currency(schedule.taxAmount)}</strong></span></div>{schedule.status === 'AGUARDANDO' && <div className="mt-3 flex justify-end gap-3"><button className="text-sm font-semibold text-slate-500 hover:text-rose-700" disabled={deleteMutation.isPending} type="button" onClick={() => remove(schedule.id)}>Remover</button><button className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-slate-300" disabled={receiveMutation.isPending} type="button" onClick={() => receive(schedule.id)}>{receiveMutation.isPending ? 'Confirmando...' : 'Confirmar recebimento'}</button></div>}</article>)}</div>}
-  </SectionCard>;
+    </SectionCard>
+    {showHistory && <WalletEarningHistoryActions earnings={historicalEarnings} onRevert={setRevertingEarning} onRestore={(earning) => adjustEarningMutation.mutate({ id: earning.id, data: { reopened: true } }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível restaurar a previsão.')) })} busy={adjustEarningMutation.isPending || revertEarningMutation.isPending} />}
+    <WalletEarningAdjustmentDialog earning={adjustingEarning} busy={adjustEarningMutation.isPending} onClose={() => setAdjustingEarning(null)} onSave={(grossAmount, withheldAmount) => {
+      setError('');
+      adjustEarningMutation.mutate({ id: adjustingEarning!.id, data: { grossAmount, withheldAmount } }, {
+        onSuccess: () => setAdjustingEarning(null),
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível ajustar o provento.')),
+      });
+    }} />
+    <ConfirmationDialog open={cancellingEarning != null} title="Cancelar previsão de provento" description={`A previsão de ${cancellingEarning?.symbol || cancellingEarning?.assetName || ''} sairá da Agenda, sem criar receita. Você poderá restaurá-la pelo histórico se mudar de ideia.`} confirmLabel="Cancelar previsão" busy={adjustEarningMutation.isPending} onClose={() => setCancellingEarning(null)} onConfirm={() => {
+      if (!cancellingEarning) return;
+      setError('');
+      adjustEarningMutation.mutate({ id: cancellingEarning.id, data: { cancelled: true } }, {
+        onSuccess: () => setCancellingEarning(null),
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível cancelar o provento.')),
+      });
+    }} />
+    <ConfirmationDialog open={revertingEarning != null} title="Desfazer recebimento confirmado" description={`Isso removerá a receita de ${revertingEarning?.symbol || revertingEarning?.assetName || ''} do Histórico Financeiro, o movimento vinculado e o reflexo fiscal. A previsão voltará para a Agenda para você revisar ou corrigir.`} confirmLabel="Desfazer recebimento" busy={revertEarningMutation.isPending} onClose={() => setRevertingEarning(null)} onConfirm={() => {
+      if (!revertingEarning) return;
+      setError('');
+      revertEarningMutation.mutate(revertingEarning.id, {
+        onSuccess: () => setRevertingEarning(null),
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível desfazer o recebimento.')),
+      });
+    }} />
+  </>;
+}
+
+function WalletEarningHistoryActions({ earnings, onRevert, onRestore, busy }: { earnings: WalletEarningResponse[]; onRevert: (earning: WalletEarningResponse) => void; onRestore: (earning: WalletEarningResponse) => void; busy: boolean }) {
+  const reversible = earnings.filter((earning) => earning.status === 'EFETIVADO' || earning.status === 'CANCELADO');
+  if (reversible.length === 0) return null;
+  return <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-semibold text-slate-800">Correções do histórico</p><p className="mt-1 text-xs leading-5 text-slate-500">Recebimentos confirmados podem ser desfeitos com segurança. Previsões canceladas podem voltar para a Agenda.</p><div className="mt-3 space-y-2">{reversible.map((earning) => <div key={earning.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"><span className="text-sm font-semibold text-slate-700">{earning.symbol || earning.assetName} · {currency(earning.netAmount)}</span>{earning.status === 'EFETIVADO' ? <button className="text-xs font-semibold text-rose-700 hover:text-rose-900 disabled:text-slate-300" type="button" disabled={busy} onClick={() => onRevert(earning)}>Desfazer recebimento</button> : <button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 disabled:text-slate-300" type="button" disabled={busy} onClick={() => onRestore(earning)}>Restaurar previsão</button>}</div>)}</div></div>;
+}
+
+function WalletEarningAdjustmentDialog({ earning, busy, onClose, onSave }: { earning: WalletEarningResponse | null; busy: boolean; onClose: () => void; onSave: (grossAmount: number, withheldAmount: number) => void }) {
+  const [gross, setGross] = useState('');
+  const [withheld, setWithheld] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setGross(earning ? String(earning.grossAmount).replace('.', ',') : '');
+    setWithheld(earning ? String(earning.withheldAmount).replace('.', ',') : '');
+    setError('');
+  }, [earning]);
+  if (!earning) return null;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const grossAmount = parseDecimalInput(gross);
+    const withheldAmount = parseDecimalInput(withheld);
+    if (grossAmount <= 0 || withheldAmount < 0 || withheldAmount > grossAmount) {
+      setError('Informe um valor bruto positivo e uma retenção entre zero e o valor bruto.');
+      return;
+    }
+    onSave(grossAmount, withheldAmount);
+  };
+  return <ModalShell eyebrow="Agenda" title={`Ajustar ${earning.symbol || earning.assetName}`} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="rounded-[20px] bg-amber-50 p-4 text-sm leading-6 text-amber-900">Use os valores do comprovante. A receita só será criada quando você confirmar o recebimento.</p><div className="grid gap-4 sm:grid-cols-2"><Field label="Valor bruto (R$)"><input className={inputClass} inputMode="decimal" value={gross} onChange={(event) => setGross(event.target.value.replace(/[^0-9,.]/g, ''))} /></Field><Field label="IRRF retido (R$)"><input className={inputClass} inputMode="decimal" value={withheld} onChange={(event) => setWithheld(event.target.value.replace(/[^0-9,.]/g, ''))} /></Field></div>{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" disabled={busy} onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={busy} type="submit">{busy ? 'Salvando...' : 'Salvar ajuste'}</button></div></form></ModalShell>;
 }
 
 function CorporateEventPilotPanel() {

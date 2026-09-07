@@ -255,6 +255,46 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
+export function ConfirmationDialog({
+  open,
+  title,
+  description,
+  confirmLabel,
+  tone = 'danger',
+  busy = false,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  tone?: 'danger' | 'primary';
+  busy?: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!open) return null;
+
+  const confirmClasses = tone === 'danger'
+    ? 'bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300'
+    : 'bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300';
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmation-dialog-title">
+      <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Confirmação necessária</p>
+        <h3 id="confirmation-dialog-title" className="mt-2 text-xl font-semibold text-slate-900">{title}</h3>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button className="rounded-full px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100" type="button" disabled={busy} onClick={onClose}>Cancelar</button>
+          <button className={`rounded-full px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed ${confirmClasses}`} type="button" disabled={busy} onClick={onConfirm}>{busy ? 'Processando...' : confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function SelectField({
   label,
   value,

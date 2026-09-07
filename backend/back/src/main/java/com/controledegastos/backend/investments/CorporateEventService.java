@@ -17,7 +17,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -42,6 +44,7 @@ public class CorporateEventService {
     public List<WalletEarningResponse> synchronizeCurrentUser() {
         User user = authenticatedUserService.getAuthenticatedUser();
         synchronize(user);
+        suppressEquivalentOpenEarnings(user);
         return responses(user);
     }
 
@@ -75,6 +78,7 @@ public class CorporateEventService {
             CorporateEvent event = upsert(candidate.data());
             createEarningIfNeeded(user, candidate.position(), event);
         }
+        suppressEquivalentOpenEarnings(user);
         return responses(user);
     }
 
@@ -82,6 +86,7 @@ public class CorporateEventService {
     public List<WalletEarningResponse> walletEarnings() {
         User user = authenticatedUserService.getAuthenticatedUser();
         refreshStatuses(user);
+        suppressEquivalentOpenEarnings(user);
         return responses(user);
     }
 
@@ -91,7 +96,7 @@ public class CorporateEventService {
     public void synchronizeAllWallets() {
         if (!automaticSyncEnabled) return;
         List<InvestmentPosition> allPositions = positionRepository.findAll();
-        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(allPositions)).stream()
+        List<CorporateEvent> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(allPositions))).stream()
                 .filter(data -> "VALIDO".equals(data.resolutionStatus()) && data.symbol() != null)
                 .map(this::upsert).toList();
         for (User user : userRepository.findAll()) {
@@ -132,9 +137,32 @@ public class CorporateEventService {
     }
 
     @Transactional
+    public WalletEarningResponse revert(Long id) {
+        User user = authenticatedUserService.getAuthenticatedUser();
+        WalletEarning earning = walletEarningRepository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Provento automático não encontrado"));
+        if (earning.getStatus() != WalletEarning.Status.EFETIVADO || earning.getInvestmentMovementId() == null) {
+            throw new IllegalArgumentException("Somente um provento confirmado pode ser desfeito");
+        }
+
+        Long movementId = earning.getInvestmentMovementId();
+        transactionRepository.findByInvestmentMovementId(movementId).ifPresent(transactionRepository::delete);
+        movementRepository.findByIdAndUser(movementId, user).ifPresent(movementRepository::delete);
+        earning.setInvestmentMovementId(null);
+        earning.setStatus(statusFor(earning.getCorporateEvent()));
+        return toResponse(walletEarningRepository.save(earning));
+    }
+
+    @Transactional
     public WalletEarningResponse adjust(Long id, WalletEarningAdjustmentRequest request) {
         WalletEarning earning = walletEarningRepository.findByIdAndUser(id, authenticatedUserService.getAuthenticatedUser())
                 .orElseThrow(() -> new ResourceNotFoundException("Provento automático não encontrado"));
+        if (Boolean.TRUE.equals(request.reopened())) {
+            if (earning.getStatus() != WalletEarning.Status.CANCELADO)
+                throw new IllegalArgumentException("Somente uma previsão cancelada pode ser restaurada");
+            earning.setStatus(statusFor(earning.getCorporateEvent()));
+            return toResponse(walletEarningRepository.save(earning));
+        }
         if (earning.getStatus() == WalletEarning.Status.EFETIVADO)
             throw new IllegalArgumentException("Um provento já confirmado não pode ser alterado por esta tela");
         if (Boolean.TRUE.equals(request.cancelled())) {
@@ -155,7 +183,7 @@ public class CorporateEventService {
 
     private void synchronize(User user) {
         List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
-        List<CorporateEvent> events = marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(positions)).stream().map(this::upsert).toList();
+        List<CorporateEvent> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(LocalDate.now(), symbolsOf(positions))).stream().map(this::upsert).toList();
         synchronize(user, positions, events);
     }
 
@@ -248,7 +276,7 @@ public class CorporateEventService {
     private List<PilotCandidate> pilotCandidates(User user) {
         List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
         LocalDate today = LocalDate.now();
-        List<MarketDataProvider.CorporateEventData> events = marketDataProvider.corporateEvents(today, symbolsOf(positions));
+        List<MarketDataProvider.CorporateEventData> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(today, symbolsOf(positions)));
         if (events.isEmpty()) return List.of();
         Set<String> existingReferences = walletEarningRepository.findSourceReferencesAlreadyInAgenda(user, events.stream()
                 .map(MarketDataProvider.CorporateEventData::sourceReference)
@@ -258,6 +286,36 @@ public class CorporateEventService {
                 .map(data -> pilotCandidate(data, positions, today))
                 .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
                 .toList();
+    }
+
+    private List<MarketDataProvider.CorporateEventData> deduplicateMarketEvents(List<MarketDataProvider.CorporateEventData> events) {
+        Map<String, MarketDataProvider.CorporateEventData> distinct = new LinkedHashMap<>();
+        for (MarketDataProvider.CorporateEventData event : events) {
+            String key = event.symbol() == null || event.symbol().isBlank()
+                    ? event.sourceReference()
+                    : event.symbol() + ":" + event.eventType() + ":" + event.exDate() + ":" + event.paymentDate()
+                    + ":" + event.amountPerUnit().stripTrailingZeros().toPlainString() + ":" + event.taxRate().stripTrailingZeros().toPlainString();
+            distinct.putIfAbsent(key, event);
+        }
+        return List.copyOf(distinct.values());
+    }
+
+    private void suppressEquivalentOpenEarnings(User user) {
+        Map<String, WalletEarning> retained = new LinkedHashMap<>();
+        walletEarningRepository.findAllByUserOrderByCorporateEventPaymentDateAscCreatedAtDesc(user).stream()
+                .filter(earning -> earning.getStatus() == WalletEarning.Status.PROVISIONADO
+                        || earning.getStatus() == WalletEarning.Status.PENDENTE_CONCILIACAO)
+                .sorted(Comparator.comparing(WalletEarning::getCreatedAt).thenComparing(WalletEarning::getId))
+                .forEach(earning -> {
+                    String key = earning.getPosition().getId() + ":" + earning.getCorporateEvent().getEventType() + ":"
+                            + earning.getCorporateEvent().getExDate() + ":" + earning.getCorporateEvent().getPaymentDate() + ":"
+                            + earning.getCorporateEvent().getAmountPerUnit().stripTrailingZeros().toPlainString() + ":"
+                            + earning.getCorporateEvent().getTaxRate().stripTrailingZeros().toPlainString();
+                    if (retained.putIfAbsent(key, earning) != null) {
+                        earning.setStatus(WalletEarning.Status.CANCELADO);
+                        walletEarningRepository.save(earning);
+                    }
+                });
     }
 
     private PilotCandidate pilotCandidate(MarketDataProvider.CorporateEventData data, List<InvestmentPosition> positions, LocalDate today) {
