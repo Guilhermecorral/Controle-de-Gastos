@@ -29,7 +29,7 @@ import {
   InvestmentImportConfirmResponse,
   InvestmentImportPreviewResponse,
   CorporateEventPilotAccessResponse,
-  CorporateEventPreviewResponse,
+  CorporateEventPilotPreviewResponse,
   WalletEarningAdjustmentRequest,
   WalletEarningBatchActionRequest,
   WalletEarningResponse,
@@ -255,7 +255,7 @@ export function useCorporateEventPilotAccessQuery() {
 export function useCorporateEventPreviewMutation() {
   return useMutation({
     // B3 may take longer while the free hosting wakes up and scans every position.
-    mutationFn: async () => (await api.post<CorporateEventPreviewResponse[]>('/investments/wallet-earnings/preview', undefined, { timeout: 120_000 })).data,
+    mutationFn: async () => (await api.post<CorporateEventPilotPreviewResponse>('/investments/wallet-earnings/preview', undefined, { timeout: 120_000 })).data,
   })
 }
 

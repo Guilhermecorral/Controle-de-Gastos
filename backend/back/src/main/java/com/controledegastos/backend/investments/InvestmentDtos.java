@@ -205,7 +205,20 @@ public final class InvestmentDtos {
             LocalDate paymentDate,
             String source,
             String status,
-            String reason
+            String reason,
+            LocalDate eligibilityStartDate
+    ) {}
+
+    public record CorporateEventSourceCoverageResponse(
+            String symbol,
+            int eventCount,
+            LocalDate earliestExDate,
+            LocalDate latestExDate
+    ) {}
+
+    public record CorporateEventPilotPreviewResponse(
+            List<CorporateEventPreviewResponse> events,
+            List<CorporateEventSourceCoverageResponse> coverage
     ) {}
 
     public record CorporateEventPublishRequest(

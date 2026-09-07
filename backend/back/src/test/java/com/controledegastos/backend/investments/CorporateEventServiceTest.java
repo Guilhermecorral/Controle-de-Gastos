@@ -53,10 +53,16 @@ class CorporateEventServiceTest {
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(published, newEvent));
         when(walletEarningRepository.findSourceReferencesAlreadyInAgenda(any(), anySet())).thenReturn(Set.of(published.sourceReference()));
 
-        List<CorporateEventPreviewResponse> preview = service.previewCurrentUser();
+        var preview = service.previewCurrentUser();
 
-        assertThat(preview).extracting(CorporateEventPreviewResponse::sourceReference)
+        assertThat(preview.events()).extracting(CorporateEventPreviewResponse::sourceReference)
                 .containsExactly(newEvent.sourceReference());
+        assertThat(preview.coverage()).singleElement().satisfies(item -> {
+            assertThat(item.symbol()).isEqualTo("PETR4");
+            assertThat(item.eventCount()).isEqualTo(2);
+            assertThat(item.earliestExDate()).isEqualTo(exDate);
+            assertThat(item.latestExDate()).isEqualTo(exDate);
+        });
     }
 
     @Test
@@ -80,12 +86,13 @@ class CorporateEventServiceTest {
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(event));
         when(walletEarningRepository.findSourceReferencesAlreadyInAgenda(any(), anySet())).thenReturn(Set.of());
 
-        List<CorporateEventPreviewResponse> preview = service.previewCurrentUser();
+        var preview = service.previewCurrentUser();
 
-        assertThat(preview).singleElement().satisfies(item -> {
+        assertThat(preview.events()).singleElement().satisfies(item -> {
             assertThat(item.status()).isEqualTo("VALIDO");
             assertThat(item.quantityEligible()).isEqualByComparingTo("100");
             assertThat(item.grossAmount()).isEqualByComparingTo("10.00");
+            assertThat(item.eligibilityStartDate()).isEqualTo(purchaseDate);
         });
     }
 

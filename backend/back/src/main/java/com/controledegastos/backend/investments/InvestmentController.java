@@ -118,7 +118,7 @@ public class InvestmentController {
     public CorporateEventPilotAccessResponse corporateEventPilotAccess() { return corporateEventService.pilotAccess(); }
 
     @PostMapping("/wallet-earnings/preview")
-    public List<CorporateEventPreviewResponse> previewWalletEarnings() { return corporateEventService.previewCurrentUser(); }
+    public CorporateEventPilotPreviewResponse previewWalletEarnings() { return corporateEventService.previewCurrentUser(); }
 
     @PostMapping("/wallet-earnings/publish")
     public List<WalletEarningResponse> publishWalletEarnings(@Valid @RequestBody CorporateEventPublishRequest request) {

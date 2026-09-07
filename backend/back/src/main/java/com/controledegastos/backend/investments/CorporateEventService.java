@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -56,10 +57,14 @@ public class CorporateEventService {
     }
 
     @Transactional(readOnly = true)
-    public List<InvestmentDtos.CorporateEventPreviewResponse> previewCurrentUser() {
+    public InvestmentDtos.CorporateEventPilotPreviewResponse previewCurrentUser() {
         User user = authenticatedUserService.getAuthenticatedUser();
         pilotAccess.require(user);
-        return pilotCandidates(user).stream().map(PilotCandidate::response).toList();
+        PilotPreview preview = pilotCandidates(user);
+        return new InvestmentDtos.CorporateEventPilotPreviewResponse(
+                preview.candidates().stream().map(PilotCandidate::response).toList(),
+                coverage(preview.sourceEvents())
+        );
     }
 
     @Transactional
@@ -67,7 +72,7 @@ public class CorporateEventService {
         User user = authenticatedUserService.getAuthenticatedUser();
         pilotAccess.require(user);
         Set<String> selected = Set.copyOf(request.sourceReferences());
-        List<PilotCandidate> accepted = pilotCandidates(user).stream()
+        List<PilotCandidate> accepted = pilotCandidates(user).candidates().stream()
                 .filter(candidate -> candidate.isPublishable() && selected.contains(candidate.data().sourceReference()))
                 .toList();
         if (accepted.isEmpty()) {
@@ -289,19 +294,35 @@ public class CorporateEventService {
 
     private BigDecimal money(BigDecimal value) { return value.setScale(2, RoundingMode.HALF_UP); }
 
-    private List<PilotCandidate> pilotCandidates(User user) {
+    private PilotPreview pilotCandidates(User user) {
         List<InvestmentPosition> positions = positionRepository.findAllByUserOrderByCreatedAtDesc(user);
         List<InvestmentMovement> movements = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user);
         LocalDate today = LocalDate.now();
         List<MarketDataProvider.CorporateEventData> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(today, symbolsOf(positions)));
-        if (events.isEmpty()) return List.of();
+        if (events.isEmpty()) return new PilotPreview(List.of(), List.of());
         Set<String> existingReferences = walletEarningRepository.findSourceReferencesAlreadyInAgenda(user, events.stream()
                 .map(MarketDataProvider.CorporateEventData::sourceReference)
                 .collect(java.util.stream.Collectors.toSet()));
-        return events.stream()
+        List<PilotCandidate> candidates = events.stream()
                 .filter(data -> !existingReferences.contains(data.sourceReference()))
                 .map(data -> pilotCandidate(data, positions, movements, today))
                 .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
+                .toList();
+        return new PilotPreview(candidates, events);
+    }
+
+    private List<InvestmentDtos.CorporateEventSourceCoverageResponse> coverage(List<MarketDataProvider.CorporateEventData> events) {
+        return events.stream()
+                .filter(event -> event.symbol() != null && !event.symbol().isBlank())
+                .collect(Collectors.groupingBy(MarketDataProvider.CorporateEventData::symbol, LinkedHashMap::new, Collectors.toList()))
+                .entrySet().stream()
+                .map(entry -> new InvestmentDtos.CorporateEventSourceCoverageResponse(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        entry.getValue().stream().map(MarketDataProvider.CorporateEventData::exDate).min(LocalDate::compareTo).orElse(null),
+                        entry.getValue().stream().map(MarketDataProvider.CorporateEventData::exDate).max(LocalDate::compareTo).orElse(null)
+                ))
+                .sorted(Comparator.comparing(InvestmentDtos.CorporateEventSourceCoverageResponse::symbol))
                 .toList();
     }
 
@@ -366,7 +387,7 @@ public class CorporateEventService {
         if (quantity.signum() <= 0) return PilotCandidate.rejected(data, position, "SEM_COTAS_ELEGIVEIS", "Não havia cotas elegíveis na Data Com.");
         BigDecimal gross = money(quantity.multiply(data.amountPerUnit()));
         BigDecimal withheld = money(gross.multiply(data.taxRate()).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
-        return PilotCandidate.accepted(data, position, quantity, gross, withheld, money(gross.subtract(withheld)));
+        return PilotCandidate.accepted(data, position, quantity, gross, withheld, money(gross.subtract(withheld)), firstHoldingDate);
     }
 
     private CorporateEvent asEvent(MarketDataProvider.CorporateEventData data) {
@@ -394,22 +415,25 @@ public class CorporateEventService {
 
     private record PilotCandidate(MarketDataProvider.CorporateEventData data, InvestmentPosition position,
                                   BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net,
-                                  String status, String reason) {
+                                  String status, String reason, LocalDate eligibilityStartDate) {
         static PilotCandidate accepted(MarketDataProvider.CorporateEventData data, InvestmentPosition position,
-                                       BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net) {
-            return new PilotCandidate(data, position, quantity, gross, withheld, net, "VALIDO", "Pronto para publicar na Agenda.");
+                                       BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net,
+                                       LocalDate eligibilityStartDate) {
+            return new PilotCandidate(data, position, quantity, gross, withheld, net, "VALIDO", "Pronto para publicar na Agenda.", eligibilityStartDate);
         }
         static PilotCandidate rejected(MarketDataProvider.CorporateEventData data, String status, String reason) {
             return rejected(data, null, status, reason);
         }
         static PilotCandidate rejected(MarketDataProvider.CorporateEventData data, InvestmentPosition position, String status, String reason) {
-            return new PilotCandidate(data, position, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, status, reason);
+            return new PilotCandidate(data, position, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, status, reason, null);
         }
         boolean isPublishable() { return "VALIDO".equals(status) && position != null; }
         InvestmentDtos.CorporateEventPreviewResponse response() {
             return new InvestmentDtos.CorporateEventPreviewResponse(data.sourceReference(), position == null ? null : position.getId(), data.symbol(),
                     position == null ? "Ativo não identificado" : position.getName(), data.isinCode(), data.eventType(), data.amountPerUnit(), quantity,
-                    gross, withheld, net, data.taxRate(), data.exDate(), data.paymentDate(), data.source(), status, reason);
+                    gross, withheld, net, data.taxRate(), data.exDate(), data.paymentDate(), data.source(), status, reason, eligibilityStartDate);
         }
     }
+
+    private record PilotPreview(List<PilotCandidate> candidates, List<MarketDataProvider.CorporateEventData> sourceEvents) {}
 }

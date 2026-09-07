@@ -49,7 +49,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 06/09/2026. A versão a
 | PUT | /api/investments/tax-events/{movementId} | Ajusta o estado fiscal ou a retenção de provento, venda ou resgate |
 | GET | /api/investments/wallet-earnings | Lista agenda automática com quantidade congelada na Data Com |
 | GET | /api/investments/wallet-earnings/pilot-access | Informa se a conta pode usar o piloto B3 |
-| POST | /api/investments/wallet-earnings/preview | Gera a prévia B3 auditável; retorna 403 fora do piloto |
+| POST | /api/investments/wallet-earnings/preview | Gera a prévia B3 auditável, incluindo candidatos, início de elegibilidade pela primeira compra e cobertura de Data Com devolvida pela fonte; retorna 403 fora do piloto |
 | POST | /api/investments/wallet-earnings/publish | Publica previsões selecionadas na Agenda; retorna 403 fora do piloto |
 | POST | /api/investments/wallet-earnings/{id}/confirm | Efetiva o provento e cria receita vinculada |
 | PUT | /api/investments/wallet-earnings/{id} | Corrige bruto/retenção ou cancela previsão não efetivada |

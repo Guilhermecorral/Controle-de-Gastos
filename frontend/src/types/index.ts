@@ -637,6 +637,19 @@ export interface CorporateEventPreviewResponse {
   source: string;
   status: 'VALIDO' | 'TICKER_AMBIGUO' | 'ATIVO_FORA_DA_CARTEIRA' | 'FORA_DA_JANELA' | 'SEM_COTAS_ELEGIVEIS';
   reason: string;
+  eligibilityStartDate: string | null;
+}
+
+export interface CorporateEventSourceCoverageResponse {
+  symbol: string;
+  eventCount: number;
+  earliestExDate: string | null;
+  latestExDate: string | null;
+}
+
+export interface CorporateEventPilotPreviewResponse {
+  events: CorporateEventPreviewResponse[];
+  coverage: CorporateEventSourceCoverageResponse[];
 }
 
 export interface WalletEarningAdjustmentRequest {
