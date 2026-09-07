@@ -253,7 +253,8 @@ export function useCorporateEventPilotAccessQuery() {
 
 export function useCorporateEventPreviewMutation() {
   return useMutation({
-    mutationFn: async () => (await api.post<CorporateEventPreviewResponse[]>('/investments/wallet-earnings/preview')).data,
+    // B3 may take longer while the free hosting wakes up and scans every position.
+    mutationFn: async () => (await api.post<CorporateEventPreviewResponse[]>('/investments/wallet-earnings/preview', undefined, { timeout: 120_000 })).data,
   })
 }
 

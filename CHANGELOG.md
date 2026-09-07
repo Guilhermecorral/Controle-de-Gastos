@@ -13,6 +13,9 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - Atualizações repetidas da Agenda ocultam eventos B3 que já foram publicados, confirmados ou cancelados para o mesmo usuário, evitando que a mesma previsão volte para seleção.
 - A compra e a importação assistida passam a reconhecer FIAGRO separadamente de FII; a busca BRAPI consulta o subtipo `fi-agro` e possui catálogo de contingência para os principais tickers.
 - FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.
+- A migração V19 libera a persistência de FIAGRO na carteira; antes, o banco rejeitava compras como RURA11 apesar de a busca já identificar o tipo corretamente.
+- A Agenda agora mostra somente proventos que ainda exigem ação; recebidos, efetivados e cancelados ficam no Histórico Financeiro e podem ser consultados por um histórico opcional na própria Agenda.
+- A prévia B3 tolera até dois minutos de inicialização e consulta, evitando que o despertar do Render seja mostrado como falha da Agenda.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
 
 ## [1.4.4] - 2026-09-06

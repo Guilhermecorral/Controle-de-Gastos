@@ -69,6 +69,22 @@ class InvestmentCashFlowIntegrationTest {
                 assertThat(item.status()).isEqualTo(ReconciliationStatus.GERADO_PELO_FAROL));
         assertThat(investments.taxSummary(2026).totalWithheld()).isEqualByComparingTo("0.01");
     }
+
+    @Test void fiagroPurchaseCreatesAPositionAndLinkedExpense() {
+        investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.COMPRA,
+                InvestmentPosition.AssetType.FIAGRO, "RURA11", "RURA11.SA", "RURA11", "BR", "B3", "BRL",
+                n("1"), n("7.95"), BigDecimal.ZERO, LocalDate.of(2026, 4, 4), null, null));
+
+        assertThat(investments.portfolio().positions()).singleElement().satisfies(position -> {
+            assertThat(position.assetType()).isEqualTo(InvestmentPosition.AssetType.FIAGRO);
+            assertThat(position.symbol()).isEqualTo("RURA11");
+        });
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).singleElement().satisfies(transaction -> {
+            assertThat(transaction.getType()).isEqualTo(Transaction.TransactionType.DESPESA);
+            assertThat(transaction.getCategory()).isEqualTo(Transaction.TransactionCategory.INVESTIMENTO);
+            assertThat(transaction.getAmount()).isEqualByComparingTo("7.95");
+        });
+    }
     @Test void openingBalanceDoesNotSpendCashAndRedemptionDoes() {
         var position = investments.create(new PositionRequest(InvestmentPosition.AssetType.RENDA_FIXA, null, null, "CDB antigo", null, null, n("1000"), n("12"),
                 LocalDate.of(2025,1,1), LocalDate.of(2027,1,1), "BR", "B3", "BRL", FixedIncomeTax.Regime.REGRESSIVO, null, true, LocalDate.of(2026,1,1)));
