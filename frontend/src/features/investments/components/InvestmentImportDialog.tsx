@@ -132,6 +132,6 @@ function Notice({ title, messages }: { title: string; messages: string[] }) {
 }
 
 function toConfirmItem(row: ReviewRow): InvestmentImportConfirmItem {
-  const { sourceRow, selectedByDefault, possibleDuplicate, warning, ...item } = row
+  const { sourceRow: _sourceRow, selectedByDefault: _selectedByDefault, possibleDuplicate: _possibleDuplicate, warning: _warning, ...item } = row
   return item
 }

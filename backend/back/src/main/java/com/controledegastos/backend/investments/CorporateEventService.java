@@ -300,12 +300,15 @@ public class CorporateEventService {
         LocalDate today = LocalDate.now();
         List<MarketDataProvider.CorporateEventData> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(today, symbolsOf(positions)));
         if (events.isEmpty()) return new PilotPreview(List.of(), List.of());
-        Set<String> existingReferences = walletEarningRepository.findSourceReferencesAlreadyInAgenda(user, events.stream()
-                .map(MarketDataProvider.CorporateEventData::sourceReference)
-                .collect(java.util.stream.Collectors.toSet()));
+        Map<String, WalletEarning> existingByReference = walletEarningRepository.findExistingByUserAndSourceReferences(user, events.stream()
+                        .map(MarketDataProvider.CorporateEventData::sourceReference)
+                        .collect(java.util.stream.Collectors.toSet()))
+                .stream()
+                .collect(Collectors.toMap(earning -> earning.getCorporateEvent().getSourceReference(), earning -> earning));
         List<PilotCandidate> candidates = events.stream()
-                .filter(data -> !existingReferences.contains(data.sourceReference()))
-                .map(data -> pilotCandidate(data, positions, movements, today))
+                .map(data -> existingByReference.containsKey(data.sourceReference())
+                        ? existingCandidate(data, existingByReference.get(data.sourceReference()))
+                        : pilotCandidate(data, positions, movements, today))
                 .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
                 .toList();
         return new PilotPreview(candidates, events);
@@ -331,11 +334,18 @@ public class CorporateEventService {
         for (MarketDataProvider.CorporateEventData event : events) {
             String key = event.symbol() == null || event.symbol().isBlank()
                     ? event.sourceReference()
-                    : event.symbol() + ":" + event.eventType() + ":" + event.exDate() + ":" + event.paymentDate()
+                    : issuerIdentity(event) + ":" + event.symbol().trim().toUpperCase() + ":" + event.eventType()
+                    + ":" + event.exDate() + ":" + event.paymentDate()
                     + ":" + event.amountPerUnit().stripTrailingZeros().toPlainString() + ":" + event.taxRate().stripTrailingZeros().toPlainString();
             distinct.putIfAbsent(key, event);
         }
         return List.copyOf(distinct.values());
+    }
+
+    private String issuerIdentity(MarketDataProvider.CorporateEventData event) {
+        if (event.payerCnpj() != null && !event.payerCnpj().isBlank()) return event.payerCnpj().replaceAll("\\D", "");
+        if (event.isinCode() != null && !event.isinCode().isBlank()) return event.isinCode().trim().toUpperCase();
+        return event.symbol().trim().toUpperCase();
     }
 
     private void suppressEquivalentOpenEarnings(User user) {
@@ -372,7 +382,7 @@ public class CorporateEventService {
     private PilotCandidate pilotCandidate(MarketDataProvider.CorporateEventData data, List<InvestmentPosition> positions,
                                           List<InvestmentMovement> movements, LocalDate today) {
         if (!"VALIDO".equals(data.resolutionStatus()) || data.symbol() == null || data.symbol().isBlank()) {
-            return PilotCandidate.rejected(data, "TICKER_AMBIGUO", "A B3 retornou uma classe de ação que não pôde ser vinculada ao ticker da carteira.");
+            return PilotCandidate.rejected(data, "AMBIGUO", "A B3 retornou uma classe de ação que não pôde ser vinculada com segurança ao ticker da carteira.");
         }
         InvestmentPosition position = positions.stream().filter(item -> isEligibleAsset(item, asEvent(data))).findFirst().orElse(null);
         if (position == null) return PilotCandidate.rejected(data, "ATIVO_FORA_DA_CARTEIRA", "O ativo do evento não está disponível na carteira atual.");
@@ -381,13 +391,20 @@ public class CorporateEventService {
         }
         LocalDate firstHoldingDate = firstHoldingDate(position, movements);
         if (firstHoldingDate != null && data.exDate().isBefore(firstHoldingDate)) {
-            return PilotCandidate.rejected(data, position, "ANTES_DA_POSICAO", "A posição ainda não existia na Data Com deste provento.");
+            return PilotCandidate.rejected(data, position, "INELEGIVEL_NA_DATA_COM", "A posição ainda não existia na Data Com deste provento.");
         }
         BigDecimal quantity = eligibleQuantity(position, data.exDate(), movements);
-        if (quantity.signum() <= 0) return PilotCandidate.rejected(data, position, "SEM_COTAS_ELEGIVEIS", "Não havia cotas elegíveis na Data Com.");
+        if (quantity.signum() <= 0) return PilotCandidate.rejected(data, position, "INELEGIVEL_NA_DATA_COM", "Não havia cotas elegíveis na Data Com.");
         BigDecimal gross = money(quantity.multiply(data.amountPerUnit()));
         BigDecimal withheld = money(gross.multiply(data.taxRate()).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
         return PilotCandidate.accepted(data, position, quantity, gross, withheld, money(gross.subtract(withheld)), firstHoldingDate);
+    }
+
+    private PilotCandidate existingCandidate(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
+        if (earning.getStatus() == WalletEarning.Status.CANCELADO) {
+            return PilotCandidate.cancelled(data, earning);
+        }
+        return PilotCandidate.alreadyInAgenda(data, earning);
     }
 
     private CorporateEvent asEvent(MarketDataProvider.CorporateEventData data) {
@@ -415,21 +432,31 @@ public class CorporateEventService {
 
     private record PilotCandidate(MarketDataProvider.CorporateEventData data, InvestmentPosition position,
                                   BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net,
-                                  String status, String reason, LocalDate eligibilityStartDate) {
+                                  String status, String reason, LocalDate eligibilityStartDate, Long walletEarningId) {
         static PilotCandidate accepted(MarketDataProvider.CorporateEventData data, InvestmentPosition position,
                                        BigDecimal quantity, BigDecimal gross, BigDecimal withheld, BigDecimal net,
                                        LocalDate eligibilityStartDate) {
-            return new PilotCandidate(data, position, quantity, gross, withheld, net, "VALIDO", "Pronto para publicar na Agenda.", eligibilityStartDate);
+            return new PilotCandidate(data, position, quantity, gross, withheld, net, "NOVO", "Pronto para publicar na Agenda.", eligibilityStartDate, null);
         }
         static PilotCandidate rejected(MarketDataProvider.CorporateEventData data, String status, String reason) {
             return rejected(data, null, status, reason);
         }
         static PilotCandidate rejected(MarketDataProvider.CorporateEventData data, InvestmentPosition position, String status, String reason) {
-            return new PilotCandidate(data, position, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, status, reason, null);
+            return new PilotCandidate(data, position, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, status, reason, null, null);
         }
-        boolean isPublishable() { return "VALIDO".equals(status) && position != null; }
+        static PilotCandidate cancelled(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
+            return existing(data, earning, "CANCELADO", "Cancelado pelo usuário. Restaure a previsão somente se quiser revisá-la novamente.");
+        }
+        static PilotCandidate alreadyInAgenda(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
+            return existing(data, earning, "JA_NA_AGENDA", "Esta previsão já está na Agenda ou no Histórico.");
+        }
+        private static PilotCandidate existing(MarketDataProvider.CorporateEventData data, WalletEarning earning, String status, String reason) {
+            return new PilotCandidate(data, earning.getPosition(), earning.getQuantityEligible(), earning.getGrossAmount(),
+                    earning.getWithheldAmount(), earning.getNetAmount(), status, reason, null, earning.getId());
+        }
+        boolean isPublishable() { return "NOVO".equals(status) && position != null; }
         InvestmentDtos.CorporateEventPreviewResponse response() {
-            return new InvestmentDtos.CorporateEventPreviewResponse(data.sourceReference(), position == null ? null : position.getId(), data.symbol(),
+            return new InvestmentDtos.CorporateEventPreviewResponse(data.sourceReference(), walletEarningId, position == null ? null : position.getId(), data.symbol(),
                     position == null ? "Ativo não identificado" : position.getName(), data.isinCode(), data.eventType(), data.amountPerUnit(), quantity,
                     gross, withheld, net, data.taxRate(), data.exDate(), data.paymentDate(), data.source(), status, reason, eligibilityStartDate);
         }

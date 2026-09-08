@@ -15,11 +15,11 @@ public interface WalletEarningRepository extends JpaRepository<WalletEarning, Lo
     boolean existsByUserAndCorporateEvent(User user, CorporateEvent corporateEvent);
 
     @Query("""
-            select earning.corporateEvent.sourceReference
+            select earning
             from WalletEarning earning
             where earning.user = :user
               and earning.corporateEvent.sourceReference in :sourceReferences
             """)
-    Set<String> findSourceReferencesAlreadyInAgenda(@Param("user") User user,
-                                                    @Param("sourceReferences") Set<String> sourceReferences);
+    List<WalletEarning> findExistingByUserAndSourceReferences(@Param("user") User user,
+                                                              @Param("sourceReferences") Set<String> sourceReferences);
 }

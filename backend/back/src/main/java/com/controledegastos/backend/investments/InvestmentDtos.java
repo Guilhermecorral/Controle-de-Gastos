@@ -190,6 +190,7 @@ public final class InvestmentDtos {
 
     public record CorporateEventPreviewResponse(
             String sourceReference,
+            Long walletEarningId,
             Long positionId,
             String symbol,
             String assetName,

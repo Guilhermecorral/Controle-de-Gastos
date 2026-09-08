@@ -10,7 +10,8 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - O adaptador B3 não depende mais de um bean legado do Jackson 2, evitando falha de inicialização no Spring Boot 4 quando o piloto é habilitado.
 - A prévia B3 passa a informar a fonte realmente ativa e o backend registra, por atualização manual, quantos eventos foram lidos e quantos ficaram elegíveis; isso permite diagnosticar configuração ou resposta da fonte sem registrar dados pessoais.
 - Eventos B3 sem ticker resolvido não interrompem mais a prévia: eles são mantidos como itens para revisão, enquanto os ativos vinculados com segurança continuam aparecendo normalmente.
-- Atualizações repetidas da Agenda ocultam eventos B3 que já foram publicados, confirmados ou cancelados para o mesmo usuário, evitando que a mesma previsão volte para seleção.
+- Atualizações repetidas da Agenda não recriam previsões já publicadas ou confirmadas. Previsões canceladas continuam identificáveis e podem ser restauradas explicitamente, sem voltarem como novas ou criarem duplicidade.
+- A prévia diferencia uma pendência de vínculo ambíguo de uma posição inelegível na Data Com, que é apenas informação diagnóstica; eventos econômicos idênticos devolvidos pela B3 são deduplicados antes de exibir ou persistir.
 - A compra e a importação assistida passam a reconhecer FIAGRO separadamente de FII; a busca BRAPI consulta o subtipo `fi-agro` e possui catálogo de contingência para os principais tickers.
 - FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.
 - A migração V19 libera a persistência de FIAGRO na carteira; antes, o banco rejeitava compras como RURA11 apesar de a busca já identificar o tipo corretamente.

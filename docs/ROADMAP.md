@@ -1,14 +1,18 @@
 # Roadmap do Produto
 
-Atualizado em 06/09/2026. Este documento e a referencia de continuidade para as proximas evolucoes do Farol Financeiro. Ele registra o que ja foi decidido, o que precisa ser validado e os criterios para considerar cada entrega pronta.
+Atualizado em 08/09/2026. Este documento e a referencia de continuidade para as proximas evolucoes do Farol Financeiro. Ele registra o que ja foi decidido, o que precisa ser validado e os criterios para considerar cada entrega pronta.
 
-## Estado atual
+## Onde estamos agora
 
 - Versao em desenvolvimento: `1.4.5-beta.1`.
-- A carteira ja se integra ao fluxo financeiro para compra, venda, aplicacao, resgate e confirmacao de proventos.
-- A importacao de investimentos por CSV, Excel e OFX usa staging, revisao editavel e confirmacao explicita antes de alterar a carteira.
-- A Agenda de Proventos esta pronta no produto, mas a fonte de eventos ainda e `MOCK`; portanto nao deve ser apresentada como dado de mercado real.
-- O refresh token e persistido e rotacionado. A recuperacao apos `F5` foi corrigida para disparar o refresh quando nao houver access token; a verificacao final de cookies e proxy deve acompanhar o proximo deploy.
+
+| Frente | Estado | Situacao atual |
+| --- | --- | --- |
+| Proventos/B3 | Em andamento | Piloto autorizado consulta a B3, cria somente previsoes e exige confirmacao para receita. Cancelamentos sao reversiveis; cobertura historica ainda depende de fontes por tipo de ativo. |
+| Debito tecnico | Planejado | Lint sem configuracao, CI ausente e formulario de renda fixa duplicado continuam pendentes. |
+| Sessao | Em andamento | Refresh persistido e rotacionado; a evidencia final de cookie/proxy deve continuar sendo observada em producao. |
+| Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
+| COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
 
 Documentos relacionados:
 
@@ -72,9 +76,11 @@ Substituir a agenda de proventos de demonstracao por uma rotina rastreavel que c
 | --- | --- | --- |
 | Atualizacao apos compra/venda | Entregue | A invalidacao e limitada a Carteira, Transacoes, Painel e Analise Mensal; o fechamento do modal nao volta a invalidar todas as consultas. |
 | Compra retroativa | Entregue | Regressao cobre BBAS3: operacao anterior a Data Com persiste, cria fluxo financeiro e entra no snapshot elegivel. |
-| Agenda em modo MOCK | Esclarecido | A fonte demonstrativa permanece para testes. Ela nao consulta proventos reais e uma compra posterior a Data Com nao pode receber o evento. |
+| Agenda em modo MOCK | Superado | O piloto B3 controlado entrou na `1.4.5-beta.1`; a fonte demonstrativa nao representa mais o fluxo em validacao. |
 
-### Fonte de eventos corporativos
+### Registro de pesquisa de eventos corporativos
+
+O desenho vigente e os proximos passos estao na secao "Arquitetura de proventos para a proxima fase", dentro da `v1.4.5-beta.1`. Este registro preserva apenas o contexto que levou ao piloto; ele nao e a especificacao atual de cobertura.
 
 **Direcao aprovada para validacao:** usar a metodologia observada no projeto aberto [b3-pipeline-data-and-backtest-framework](https://github.com/nickmaglowsch/b3-pipeline-data-and-backtest-framework) como referencia tecnica, mas implementar um coletor proprio e reduzido no Farol. O projeto nao deve ser copiado integralmente: ele foi projetado para pesquisa e backtests em Python/Rust/SQLite, enquanto o Farol usa Java/Spring/PostgreSQL.
 
@@ -179,13 +185,50 @@ Permitir que administradores e contas liberadas por ambiente validem previsões 
 
 - Acesso apenas com `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED=true` e e-mail em `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_EMAILS`, ou papel `ADMIN`.
 - `APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON` permanece `-`; a atualização é manual e passa por prévia.
-- A B3 produz candidatos para os últimos 90 e os próximos 180 dias. O usuário seleciona quais previsões publicar.
-- Evento ambíguo por ticker/ISIN, sem posição ou sem cotas na Data Com não entra na Agenda.
+- A B3 publica a faixa que a fonte devolver; a interface exibe a cobertura real por ativo. A elegibilidade do piloto impede pagamentos mais de 180 dias no futuro, e o usuário seleciona quais previsões publicar.
+- Evento ambíguo por ticker/ISIN aparece como pendencia de vinculacao; ele nunca entra na Agenda automaticamente.
+- Evento sem cotas na Data Com e informativo, nao e pendencia: ele fica recolhido no diagnostico da atualizacao.
+- Evento cancelado pelo usuario permanece visivel no Historico e na previa como `CANCELADO`; so uma acao explicita de restauracao o devolve para a Agenda.
+- Eventos economicos identicos retornados repetidamente pela B3 sao deduplicados antes da previa e da persistencia.
 - Receita só nasce em `Confirmar recebimento`; previsões podem ser corrigidas ou canceladas.
 
 ### Critério para promover a 1.4.5
 
 Validar ações, FIIs e FIAGROs contra documentos do emissor por ciclos suficientes, sem associação incorreta de classe de ação, duplicidade ou crédito financeiro automático.
+
+### Arquitetura de proventos para a proxima fase
+
+Esta secao e plano documentado, nao codigo entregue nesta rodada. Nenhuma fonte adicional entrara em producao sem testes de paginacao, deduplicacao e resposta divergente.
+
+#### Identidade e capacidades do instrumento
+
+`InstrumentCatalog` e `AssetResolver` deverao manter `symbol` (ticker exibido), `isin`, emissor, classe (`ON`, `PN` ou `UNT`) e `assetType` separados. O ticker nunca sera substituido pelo ISIN: `BBDC3` e `BBDC4` continuam papeis distintos mesmo quando pertencem ao mesmo emissor.
+
+Cada tipo declarara as capacidades `supportsQuote`, `supportsHistoricalQuote`, `supportsCorporateEvents`, `supportsAutomaticSchedule`, `supportsFractionalQuantity` e `requiresDerivativeLedger`. Assim a interface podera informar cobertura parcial sem inventar provento ou cotacao.
+
+#### Fontes e cobertura validada
+
+| Tipo | Fonte planejada | Estado da cobertura automatica |
+| --- | --- | --- |
+| Acoes BR | `GetListedCashDividends` historico + suplemento B3 atual | Viavel, pendente de provedor Java, paginacao e cache auditavel. O historico nao traz data de pagamento. |
+| FII | Suplemento B3 atual; prova de conceito CVM para historico | Recente em observacao; historico ainda nao prometido. |
+| FIAGRO | Suplemento B3 atual; prova de conceito CVM para historico | Recente em observacao; historico ainda nao prometido. |
+| BDR e ETF | Catalogo e cotacao conforme fonte validada | Cadastravel, mas sem Agenda automatica enquanto depositario, cambio e distribuicoes nao forem validados. |
+| CEPAC, indices, futuros, opcoes e commodities | Fora do modulo de proventos | Nao planejado nesta fase. |
+
+`B3HistoricalCashDividendProvider` sera Java/Spring, nao um microsservico Python: paginara no maximo 120 registros por pagina, guardara payload bruto, hash e data de coleta, e abrira revisao quando a B3 mudar uma resposta anteriormente registrada. Eventos historicos sem `paymentDate` sao historico para revisao, nunca previsoes "A confirmar" com uma data inventada.
+
+Elegibilidade sera sempre calculada com compras menos vendas e ajustes ate a Data Com. A quantidade e congelada em `WalletEarning` ao publicar. Se uma movimentacao antiga for editada, os proventos afetados irao para revisao; o sistema nunca reescrevera um recebimento confirmado silenciosamente.
+
+`COTAHIST` fica reservado para preco historico e validacao de ticker/data. Ele nao e fonte de proventos. Os ZIPs locais nao entram no Git; o inventario versionado esta em [COTAHIST-MANIFEST.csv](COTAHIST-MANIFEST.csv). A automacao anual deve ocorrer no primeiro dia util de janeiro, validar ZIP, layout, hash e data maxima negociada, e enviar a versao anterior para armazenamento de objetos antes de qualquer importacao.
+
+### Proximas entregas de proventos
+
+1. Criar `InstrumentCatalog` e `AssetResolver` com testes para ON/PN/UNT e ticker/ISIN separados.
+2. Implementar historico de acoes com `GetListedCashDividends`, paginacao, revisao de divergencia e deduplicacao.
+3. Manter o suplemento B3 exclusivamente para `paymentDate` recente/futura e consolidar as duas fontes por chave economica.
+4. Fazer prova de conceito CVM para `MXRF11` e `RURA11` antes de prometer historico de FII ou FIAGRO.
+5. Adicionar BDR e ETF ao catalogo sem Agenda automatica; introduzir regras somente apos fonte validada.
 
 ## v1.4.6 - Central de tributos da pessoa fisica
 

@@ -621,6 +621,7 @@ export interface CorporateEventPilotAccessResponse {
 
 export interface CorporateEventPreviewResponse {
   sourceReference: string;
+  walletEarningId: number | null;
   positionId: number | null;
   symbol: string | null;
   assetName: string;
@@ -635,7 +636,7 @@ export interface CorporateEventPreviewResponse {
   exDate: string;
   paymentDate: string;
   source: string;
-  status: 'VALIDO' | 'TICKER_AMBIGUO' | 'ATIVO_FORA_DA_CARTEIRA' | 'FORA_DA_JANELA' | 'SEM_COTAS_ELEGIVEIS';
+  status: 'NOVO' | 'CANCELADO' | 'JA_NA_AGENDA' | 'AMBIGUO' | 'ATIVO_FORA_DA_CARTEIRA' | 'FORA_DA_JANELA' | 'INELEGIVEL_NA_DATA_COM';
   reason: string;
   eligibilityStartDate: string | null;
 }
