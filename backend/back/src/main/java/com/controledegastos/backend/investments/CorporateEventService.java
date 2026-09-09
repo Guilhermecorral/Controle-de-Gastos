@@ -214,7 +214,7 @@ public class CorporateEventService {
 
     private Set<String> symbolsOf(List<InvestmentPosition> positions) {
         return positions.stream()
-                .filter(position -> position.getAssetType() != InvestmentPosition.AssetType.RENDA_FIXA)
+                .filter(position -> AssetResolver.supportsCorporateEvents(position.getAssetType()))
                 .filter(position -> position.getSymbol() != null && !position.getSymbol().isBlank())
                 .map(InvestmentPosition::getSymbol)
                 .collect(java.util.stream.Collectors.toSet());
@@ -231,7 +231,7 @@ public class CorporateEventService {
     }
 
     private boolean isEligibleAsset(InvestmentPosition position, CorporateEvent event) {
-        return position.getAssetType() != InvestmentPosition.AssetType.RENDA_FIXA
+        return AssetResolver.supportsCorporateEvents(position.getAssetType())
                 && position.getSymbol() != null && position.getSymbol().equalsIgnoreCase(event.getSymbol())
                 && !position.isRedeemed();
     }
@@ -401,10 +401,12 @@ public class CorporateEventService {
     }
 
     private PilotCandidate existingCandidate(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
-        if (earning.getStatus() == WalletEarning.Status.CANCELADO) {
-            return PilotCandidate.cancelled(data, earning);
-        }
-        return PilotCandidate.alreadyInAgenda(data, earning);
+        return switch (earning.getStatus()) {
+            case PROVISIONADO -> PilotCandidate.provisioned(data, earning);
+            case PENDENTE_CONCILIACAO -> PilotCandidate.awaitingConfirmation(data, earning);
+            case EFETIVADO -> PilotCandidate.confirmed(data, earning);
+            case CANCELADO -> PilotCandidate.cancelled(data, earning);
+        };
     }
 
     private CorporateEvent asEvent(MarketDataProvider.CorporateEventData data) {
@@ -447,8 +449,14 @@ public class CorporateEventService {
         static PilotCandidate cancelled(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
             return existing(data, earning, "CANCELADO", "Cancelado pelo usuário. Restaure a previsão somente se quiser revisá-la novamente.");
         }
-        static PilotCandidate alreadyInAgenda(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
-            return existing(data, earning, "JA_NA_AGENDA", "Esta previsão já está na Agenda ou no Histórico.");
+        static PilotCandidate provisioned(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
+            return existing(data, earning, "JA_PROVISIONADO", "Esta previsão já está provisionada na Agenda e ainda não criou receita.");
+        }
+        static PilotCandidate awaitingConfirmation(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
+            return existing(data, earning, "PENDENTE_CONFIRMACAO", "A data de pagamento chegou; confira o crédito antes de confirmar o recebimento.");
+        }
+        static PilotCandidate confirmed(MarketDataProvider.CorporateEventData data, WalletEarning earning) {
+            return existing(data, earning, "CONFIRMADO", "O recebimento já foi confirmado e a receita vinculada está no Histórico Financeiro.");
         }
         private static PilotCandidate existing(MarketDataProvider.CorporateEventData data, WalletEarning earning, String status, String reason) {
             return new PilotCandidate(data, earning.getPosition(), earning.getQuantityEligible(), earning.getGrossAmount(),

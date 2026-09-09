@@ -371,7 +371,7 @@ export interface WishlistHistoryResponse {
   createdAt: string;
 }
 
-export type InvestmentAssetType = 'ACAO' | 'FII' | 'FIAGRO' | 'CRIPTO' | 'RENDA_FIXA';
+export type InvestmentAssetType = 'ACAO' | 'FII' | 'FIAGRO' | 'BDR' | 'ETF' | 'CRIPTO' | 'RENDA_FIXA';
 
 export interface InvestmentPositionRequest {
   taxRegime?: 'REGRESSIVO' | 'ISENTO' | 'MANUAL' | null;
@@ -636,7 +636,7 @@ export interface CorporateEventPreviewResponse {
   exDate: string;
   paymentDate: string;
   source: string;
-  status: 'NOVO' | 'CANCELADO' | 'JA_NA_AGENDA' | 'AMBIGUO' | 'ATIVO_FORA_DA_CARTEIRA' | 'FORA_DA_JANELA' | 'INELEGIVEL_NA_DATA_COM';
+  status: 'NOVO' | 'JA_PROVISIONADO' | 'PENDENTE_CONFIRMACAO' | 'CONFIRMADO' | 'CANCELADO' | 'AMBIGUO' | 'ATIVO_FORA_DA_CARTEIRA' | 'FORA_DA_JANELA' | 'INELEGIVEL_NA_DATA_COM';
   reason: string;
   eligibilityStartDate: string | null;
 }

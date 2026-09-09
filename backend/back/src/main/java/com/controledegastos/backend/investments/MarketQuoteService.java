@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-public class MarketQuoteService {
+public class MarketQuoteService implements MarketReferenceData.ExchangeRates, MarketReferenceData.CryptoPrices {
     private static final Logger log = LoggerFactory.getLogger(MarketQuoteService.class);
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -77,6 +77,20 @@ public class MarketQuoteService {
             log.warn("Câmbio {}-BRL indisponível: {}", currency, exception.getMessage());
             return cached == null ? BigDecimal.ONE : cached.rate();
         }
+    }
+
+    @Override
+    public java.util.Optional<MarketReferenceData.Observation> rateToBrl(String currency) {
+        BigDecimal rate = exchangeRateToBrl(currency);
+        return rate.signum() > 0 ? java.util.Optional.of(new MarketReferenceData.Observation(rate, "BRL", "YAHOO_FINANCE", Instant.now()))
+                : java.util.Optional.empty();
+    }
+
+    @Override
+    public java.util.Optional<MarketReferenceData.Observation> price(String externalId, String currency) {
+        QuoteResponse quote = quote(InvestmentPosition.AssetType.CRIPTO, externalId, externalId, "GLOBAL");
+        return quote.available() ? java.util.Optional.of(new MarketReferenceData.Observation(quote.price(), quote.currency(), quote.source(), quote.updatedAt()))
+                : java.util.Optional.empty();
     }
 
     private QuoteResponse fetchExchangeAssetWithFallback(String symbol, String externalId, String market) throws Exception {

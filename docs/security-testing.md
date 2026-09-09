@@ -32,9 +32,6 @@ O perfil somente-leitura `codex_security_deep_scan_worker` foi definido em `C:\U
 
 Para esse repositorio, prefira primeiro uma verificacao padrao. Depois, execute o Deep Scan para uma revisao mais exaustiva; ele nao substitui a revisao de diff de um pull request.
 
-## RLS do Supabase
-
-RLS habilitado sem policies nao atende requisicoes do cliente: por padrao, elas serao negadas. Defina e teste policies por tabela antes de liberar acesso direto pelo navegador. O backend, conectado como banco, deve continuar aplicando autorizacao de dono e papeis, porque RLS nao substitui essas regras de negocio.
 
 ## OWASP ZAP
 

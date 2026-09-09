@@ -47,6 +47,7 @@ Mantenha o piloto desligado até a conta de validação e os ativos de referênc
 - `APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON=-`
 - `APP_INVESTMENTS_CORPORATE_EVENTS_AUTOMATIC_SYNC_ENABLED=false`
 - `APP_INVESTMENTS_CORPORATE_EVENTS_B3_MINIMUM_DELAY_MS=300`
+- `APP_INVESTMENTS_CORPORATE_EVENTS_HISTORY_CACHE_HOURS=24`
 
 Após o deploy, entre com uma conta autorizada, abra Investimentos e use **Atualizar agenda**. Confirme a fonte, a faixa de Datas Com e os valores contra documentos do emissor antes de publicar cada previsão. A atualização deve permanecer manual: uma previsão publicada não altera saldo e somente **Confirmar recebimento** cria a receita `INVESTIMENTO`.
 

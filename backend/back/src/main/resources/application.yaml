@@ -66,6 +66,7 @@ app:
       automatic-sync-enabled: ${APP_INVESTMENTS_CORPORATE_EVENTS_AUTOMATIC_SYNC_ENABLED:false}
       b3-base-url: ${APP_INVESTMENTS_CORPORATE_EVENTS_B3_BASE_URL:https://sistemaswebb3-listados.b3.com.br}
       b3-minimum-delay-ms: ${APP_INVESTMENTS_CORPORATE_EVENTS_B3_MINIMUM_DELAY_MS:300}
+      history-cache-hours: ${APP_INVESTMENTS_CORPORATE_EVENTS_HISTORY_CACHE_HOURS:24}
     imports:
       pdf-enabled: ${APP_INVESTMENTS_IMPORTS_PDF_ENABLED:true}
   admin:

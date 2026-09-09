@@ -38,6 +38,10 @@ public class AssetCatalogService {
             asset(InvestmentPosition.AssetType.FIAGRO, "XPCA11", "XPCA11.SA", "XP Crédito Agrícola Fiagro", "BR", "B3", "BRL"),
             asset(InvestmentPosition.AssetType.FIAGRO, "IAGR11", "IAGR11.SA", "Interamericano Agro Fiagro", "BR", "B3", "BRL"),
             asset(InvestmentPosition.AssetType.FIAGRO, "VGIA11", "VGIA11.SA", "Valora CRA Fiagro", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.ETF, "BOVA11", "BOVA11.SA", "iShares Ibovespa ETF", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.ETF, "IVVB11", "IVVB11.SA", "iShares S&P 500 ETF", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.BDR, "AAPL34", "AAPL34.SA", "Apple BDR", "BR", "B3", "BRL"),
+            asset(InvestmentPosition.AssetType.BDR, "MSFT34", "MSFT34.SA", "Microsoft BDR", "BR", "B3", "BRL"),
             asset(InvestmentPosition.AssetType.ACAO, "AAPL", "AAPL", "Apple Inc.", "US", "NASDAQ", "USD"),
             asset(InvestmentPosition.AssetType.ACAO, "MSFT", "MSFT", "Microsoft Corporation", "US", "NASDAQ", "USD"),
             asset(InvestmentPosition.AssetType.ACAO, "NVDA", "NVDA", "NVIDIA Corporation", "US", "NASDAQ", "USD"),
@@ -66,7 +70,7 @@ public class AssetCatalogService {
         Map<String, AssetSearchResponse> results = new LinkedHashMap<>();
         if (type == InvestmentPosition.AssetType.CRIPTO) {
             safelySearch(() -> searchCrypto(query), results, "CoinGecko");
-        } else {
+        } else if (type != InvestmentPosition.AssetType.BDR && type != InvestmentPosition.AssetType.ETF) {
             safelySearch(() -> searchBrazilianAssets(query, type), results, "Brapi");
             if (type == InvestmentPosition.AssetType.ACAO) {
                 safelySearch(() -> searchExchangeAssets(query, type), results, "Yahoo Finance");

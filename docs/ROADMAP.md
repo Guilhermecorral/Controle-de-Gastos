@@ -198,6 +198,14 @@ Validar ações, FIIs e FIAGROs contra documentos do emissor por ciclos suficien
 
 Antes de iniciar essa validacao, habilitar no ambiente controlado somente o provedor `b3`, a conta piloto e a atualizacao manual. O procedimento e os valores seguros de configuracao estao no [runbook de producao](PRODUCTION_DEPLOY_RUNBOOK.md). O cron permanece desabilitado durante toda a beta.
 
+### Preparação técnica concluída
+
+- A prévia da Agenda diferencia evento novo, já provisionado, pendente de confirmação, confirmado, cancelado, inelegível na Data Com e ambíguo. Cancelamentos podem ser restaurados individualmente ou em lote, sem recriar o evento econômico.
+- `InstrumentCatalog` e `AssetResolver` separam ticker, ISIN, emissor, classe e capacidades. BDRs e ETFs são cadastráveis e cotáveis, mas declaram explicitamente que não suportam Agenda automática.
+- O histórico de ações usa `GetInitialCompanies` para resolver o identificador B3 e `GetListedCashDividends` em páginas de no máximo 120 itens. Respostas brutas, hash, origem e validade ficam em cache auditável; histórico sem Data de Pagamento não é previsão.
+- A prova de conceito CVM de `MXRF11` e `RURA11` está em [CVM-FUND-INCOME-POC.md](CVM-FUND-INCOME-POC.md). Ela documenta cobertura e limitações, mas não habilita histórico automático de fundos.
+- Câmbio, cripto, juros e inflação possuem contratos independentes de referência. Juros e inflação continuam sem fonte automática até a validação de proveniência, vigência e termos de uso.
+
 ### Arquitetura de proventos para a proxima fase
 
 Esta secao e plano documentado, nao codigo entregue nesta rodada. Nenhuma fonte adicional entrara em producao sem testes de paginacao, deduplicacao e resposta divergente.

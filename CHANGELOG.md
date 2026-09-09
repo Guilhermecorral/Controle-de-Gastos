@@ -22,6 +22,9 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - O link de recuperação de senha passou a usar exclusivamente a URL de frontend configurada, sem aceitar o `Host` informado pela requisição.
 - Foi preparado um workflow do GitHub Actions para procurar segredos com Gitleaks e padrões de segurança com OpenGrep em pushes e pull requests.
 - A Agenda B3 não é mais disponibilizada quando o ambiente ainda usa a fonte `mock`, evitando publicar previsões demonstrativas por configuração incompleta.
+- A prévia B3 passa a distinguir previsão nova, provisionada, pendente de confirmação, confirmada, cancelada, inelegível e ambígua; o histórico mantém restauração individual e em lote sem duplicar eventos.
+- Catálogo de instrumentos passa a separar ticker, ISIN, emissor, classe e capacidades. BDRs e ETFs podem ser cadastrados sem habilitar Agenda automática.
+- Histórico de ações ganhou consulta B3 paginada e cache auditável; a prova de conceito CVM para MXRF11/RURA11 permanece somente leitura e não cria previsões.
 
 ## [1.4.4] - 2026-09-06
 

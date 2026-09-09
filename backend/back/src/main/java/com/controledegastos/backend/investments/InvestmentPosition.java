@@ -104,6 +104,6 @@ public class InvestmentPosition {
         updatedAt = LocalDateTime.now();
     }
 
-    public enum AssetType { ACAO, FII, FIAGRO, CRIPTO, RENDA_FIXA }
+    public enum AssetType { ACAO, FII, FIAGRO, BDR, ETF, CRIPTO, RENDA_FIXA }
     public enum FixedIncomeYieldType { PREFIXADO, POS_FIXADO, HIBRIDO }
 }

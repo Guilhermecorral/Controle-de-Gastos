@@ -64,7 +64,7 @@ class CorporateEventServiceTest {
                 .containsExactly(published.sourceReference(), newEvent.sourceReference());
         assertThat(preview.events()).filteredOn(item -> item.sourceReference().equals(published.sourceReference()))
                 .singleElement().satisfies(item -> {
-                    assertThat(item.status()).isEqualTo("JA_NA_AGENDA");
+                    assertThat(item.status()).isEqualTo("JA_PROVISIONADO");
                     assertThat(item.walletEarningId()).isEqualTo(9L);
                 });
         assertThat(preview.coverage()).singleElement().satisfies(item -> {
@@ -73,6 +73,38 @@ class CorporateEventServiceTest {
             assertThat(item.earliestExDate()).isEqualTo(exDate);
             assertThat(item.latestExDate()).isEqualTo(exDate);
         });
+    }
+
+    @Test
+    void distinguishesProvisionedPendingAndConfirmedAgendaEntries() {
+        User user = User.builder().id(7L).email("pessoa@example.com").build();
+        InvestmentPosition position = InvestmentPosition.builder().id(3L).user(user)
+                .assetType(InvestmentPosition.AssetType.ACAO).symbol("PETR4").name("Petrobras PN")
+                .quantity(BigDecimal.ONE).averagePrice(new BigDecimal("30")).build();
+        LocalDate start = LocalDate.now().minusDays(8);
+        InvestmentMovement purchase = InvestmentMovement.builder().position(position)
+                .movementType(InvestmentMovement.MovementType.COMPRA).quantity(BigDecimal.ONE).eventDate(start.minusDays(1)).build();
+        var provisioned = event("b3:petr4:provisioned", start);
+        var pending = event("b3:petr4:pending", start.plusDays(1));
+        var confirmed = event("b3:petr4:confirmed", start.plusDays(2));
+
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        doNothing().when(pilotAccess).require(user);
+        when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
+        when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(provisioned, pending, confirmed));
+        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of(
+                existingEarning(user, position, provisioned, WalletEarning.Status.PROVISIONADO),
+                existingEarning(user, position, pending, WalletEarning.Status.PENDENTE_CONCILIACAO),
+                existingEarning(user, position, confirmed, WalletEarning.Status.EFETIVADO)
+        ));
+
+        var statuses = service.previewCurrentUser().events().stream()
+                .collect(java.util.stream.Collectors.toMap(CorporateEventPreviewResponse::sourceReference, CorporateEventPreviewResponse::status));
+
+        assertThat(statuses).containsEntry(provisioned.sourceReference(), "JA_PROVISIONADO")
+                .containsEntry(pending.sourceReference(), "PENDENTE_CONFIRMACAO")
+                .containsEntry(confirmed.sourceReference(), "CONFIRMADO");
     }
 
     @Test
@@ -216,5 +248,15 @@ class CorporateEventServiceTest {
     private MarketDataProvider.CorporateEventData event(String sourceReference, LocalDate exDate) {
         return new MarketDataProvider.CorporateEventData(sourceReference, "PETR4", "BRPETRACNPR6", CorporateEvent.EventType.DIVIDENDO,
                 null, new BigDecimal("0.10"), BigDecimal.ZERO, exDate, exDate.plusDays(5), "B3_EXPERIMENTAL", "VALIDO");
+    }
+
+    private WalletEarning existingEarning(User user, InvestmentPosition position, MarketDataProvider.CorporateEventData data,
+                                          WalletEarning.Status status) {
+        CorporateEvent corporateEvent = CorporateEvent.builder().sourceReference(data.sourceReference()).symbol(data.symbol())
+                .eventType(data.eventType()).amountPerUnit(data.amountPerUnit()).taxRate(data.taxRate())
+                .exDate(data.exDate()).paymentDate(data.paymentDate()).source(data.source()).build();
+        return WalletEarning.builder().user(user).position(position).corporateEvent(corporateEvent)
+                .quantityEligible(BigDecimal.ONE).grossAmount(data.amountPerUnit()).withheldAmount(BigDecimal.ZERO)
+                .netAmount(data.amountPerUnit()).status(status).build();
     }
 }

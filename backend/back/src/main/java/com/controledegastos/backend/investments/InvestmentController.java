@@ -19,6 +19,7 @@ import java.util.List;
 public class InvestmentController {
     private final InvestmentService investmentService;
     private final CorporateEventService corporateEventService;
+    private final CorporateEventHistoryService corporateEventHistoryService;
     private final InvestmentImportService investmentImportService;
 
     @GetMapping("/portfolio")
@@ -119,6 +120,11 @@ public class InvestmentController {
 
     @PostMapping("/wallet-earnings/preview")
     public CorporateEventPilotPreviewResponse previewWalletEarnings() { return corporateEventService.previewCurrentUser(); }
+
+    @GetMapping("/corporate-events/history/{symbol}")
+    public List<B3HistoricalCashDividendProvider.HistoricalCashDividend> corporateEventHistory(@PathVariable String symbol) {
+        return corporateEventHistoryService.history(symbol);
+    }
 
     @PostMapping("/wallet-earnings/publish")
     public List<WalletEarningResponse> publishWalletEarnings(@Valid @RequestBody CorporateEventPublishRequest request) {
