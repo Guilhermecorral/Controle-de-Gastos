@@ -46,7 +46,7 @@ public class PasswordResetService {
      * Dispara o fluxo de redefinicao para o email informado sem entregar pistas para atacantes.
      */
     @Transactional
-    public ForgotPasswordResponseDTO requestReset(ForgotPasswordRequestDTO dto, String remoteIp, String applicationBaseUrl) {
+    public ForgotPasswordResponseDTO requestReset(ForgotPasswordRequestDTO dto, String remoteIp) {
         captchaVerificationService.assertValid(dto.captchaToken(), remoteIp, "recuperacao de senha");
 
         User user = userRepository.findByEmail(dto.email()).orElse(null);
@@ -63,11 +63,7 @@ public class PasswordResetService {
                     .build();
 
             passwordResetTokenRepository.save(token);
-            String resetLink = UriComponentsBuilder.fromUriString(applicationBaseUrl)
-                    .path("/api/auth/reset-password/redirect")
-                    .queryParam("token", rawToken)
-                    .build()
-                    .toUriString();
+            String resetLink = buildFrontendResetUrl(rawToken);
             passwordResetDeliveryService.deliverResetLink(user.getEmail(), resetLink);
             log.info("Fluxo de redefinicao preparado para {}", maskEmail(user.getEmail()));
         } else {

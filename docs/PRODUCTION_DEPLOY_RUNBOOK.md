@@ -37,6 +37,21 @@ Configure no Render:
 
 Depois do deploy, confirme no DevTools que o login retorna `Set-Cookie` pela URL `/api/auth/login` do domínio oficial e que `/api/auth/me` responde `200`. Não peça ao usuário para liberar cookies de terceiros: o proxy existe justamente para que a sessão continue segura em navegação privada.
 
+## Piloto Agenda B3
+
+Mantenha o piloto desligado até a conta de validação e os ativos de referência estarem definidos. Para habilitá-lo no Render, configure somente as variáveis abaixo:
+
+- `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`
+- `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED=true`
+- `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_EMAILS=conta-piloto@exemplo.com` (lista separada por vírgulas, sem contas não autorizadas)
+- `APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON=-`
+- `APP_INVESTMENTS_CORPORATE_EVENTS_AUTOMATIC_SYNC_ENABLED=false`
+- `APP_INVESTMENTS_CORPORATE_EVENTS_B3_MINIMUM_DELAY_MS=300`
+
+Após o deploy, entre com uma conta autorizada, abra Investimentos e use **Atualizar agenda**. Confirme a fonte, a faixa de Datas Com e os valores contra documentos do emissor antes de publicar cada previsão. A atualização deve permanecer manual: uma previsão publicada não altera saldo e somente **Confirmar recebimento** cria a receita `INVESTIMENTO`.
+
+Se a fonte falhar, mantenha as previsões existentes e desligue o piloto com `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED=false`; não habilite cron, nem tente consultar toda a B3 como contingência.
+
 ## Cloudflare Turnstile
 
 O widget de produção deve autorizar somente:

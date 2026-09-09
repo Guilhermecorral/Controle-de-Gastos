@@ -4,12 +4,12 @@ Atualizado em 08/09/2026. Este documento e a referencia de continuidade para as 
 
 ## Onde estamos agora
 
-- Versao em desenvolvimento: `1.4.5-beta.1`.
+- Versao em validacao controlada: `1.4.5-beta.1`.
 
 | Frente | Estado | Situacao atual |
 | --- | --- | --- |
-| Proventos/B3 | Em andamento | Piloto autorizado consulta a B3, cria somente previsoes e exige confirmacao para receita. Cancelamentos sao reversiveis; cobertura historica ainda depende de fontes por tipo de ativo. |
-| Debito tecnico | Planejado | Lint sem configuracao, CI ausente e formulario de renda fixa duplicado continuam pendentes. |
+| Proventos/B3 | Pronto para piloto | Piloto manual, restrito por ambiente e com pre-visualizacao esta pronto para ativacao. A promocao para `1.4.5` depende da validacao contra documentos do emissor. |
+| Debito tecnico | Em andamento | Workflow de seguranca para Gitleaks e OpenGrep foi preparado; lint sem configuracao e formulario de renda fixa duplicado continuam pendentes. |
 | Sessao | Em andamento | Refresh persistido e rotacionado; a evidencia final de cookie/proxy deve continuar sendo observada em producao. |
 | Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
 | COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
@@ -195,6 +195,8 @@ Permitir que administradores e contas liberadas por ambiente validem previsões 
 ### Critério para promover a 1.4.5
 
 Validar ações, FIIs e FIAGROs contra documentos do emissor por ciclos suficientes, sem associação incorreta de classe de ação, duplicidade ou crédito financeiro automático.
+
+Antes de iniciar essa validacao, habilitar no ambiente controlado somente o provedor `b3`, a conta piloto e a atualizacao manual. O procedimento e os valores seguros de configuracao estao no [runbook de producao](PRODUCTION_DEPLOY_RUNBOOK.md). O cron permanece desabilitado durante toda a beta.
 
 ### Arquitetura de proventos para a proxima fase
 

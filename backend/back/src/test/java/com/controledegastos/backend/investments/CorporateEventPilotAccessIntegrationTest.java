@@ -25,7 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
         "app.investments.corporate-events.pilot-enabled=true",
-        "app.investments.corporate-events.pilot-emails=pilot@example.com"
+        "app.investments.corporate-events.pilot-emails=pilot@example.com",
+        "app.investments.corporate-events.provider=b3"
 })
 @Transactional
 class CorporateEventPilotAccessIntegrationTest {

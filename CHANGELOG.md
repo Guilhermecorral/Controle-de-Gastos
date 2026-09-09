@@ -18,6 +18,10 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - A Agenda agora mostra somente proventos que ainda exigem ação; recebidos, efetivados e cancelados ficam no Histórico Financeiro e podem ser consultados por um histórico opcional na própria Agenda.
 - A prévia B3 tolera até dois minutos de inicialização e consulta, evitando que o despertar do Render seja mostrado como falha da Agenda.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
+- Os arquivos de ambiente e o runbook passaram a documentar a ativação segura do piloto: fonte `mock` e piloto desligado por padrão, conta autorizada explícita e cron sempre desabilitado.
+- O link de recuperação de senha passou a usar exclusivamente a URL de frontend configurada, sem aceitar o `Host` informado pela requisição.
+- Foi preparado um workflow do GitHub Actions para procurar segredos com Gitleaks e padrões de segurança com OpenGrep em pushes e pull requests.
+- A Agenda B3 não é mais disponibilizada quando o ambiente ainda usa a fonte `mock`, evitando publicar previsões demonstrativas por configuração incompleta.
 
 ## [1.4.4] - 2026-09-06
 

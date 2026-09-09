@@ -124,8 +124,8 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `POST` | `/api/investments/income-schedules/{id}/receive` | Confirma o recebimento de um provento agendado |
 | `GET` | `/api/investments/wallet-earnings` | Lista proventos automáticos e atualiza o estado quando a data de pagamento chega |
 | `GET` | `/api/investments/wallet-earnings/pilot-access` | Informa se a conta pode usar o piloto B3 |
-| `POST` | `/api/investments/wallet-earnings/preview` | Consulta a B3 sem gravar previsões ou transações; retorna candidatos, data da primeira compra usada na elegibilidade e a faixa de Data Com efetivamente devolvida pela fonte; 403 fora do piloto |
-| `POST` | `/api/investments/wallet-earnings/publish` | Publica na Agenda apenas previsões selecionadas e válidas; 403 fora do piloto |
+| `POST` | `/api/investments/wallet-earnings/preview` | Consulta a B3 sem gravar previsões ou transações; retorna candidatos, data da primeira compra usada na elegibilidade e a faixa de Data Com efetivamente devolvida pela fonte; 403 fora do piloto e 503 se o provedor B3 não estiver configurado |
+| `POST` | `/api/investments/wallet-earnings/publish` | Publica na Agenda apenas previsões selecionadas e válidas; 403 fora do piloto e 503 se o provedor B3 não estiver configurado |
 | `POST` | `/api/investments/wallet-earnings/{id}/confirm` | Confirma o valor recebido e cria a receita `INVESTIMENTO` vinculada |
 | `PUT` | `/api/investments/wallet-earnings/{id}` | Ajusta bruto/retenção ou cancela uma previsão ainda não efetivada |
 | `GET` | `/api/investments/goals` | Lista metas de patrimônio e seus saldos próprios |

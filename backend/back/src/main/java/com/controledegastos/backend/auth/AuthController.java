@@ -118,7 +118,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequestDTO dto,
             HttpServletRequest request
     ) {
-        return ResponseEntity.ok(authService.requestPasswordReset(dto, request.getRemoteAddr(), resolveApplicationBaseUrl(request)));
+        return ResponseEntity.ok(authService.requestPasswordReset(dto, request.getRemoteAddr()));
     }
 
     /**
@@ -151,17 +151,5 @@ public class AuthController {
                 session.refreshToken(),
                 jwtService.getRefreshExpiration()
         );
-    }
-
-    private String resolveApplicationBaseUrl(HttpServletRequest request) {
-        String scheme = request.getScheme();
-        String serverName = request.getServerName();
-        int serverPort = request.getServerPort();
-        boolean defaultPort = ("http".equalsIgnoreCase(scheme) && serverPort == 80)
-                || ("https".equalsIgnoreCase(scheme) && serverPort == 443);
-
-        return defaultPort
-                ? scheme + "://" + serverName
-                : scheme + "://" + serverName + ":" + serverPort;
     }
 }

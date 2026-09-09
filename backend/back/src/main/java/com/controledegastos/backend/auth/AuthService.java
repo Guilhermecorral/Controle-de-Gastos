@@ -165,8 +165,8 @@ public class AuthService {
     /**
      * Inicia o fluxo de redefinicao de senha e mantem a resposta neutra por seguranca.
      */
-    public ForgotPasswordResponseDTO requestPasswordReset(ForgotPasswordRequestDTO dto, String remoteIp, String applicationBaseUrl) {
-        return passwordResetService.requestReset(dto, remoteIp, applicationBaseUrl);
+    public ForgotPasswordResponseDTO requestPasswordReset(ForgotPasswordRequestDTO dto, String remoteIp) {
+        return passwordResetService.requestReset(dto, remoteIp);
     }
 
     /**

@@ -1,0 +1,42 @@
+name: Security
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Gitleaks secrets scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  opengrep:
+    name: OpenGrep SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - id: scan
+        uses: platform-sec/opengrep-action@4c19a88ebb98ab9fb77993cb6d16b078740fad1e # v2.0.1
+        with:
+          target: .
+          patterns: p/security-audit
+          output-format: json/sarif
+          strict: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opengrep-results
+          path: |
+            ${{ steps.scan.outputs.json-file }}
+            ${{ steps.scan.outputs.sarif-file }}
+          if-no-files-found: warn
