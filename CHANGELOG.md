@@ -28,6 +28,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - `3bd0464` (2026-09-08) tornou cancelamento um estado reversível, separou ambiguidade de inelegibilidade na Data Com e deduplicou eventos econômicos antes da prévia e persistência. Também adicionou o workflow geral de CI, configuração de lint e o manifesto versionado do `COTAHIST`.
 - `9918c1a` (2026-09-08) bloqueou o piloto quando o provedor ativo ainda é `mock`, documentou a ativação manual segura e manteve cron desligado. Corrigiu o reset de senha para usar somente a URL de frontend configurada e adicionou o workflow de segurança com Gitleaks e OpenGrep.
 - `e52e714` (2026-09-09) distinguiu os estados novo, provisionado, pendente de confirmação, confirmado, cancelado, inelegível e ambíguo; criou `InstrumentCatalog` e `AssetResolver`; cadastrou BDR/ETF sem Agenda automática; e adicionou histórico B3 paginado com cache persistido, deduplicação e filtro por ISIN. A prova de conceito CVM de `MXRF11`/`RURA11` e os contratos separados de dados de mercado permanecem sem automação de Agenda.
+- O mapeamento JPA do payload do cache B3 passou a usar `TEXT`, igual à migration V21 e ao PostgreSQL de produção, evitando que o Hibernate espere um `oid` e interrompa o deploy durante a criação do `entityManagerFactory`.
 
 ## [1.4.4] - 2026-09-06
 

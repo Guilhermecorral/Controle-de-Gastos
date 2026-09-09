@@ -26,8 +26,8 @@ public class MarketDataSnapshot {
     @Column(name = "payload_hash", nullable = false, length = 64)
     private String payloadHash;
 
-    @Lob
-    @Column(nullable = false)
+    // PostgreSQL stores large text directly; @Lob would map this field to an OID instead of TEXT.
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
     @Column(name = "fetched_at", nullable = false)
