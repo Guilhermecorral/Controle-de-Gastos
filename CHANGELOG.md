@@ -4,6 +4,8 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
 ## [1.4.5-beta.1] - 2026-09-06
 
+### Entrega inicial
+
 - A Agenda de Proventos B3 virou um piloto controlado: somente administradores e e-mails autorizados por ambiente podem consultar a prévia e publicar previsões revisáveis.
 - A consulta B3 não cria receita, transação ou saldo; somente a confirmação explícita de recebimento gera a receita `INVESTIMENTO` vinculada.
 - Eventos com classe de ação ambígua, como uma PN retornada para uma carteira que possui apenas BBDC3, são rejeitados antes de entrar na Agenda.
@@ -18,13 +20,14 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - A Agenda agora mostra somente proventos que ainda exigem ação; recebidos, efetivados e cancelados ficam no Histórico Financeiro e podem ser consultados por um histórico opcional na própria Agenda.
 - A prévia B3 tolera até dois minutos de inicialização e consulta, evitando que o despertar do Render seja mostrado como falha da Agenda.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
-- Os arquivos de ambiente e o runbook passaram a documentar a ativação segura do piloto: fonte `mock` e piloto desligado por padrão, conta autorizada explícita e cron sempre desabilitado.
-- O link de recuperação de senha passou a usar exclusivamente a URL de frontend configurada, sem aceitar o `Host` informado pela requisição.
-- Foi preparado um workflow do GitHub Actions para procurar segredos com Gitleaks e padrões de segurança com OpenGrep em pushes e pull requests.
-- A Agenda B3 não é mais disponibilizada quando o ambiente ainda usa a fonte `mock`, evitando publicar previsões demonstrativas por configuração incompleta.
-- A prévia B3 passa a distinguir previsão nova, provisionada, pendente de confirmação, confirmada, cancelada, inelegível e ambígua; o histórico mantém restauração individual e em lote sem duplicar eventos.
-- Catálogo de instrumentos passa a separar ticker, ISIN, emissor, classe e capacidades. BDRs e ETFs podem ser cadastrados sem habilitar Agenda automática.
-- Histórico de ações ganhou consulta B3 paginada e cache auditável; a prova de conceito CVM para MXRF11/RURA11 permanece somente leitura e não cria previsões.
+
+### Continuação auditada por commit
+
+- `5a1bbed` (2026-09-07) tornou a cobertura da fonte auditável por ativo, quantidade de eventos e intervalo de Data Com; a elegibilidade passou a expor a primeira compra registrada. A Agenda e o Histórico foram separados, com filtro por estado, seleção dos itens visíveis e carregamento progressivo da lista.
+- `00aa231` (2026-09-07) eliminou séries técnicas de fundos pelo ISIN canônico, ampliou a consulta de proventos para todo o período conhecido da posição e adicionou ações em lote para cancelar, restaurar ou desfazer recebimentos sem aceitar IDs repetidos. Compras fracionadas de cripto passaram a preservar quantidade e precisão em vez de aplicar regras de lotes de ações.
+- `3bd0464` (2026-09-08) tornou cancelamento um estado reversível, separou ambiguidade de inelegibilidade na Data Com e deduplicou eventos econômicos antes da prévia e persistência. Também adicionou o workflow geral de CI, configuração de lint e o manifesto versionado do `COTAHIST`.
+- `9918c1a` (2026-09-08) bloqueou o piloto quando o provedor ativo ainda é `mock`, documentou a ativação manual segura e manteve cron desligado. Corrigiu o reset de senha para usar somente a URL de frontend configurada e adicionou o workflow de segurança com Gitleaks e OpenGrep.
+- `e52e714` (2026-09-09) distinguiu os estados novo, provisionado, pendente de confirmação, confirmado, cancelado, inelegível e ambíguo; criou `InstrumentCatalog` e `AssetResolver`; cadastrou BDR/ETF sem Agenda automática; e adicionou histórico B3 paginado com cache persistido, deduplicação e filtro por ISIN. A prova de conceito CVM de `MXRF11`/`RURA11` e os contratos separados de dados de mercado permanecem sem automação de Agenda.
 
 ## [1.4.4] - 2026-09-06
 

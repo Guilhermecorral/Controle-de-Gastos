@@ -80,7 +80,7 @@ Substituir a agenda de proventos de demonstracao por uma rotina rastreavel que c
 
 ### Registro de pesquisa de eventos corporativos
 
-O desenho vigente e os proximos passos estao na secao "Arquitetura de proventos para a proxima fase", dentro da `v1.4.5-beta.1`. Este registro preserva apenas o contexto que levou ao piloto; ele nao e a especificacao atual de cobertura.
+O estado vigente está consolidado na seção da `v1.4.5-beta.1`: código entregue e testado aparece em "Preparação técnica concluída", enquanto somente lacunas reais permanecem em "Próximas entregas de proventos". Este registro preserva o contexto que levou ao piloto; ele não é a especificação atual de cobertura.
 
 **Direcao aprovada para validacao:** usar a metodologia observada no projeto aberto [b3-pipeline-data-and-backtest-framework](https://github.com/nickmaglowsch/b3-pipeline-data-and-backtest-framework) como referencia tecnica, mas implementar um coletor proprio e reduzido no Farol. O projeto nao deve ser copiado integralmente: ele foi projetado para pesquisa e backtests em Python/Rust/SQLite, enquanto o Farol usa Java/Spring/PostgreSQL.
 
@@ -204,41 +204,14 @@ Antes de iniciar essa validacao, habilitar no ambiente controlado somente o prov
 - `InstrumentCatalog` e `AssetResolver` separam ticker, ISIN, emissor, classe e capacidades. BDRs e ETFs são cadastráveis e cotáveis, mas declaram explicitamente que não suportam Agenda automática.
 - O histórico de ações usa `GetInitialCompanies` para resolver o identificador B3 e `GetListedCashDividends` em páginas de no máximo 120 itens. Respostas brutas, hash, origem e validade ficam em cache auditável; histórico sem Data de Pagamento não é previsão.
 - A prova de conceito CVM de `MXRF11` e `RURA11` está em [CVM-FUND-INCOME-POC.md](CVM-FUND-INCOME-POC.md). Ela documenta cobertura e limitações, mas não habilita histórico automático de fundos.
-- Câmbio, cripto, juros e inflação possuem contratos independentes de referência. Juros e inflação continuam sem fonte automática até a validação de proveniência, vigência e termos de uso.
-
-### Arquitetura de proventos para a proxima fase
-
-Esta secao e plano documentado, nao codigo entregue nesta rodada. Nenhuma fonte adicional entrara em producao sem testes de paginacao, deduplicacao e resposta divergente.
-
-#### Identidade e capacidades do instrumento
-
-`InstrumentCatalog` e `AssetResolver` deverao manter `symbol` (ticker exibido), `isin`, emissor, classe (`ON`, `PN` ou `UNT`) e `assetType` separados. O ticker nunca sera substituido pelo ISIN: `BBDC3` e `BBDC4` continuam papeis distintos mesmo quando pertencem ao mesmo emissor.
-
-Cada tipo declarara as capacidades `supportsQuote`, `supportsHistoricalQuote`, `supportsCorporateEvents`, `supportsAutomaticSchedule`, `supportsFractionalQuantity` e `requiresDerivativeLedger`. Assim a interface podera informar cobertura parcial sem inventar provento ou cotacao.
-
-#### Fontes e cobertura validada
-
-| Tipo | Fonte planejada | Estado da cobertura automatica |
-| --- | --- | --- |
-| Acoes BR | `GetListedCashDividends` historico + suplemento B3 atual | Viavel, pendente de provedor Java, paginacao e cache auditavel. O historico nao traz data de pagamento. |
-| FII | Suplemento B3 atual; prova de conceito CVM para historico | Recente em observacao; historico ainda nao prometido. |
-| FIAGRO | Suplemento B3 atual; prova de conceito CVM para historico | Recente em observacao; historico ainda nao prometido. |
-| BDR e ETF | Catalogo e cotacao conforme fonte validada | Cadastravel, mas sem Agenda automatica enquanto depositario, cambio e distribuicoes nao forem validados. |
-| CEPAC, indices, futuros, opcoes e commodities | Fora do modulo de proventos | Nao planejado nesta fase. |
-
-`B3HistoricalCashDividendProvider` sera Java/Spring, nao um microsservico Python: paginara no maximo 120 registros por pagina, guardara payload bruto, hash e data de coleta, e abrira revisao quando a B3 mudar uma resposta anteriormente registrada. Eventos historicos sem `paymentDate` sao historico para revisao, nunca previsoes "A confirmar" com uma data inventada.
-
-Elegibilidade sera sempre calculada com compras menos vendas e ajustes ate a Data Com. A quantidade e congelada em `WalletEarning` ao publicar. Se uma movimentacao antiga for editada, os proventos afetados irao para revisao; o sistema nunca reescrevera um recebimento confirmado silenciosamente.
-
-`COTAHIST` fica reservado para preco historico e validacao de ticker/data. Ele nao e fonte de proventos. Os ZIPs locais nao entram no Git; o inventario versionado esta em [COTAHIST-MANIFEST.csv](COTAHIST-MANIFEST.csv). A automacao anual deve ocorrer no primeiro dia util de janeiro, validar ZIP, layout, hash e data maxima negociada, e enviar a versao anterior para armazenamento de objetos antes de qualquer importacao.
-
 ### Proximas entregas de proventos
 
-1. Criar `InstrumentCatalog` e `AssetResolver` com testes para ON/PN/UNT e ticker/ISIN separados.
-2. Implementar historico de acoes com `GetListedCashDividends`, paginacao, revisao de divergencia e deduplicacao.
-3. Manter o suplemento B3 exclusivamente para `paymentDate` recente/futura e consolidar as duas fontes por chave economica.
-4. Fazer prova de conceito CVM para `MXRF11` e `RURA11` antes de prometer historico de FII ou FIAGRO.
-5. Adicionar BDR e ETF ao catalogo sem Agenda automatica; introduzir regras somente apos fonte validada.
+1. Implementar o parser real dos informes CVM de FII e FIAGRO, começando por `MXRF11` e `RURA11`, com arquivo-origem, hash, competência, reapresentação e testes automatizados. A tabela de fontes atual é somente prova de conceito.
+2. Habilitar Agenda automática para BDR e ETF somente depois de validar fonte, depositário, moeda, classe do evento e regras de distribuição. Hoje esses ativos são apenas cadastráveis e cotáveis.
+3. Consolidar o histórico B3 de ações com o suplemento recente/futuro por chave econômica e criar revisão explícita quando uma resposta já armazenada mudar; nenhum histórico sem `paymentDate` deve virar previsão.
+4. Validar Data Com e pagamentos contra documentos de RI em ciclos suficientes para decidir se o piloto pode ser promovido à `1.4.5` estável.
+5. Cobrir com testes os contratos de câmbio, cripto, juros e inflação antes de classificá-los como camada concluída; derivativos e commodities permanecem fora desta fase.
+6. Automatizar o ciclo anual do `COTAHIST` somente após testar ZIP, layout, hash, data máxima e armazenamento da versão anterior. O inventário atual permanece em [COTAHIST-MANIFEST.csv](COTAHIST-MANIFEST.csv).
 
 ## v1.4.6 - Central de tributos da pessoa fisica
 

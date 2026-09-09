@@ -10,7 +10,7 @@ O Farol Financeiro é uma aplicação web dividida em um frontend React e uma AP
 flowchart LR
     U[Usuário] --> FE[React + TypeScript]
     FE -->|HTTPS /api| API[Spring Boot]
-    API --> DB[(PostgreSQL)]
+    API --> DB[(Supabase / PostgreSQL gerenciado)]
     API --> CACHE[(Redis)]
     API --> FILES[(Armazenamento de comprovantes)]
     API --> MAIL[Serviço de e-mail]
@@ -26,7 +26,7 @@ No ambiente de desenvolvimento, o PostgreSQL pode ser substituído pelo H2 em me
 | --- | --- |
 | Frontend | Interface, rotas, formulários, estado de sessão, consultas e visualizações |
 | API | Regras de negócio, autenticação, validação, integrações e persistência |
-| PostgreSQL | Persistência de produção e histórico financeiro |
+| Supabase / PostgreSQL | Banco PostgreSQL gerenciado usado em produção; o backend acessa via JDBC e aplica as migrações Flyway |
 | Redis | Estado compartilhado para limitação de requisições em produção |
 | Provedores de mercado | Catálogo e cotações de ações, FIIs, ativos dos EUA e criptoativos |
 | Armazenamento | Comprovantes vinculados às transações |
@@ -147,7 +147,7 @@ O perfil de desenvolvimento usa H2 para inicialização rápida. Como H2 e Postg
 flowchart LR
     WEB[www.farolfinanceiro.online] --> V[Vercel / frontend]
     V -->|/api/*| R[Render / backend]
-    R --> P[(PostgreSQL)]
+    R --> P[(Supabase / PostgreSQL)]
     R --> REDIS[(Redis)]
     R --> EXT[APIs e e-mail]
 ```
@@ -163,6 +163,14 @@ Detalhes operacionais, variáveis e critérios de rollback estão no [runbook de
 - CAPTCHA pode ser exigido conforme a configuração do ambiente.
 - Segredos, arquivos `.env`, bancos locais e comprovantes não devem entrar no Git.
 - Logs não devem expor senha, token, segredo TOTP ou conteúdo integral de documentos.
+
+### Supabase e Row Level Security
+
+O frontend não possui `@supabase/supabase-js`, não cria cliente Supabase e não chama `rest/v1` ou `auth/v1`; as chamadas da interface seguem para `/api` e passam pelo backend Spring. Em produção, o backend se conecta ao PostgreSQL gerenciado pelo Supabase por JDBC, inclusive pelo pooler, e executa a persistência JPA/Flyway. Portanto, autorização de proprietário e papéis continua sendo responsabilidade do backend e a API permanece stateless.
+
+Estado auditado em 2026-09-09: as migrações versionadas não contêm `ENABLE ROW LEVEL SECURITY` nem `CREATE POLICY`. A verificação ao vivo de `pg_class.relrowsecurity` e `pg_policies` não foi concluída porque a conexão somente leitura com o pooler expirou durante o handshake SSL, e o console web não ficou acessível no ambiente de auditoria. Assim, não há evidência suficiente para afirmar se RLS está habilitado por tabela ou se existem policies no banco de produção; esse controle deve ser tratado como **não confirmado**, e não como proteção ativa.
+
+Antes de liberar acesso direto do navegador ao Supabase ou declarar RLS como controle concluído, consultar todas as tabelas de `public` em `pg_class` e `pg_policies`, registrar RLS/policies por tabela e testar os papéis `anon` e `authenticated`. RLS habilitado sem policy nega o acesso desses papéis por padrão, mas a conta JDBC usada pelo backend pode ter privilégios diferentes; por isso, RLS não substitui as verificações de autorização do Spring.
 
 ## Limites atuais
 
