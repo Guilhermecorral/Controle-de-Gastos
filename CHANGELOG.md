@@ -8,11 +8,11 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
 - A Agenda de Proventos B3 virou um piloto controlado: somente administradores e e-mails autorizados por ambiente podem consultar a prévia e publicar previsões revisáveis.
 - A consulta B3 não cria receita, transação ou saldo; somente a confirmação explícita de recebimento gera a receita `INVESTIMENTO` vinculada.
-- Eventos com classe de ação ambígua, como uma PN retornada para uma carteira que possui apenas BBDC3, são rejeitados antes de entrar na Agenda.
+- Eventos de uma classe explicitamente diferente da posição, como uma PN retornada para uma carteira que possui apenas BBDC3, são descartados antes da prévia; `AMBIGUO` fica reservado para respostas em que a B3 realmente não identifica a classe.
 - O adaptador B3 não depende mais de um bean legado do Jackson 2, evitando falha de inicialização no Spring Boot 4 quando o piloto é habilitado.
 - A prévia B3 passa a informar a fonte realmente ativa e o backend registra, por atualização manual, quantos eventos foram lidos e quantos ficaram elegíveis; isso permite diagnosticar configuração ou resposta da fonte sem registrar dados pessoais.
 - Eventos B3 sem ticker resolvido não interrompem mais a prévia: eles são mantidos como itens para revisão, enquanto os ativos vinculados com segurança continuam aparecendo normalmente.
-- Atualizações repetidas da Agenda não recriam previsões já publicadas ou confirmadas. Previsões canceladas continuam identificáveis e podem ser restauradas explicitamente, sem voltarem como novas ou criarem duplicidade.
+- Atualizações repetidas da Agenda reconhecem previsões pelo identificador da fonte ou pela combinação de ticker, Data Com e pagamento, inclusive quando foram criadas manualmente ou por mocks anteriores. Previsões canceladas continuam identificáveis e podem ser restauradas explicitamente, sem voltarem como novas ou criarem duplicidade.
 - A prévia diferencia uma pendência de vínculo ambíguo de uma posição inelegível na Data Com, que é apenas informação diagnóstica; eventos econômicos idênticos devolvidos pela B3 são deduplicados antes de exibir ou persistir.
 - A compra e a importação assistida passam a reconhecer FIAGRO separadamente de FII; a busca BRAPI consulta o subtipo `fi-agro` e possui catálogo de contingência para os principais tickers.
 - FIAGRO passa a existir como tipo visual separado de FII, sem herdar regras tributárias automaticamente.

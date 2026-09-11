@@ -56,7 +56,7 @@ class CorporateEventServiceTest {
         WalletEarning publishedEarning = WalletEarning.builder().id(9L).user(user).position(position).corporateEvent(publishedEvent)
                 .quantityEligible(BigDecimal.ONE).grossAmount(new BigDecimal("0.10")).withheldAmount(BigDecimal.ZERO)
                 .netAmount(new BigDecimal("0.10")).status(WalletEarning.Status.PROVISIONADO).build();
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of(publishedEarning));
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of(publishedEarning));
 
         var preview = service.previewCurrentUser();
 
@@ -72,6 +72,39 @@ class CorporateEventServiceTest {
             assertThat(item.eventCount()).isEqualTo(2);
             assertThat(item.earliestExDate()).isEqualTo(exDate);
             assertThat(item.latestExDate()).isEqualTo(exDate);
+        });
+    }
+
+    @Test
+    void reconcilesAnExistingAgendaEntryBySymbolAndDatesWhenTheSourceReferenceChanged() {
+        User user = User.builder().id(7L).email("pessoa@example.com").build();
+        InvestmentPosition position = InvestmentPosition.builder().id(3L).user(user)
+                .assetType(InvestmentPosition.AssetType.ACAO).symbol("PETR4").name("Petrobras PN")
+                .quantity(BigDecimal.ONE).averagePrice(new BigDecimal("30")).build();
+        LocalDate exDate = LocalDate.now().minusDays(2);
+        LocalDate paymentDate = exDate.plusDays(5);
+        var b3Event = new MarketDataProvider.CorporateEventData("b3:petr4:current", "PETR4", "BRPETRACNPR6",
+                CorporateEvent.EventType.DIVIDENDO, null, new BigDecimal("0.10"), BigDecimal.ZERO,
+                exDate, paymentDate, "B3_EXPERIMENTAL", "VALIDO");
+        CorporateEvent legacyEvent = CorporateEvent.builder().sourceReference("mock:petr4:legacy").symbol("PETR4")
+                .eventType(CorporateEvent.EventType.DIVIDENDO).amountPerUnit(new BigDecimal("0.10"))
+                .taxRate(BigDecimal.ZERO).exDate(exDate).paymentDate(paymentDate).source("MOCK").build();
+        WalletEarning existing = WalletEarning.builder().id(21L).user(user).position(position).corporateEvent(legacyEvent)
+                .quantityEligible(BigDecimal.ONE).grossAmount(new BigDecimal("0.10")).withheldAmount(BigDecimal.ZERO)
+                .netAmount(new BigDecimal("0.10")).status(WalletEarning.Status.PENDENTE_CONCILIACAO).build();
+
+        when(authenticatedUserService.getAuthenticatedUser()).thenReturn(user);
+        doNothing().when(pilotAccess).require(user);
+        when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
+        when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of());
+        when(marketDataProvider.corporateEvents(any(), any())).thenReturn(List.of(b3Event));
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of(existing));
+
+        var preview = service.previewCurrentUser();
+
+        assertThat(preview.events()).singleElement().satisfies(item -> {
+            assertThat(item.status()).isEqualTo("PENDENTE_CONFIRMACAO");
+            assertThat(item.walletEarningId()).isEqualTo(21L);
         });
     }
 
@@ -93,7 +126,7 @@ class CorporateEventServiceTest {
         when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
         when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(provisioned, pending, confirmed));
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of(
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of(
                 existingEarning(user, position, provisioned, WalletEarning.Status.PROVISIONADO),
                 existingEarning(user, position, pending, WalletEarning.Status.PENDENTE_CONCILIACAO),
                 existingEarning(user, position, confirmed, WalletEarning.Status.EFETIVADO)
@@ -126,7 +159,7 @@ class CorporateEventServiceTest {
         when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
         when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(event));
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of());
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of());
 
         var preview = service.previewCurrentUser();
 
@@ -161,7 +194,7 @@ class CorporateEventServiceTest {
         when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
         when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(event));
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of(cancelled));
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of(cancelled));
 
         var preview = service.previewCurrentUser();
 
@@ -189,7 +222,7 @@ class CorporateEventServiceTest {
         when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
         when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(original, duplicate));
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of());
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of());
 
         var preview = service.previewCurrentUser();
 
@@ -213,7 +246,7 @@ class CorporateEventServiceTest {
         when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of(position));
         when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of(purchase));
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(event));
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of());
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of());
 
         var preview = service.previewCurrentUser();
 
@@ -235,7 +268,7 @@ class CorporateEventServiceTest {
         when(positionRepository.findAllByUserOrderByCreatedAtDesc(user)).thenReturn(List.of());
         when(movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user)).thenReturn(List.of());
         when(marketDataProvider.corporateEvents(any(), anySet())).thenReturn(List.of(unresolved));
-        when(walletEarningRepository.findExistingByUserAndSourceReferences(any(), anySet())).thenReturn(List.of());
+        when(walletEarningRepository.findAllForPilotPreviewByUser(user)).thenReturn(List.of());
 
         var preview = service.previewCurrentUser();
 

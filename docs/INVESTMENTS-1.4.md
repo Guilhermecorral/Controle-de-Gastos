@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 06/09/2026. A versão amplia a base estável da 1.4.0 com agenda B3 em piloto controlado, importação assistida e fontes experimentais revisáveis.
+Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 11/09/2026. A versão amplia a base estável da 1.4.0 com agenda B3 em piloto controlado, importação assistida e fontes experimentais revisáveis.
 
 ## Entregue nesta etapa
 
@@ -26,7 +26,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 06/09/2026. A versão a
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
 - O simulador combina métricas, tabela completa mês a mês e gráfico de linha com início, quartis e vencimento.
 - Eventos corporativos e proventos do usuário são separados: `CorporateEvent` guarda o anúncio global e `WalletEarning` congela quantidade, bruto, IRRF e líquido pela Data Com.
-- A Agenda de Proventos usa `MarketDataProvider`. O provedor `B3CorporateEventProvider` é experimental e só entra em operação com `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`, piloto habilitado e acesso autorizado. Ele consulta serialmente os ativos da carteira, preserva Data Com e pagamento, e produz apenas uma prévia revisável: não cria saldo, receita ou lançamento sem confirmação.
+- A Agenda de Proventos usa `MarketDataProvider`. O provedor `B3CorporateEventProvider` é experimental e só entra em operação com `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`, piloto habilitado e acesso autorizado. Ele consulta serialmente os ativos da carteira, descarta classes explicitamente diferentes das posições, preserva Data Com e pagamento e produz apenas uma prévia revisável. A prévia reconhece itens existentes por referência ou por ticker, Data Com e pagamento; não cria saldo, receita ou lançamento sem confirmação.
 - Proventos ficam provisionados até a data de pagamento e só criam uma receita `INVESTIMENTO` após a confirmação do usuário. JCP exibe IRRF de 15% no fluxo desta versão.
 - Importação de investimentos recebe CSV, XLS, XLSX e OFX de investimentos em um lote de staging. Ticker, data, operação, quantidade, preço, custos e IRRF são editáveis; possíveis duplicidades são avisadas e só a confirmação cria movimentações e fluxo financeiro.
 - PDFs SINACOR nativos podem gerar uma prévia de importação sob `APP_INVESTMENTS_IMPORTS_PDF_ENABLED`. O parser extrai operações, custos e IRRF para o staging; PDF escaneado/OCR e layouts não validados não são suportados, e nenhuma operação é efetivada sem confirmação.
@@ -112,7 +112,7 @@ PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quanti
 
 1.4.4: o fluxo de compra/venda atualiza somente os dados afetados, evitando recargas globais duplicadas depois de uma venda. A elegibilidade da Agenda possui regressão para compra retroativa de BBAS3 antes da Data Com; o modo MOCK continua explícito e não substitui uma fonte real de proventos.
 
-1.4.5-beta.1: a B3 passa a alimentar uma prévia auditável para o piloto autorizado por ambiente. Eventos ambíguos são rejeitados, previsões exigem publicação explícita e somente a confirmação do recebimento cria receita `INVESTIMENTO`. O cron continua desligado e a fonte pública não possui SLA.
+1.4.5-beta.1: a B3 passa a alimentar uma prévia auditável para o piloto autorizado por ambiente. Eventos de classes não possuídas são descartados e respostas sem classe identificável ficam separadas para conferência; previsões exigem publicação explícita e somente a confirmação do recebimento cria receita `INVESTIMENTO`. O cron continua desligado e a fonte pública não possui SLA.
 
 ## Referencias fiscais verificadas
 

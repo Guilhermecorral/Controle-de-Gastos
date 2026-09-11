@@ -55,7 +55,7 @@ class B3CorporateEventProviderTest {
     }
 
     @org.junit.jupiter.api.Test
-    void rejectsPreferredShareEventWhenOnlyOrdinaryTickerIsHeld() throws Exception {
+    void discardsPreferredShareEventWhenOnlyOrdinaryTickerIsHeld() throws Exception {
         String response = """
                 { "cashDividends": [{
                   "label": "JRS CAP PROPRIO", "assetIssued": "BRBBDCACNPR8", "isinCode": "BRBBDCACNPR8",
@@ -65,14 +65,11 @@ class B3CorporateEventProviderTest {
 
         var events = B3CorporateEventProvider.parseResponse("BBDC", Set.of("BBDC3"), objectMapper.readTree(response));
 
-        assertThat(events).singleElement().satisfies(event -> {
-            assertThat(event.symbol()).isNull();
-            assertThat(event.resolutionStatus()).isEqualTo("TICKER_AMBIGUO");
-        });
+        assertThat(events).isEmpty();
     }
 
     @org.junit.jupiter.api.Test
-    void rejectsAnExplicitPreferredTickerWhenTheWalletOnlyHoldsOrdinaryShares() throws Exception {
+    void discardsAnExplicitPreferredTickerWhenTheWalletOnlyHoldsOrdinaryShares() throws Exception {
         String response = """
                 { "cashDividends": [{
                   "label": "DIVIDENDO", "assetIssued": "BBDC4", "isinCode": "BRBBDCACNPR8",
@@ -81,6 +78,20 @@ class B3CorporateEventProviderTest {
                 """;
 
         var events = B3CorporateEventProvider.parseResponse("BBDC", Set.of("BBDC3"), objectMapper.readTree(response));
+
+        assertThat(events).isEmpty();
+    }
+
+    @org.junit.jupiter.api.Test
+    void keepsAnEventAmbiguousWhenTheB3OmitsTheShareClass() throws Exception {
+        String response = """
+                { "cashDividends": [{
+                  "label": "DIVIDENDO", "assetIssued": "", "isinCode": "",
+                  "rate": "0,01000000", "lastDatePrior": "01/09/2026", "paymentDate": "01/10/2026"
+                }] }
+                """;
+
+        var events = B3CorporateEventProvider.parseResponse("BBDC", Set.of("BBDC3", "BBDC4"), objectMapper.readTree(response));
 
         assertThat(events).singleElement().satisfies(event -> {
             assertThat(event.symbol()).isNull();

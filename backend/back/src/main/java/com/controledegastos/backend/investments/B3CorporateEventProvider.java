@@ -144,7 +144,11 @@ public class B3CorporateEventProvider implements MarketDataProvider {
             if (isTechnicalFundSeries(candidateSymbols, isin)) {
                 continue;
             }
-            String symbol = resolveSymbol(candidateSymbols, text(item, "assetIssued"), isin);
+            String assetIssued = text(item, "assetIssued");
+            if (isExplicitlyUnheldShareClass(candidateSymbols, assetIssued, isin)) {
+                continue;
+            }
+            String symbol = resolveSymbol(candidateSymbols, assetIssued, isin);
             BigDecimal taxRate = eventType == CorporateEvent.EventType.JCP ? new BigDecimal("15.0000") : BigDecimal.ZERO;
             String sourceReference = sourceReference(requestedRoot, symbol, eventType, isin, recordDate, paymentDate, amount);
             parsed.add(new CorporateEventData(sourceReference, symbol, isin, eventType, null, amount, taxRate,
@@ -207,6 +211,22 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         return candidateSymbols.stream().anyMatch(symbol -> symbol.endsWith("11"))
                 && candidateSymbols.stream().filter(symbol -> symbol.endsWith("11"))
                 .noneMatch(symbol -> isCanonicalFundIsin(symbol, isin == null ? "" : isin.toUpperCase(Locale.ROOT)));
+    }
+
+    private static boolean isExplicitlyUnheldShareClass(Set<String> candidateSymbols, String assetIssued, String isin) {
+        String explicitTicker = assetIssued == null ? "" : assetIssued.trim().toUpperCase(Locale.ROOT);
+        if (explicitTicker.matches("[A-Z]{4}\\d{1,2}") && !candidateSymbols.contains(explicitTicker)) {
+            return true;
+        }
+
+        String normalizedIsin = isin == null ? "" : isin.toUpperCase(Locale.ROOT);
+        if (normalizedIsin.contains("OR")) {
+            return candidateSymbols.stream().noneMatch(symbol -> symbol.endsWith("3"));
+        }
+        if (normalizedIsin.contains("PR")) {
+            return candidateSymbols.stream().noneMatch(symbol -> symbol.endsWith("4") || symbol.endsWith("5") || symbol.endsWith("6"));
+        }
+        return false;
     }
 
     private static boolean isCanonicalFundIsin(String symbol, String isin) {

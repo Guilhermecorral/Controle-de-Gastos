@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -300,18 +301,38 @@ public class CorporateEventService {
         LocalDate today = LocalDate.now();
         List<MarketDataProvider.CorporateEventData> events = deduplicateMarketEvents(marketDataProvider.corporateEvents(today, symbolsOf(positions)));
         if (events.isEmpty()) return new PilotPreview(List.of(), List.of());
-        Map<String, WalletEarning> existingByReference = walletEarningRepository.findExistingByUserAndSourceReferences(user, events.stream()
-                        .map(MarketDataProvider.CorporateEventData::sourceReference)
-                        .collect(java.util.stream.Collectors.toSet()))
-                .stream()
-                .collect(Collectors.toMap(earning -> earning.getCorporateEvent().getSourceReference(), earning -> earning));
+        Map<String, WalletEarning> existingByReference = new LinkedHashMap<>();
+        Map<EconomicEventKey, WalletEarning> existingByEconomicEvent = new LinkedHashMap<>();
+        for (WalletEarning earning : walletEarningRepository.findAllForPilotPreviewByUser(user)) {
+            existingByReference.putIfAbsent(earning.getCorporateEvent().getSourceReference(), earning);
+            EconomicEventKey economicKey = economicKey(earning);
+            if (economicKey != null) existingByEconomicEvent.putIfAbsent(economicKey, earning);
+        }
         List<PilotCandidate> candidates = events.stream()
-                .map(data -> existingByReference.containsKey(data.sourceReference())
-                        ? existingCandidate(data, existingByReference.get(data.sourceReference()))
-                        : pilotCandidate(data, positions, movements, today))
+                .map(data -> {
+                    WalletEarning existing = existingByReference.get(data.sourceReference());
+                    if (existing == null) existing = existingByEconomicEvent.get(economicKey(data));
+                    return existing == null
+                            ? pilotCandidate(data, positions, movements, today)
+                            : existingCandidate(data, existing);
+                })
                 .sorted(Comparator.comparing(candidate -> candidate.data().paymentDate()))
                 .toList();
         return new PilotPreview(candidates, events);
+    }
+
+    private EconomicEventKey economicKey(WalletEarning earning) {
+        CorporateEvent event = earning.getCorporateEvent();
+        return economicKey(earning.getPosition().getSymbol(), event.getExDate(), event.getPaymentDate());
+    }
+
+    private EconomicEventKey economicKey(MarketDataProvider.CorporateEventData data) {
+        return economicKey(data.symbol(), data.exDate(), data.paymentDate());
+    }
+
+    private EconomicEventKey economicKey(String symbol, LocalDate exDate, LocalDate paymentDate) {
+        if (symbol == null || symbol.isBlank() || exDate == null || paymentDate == null) return null;
+        return new EconomicEventKey(symbol.trim().toUpperCase(Locale.ROOT), exDate, paymentDate);
     }
 
     private List<InvestmentDtos.CorporateEventSourceCoverageResponse> coverage(List<MarketDataProvider.CorporateEventData> events) {
@@ -471,4 +492,6 @@ public class CorporateEventService {
     }
 
     private record PilotPreview(List<PilotCandidate> candidates, List<MarketDataProvider.CorporateEventData> sourceEvents) {}
+
+    private record EconomicEventKey(String symbol, LocalDate exDate, LocalDate paymentDate) {}
 }

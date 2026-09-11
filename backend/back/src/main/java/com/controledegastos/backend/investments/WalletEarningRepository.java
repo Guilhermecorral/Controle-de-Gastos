@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public interface WalletEarningRepository extends JpaRepository<WalletEarning, Long> {
     List<WalletEarning> findAllByUserOrderByCorporateEventPaymentDateAscCreatedAtDesc(User user);
@@ -17,9 +16,10 @@ public interface WalletEarningRepository extends JpaRepository<WalletEarning, Lo
     @Query("""
             select earning
             from WalletEarning earning
+            join fetch earning.position
+            join fetch earning.corporateEvent
             where earning.user = :user
-              and earning.corporateEvent.sourceReference in :sourceReferences
+            order by earning.createdAt desc
             """)
-    List<WalletEarning> findExistingByUserAndSourceReferences(@Param("user") User user,
-                                                              @Param("sourceReferences") Set<String> sourceReferences);
+    List<WalletEarning> findAllForPilotPreviewByUser(@Param("user") User user);
 }
