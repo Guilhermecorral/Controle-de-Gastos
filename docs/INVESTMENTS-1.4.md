@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 12/09/2026. A versão amplia a base estável da 1.4.0 com agenda B3 em piloto controlado, importação assistida e fontes experimentais revisáveis.
+Status: `1.4.5` estável, atualizada em 12/09/2026. A versão amplia a base de investimentos com Agenda B3 homologada em operação controlada, importação assistida e fontes externas revisáveis.
 
 ## Entregue nesta etapa
 
@@ -23,6 +23,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 12/09/2026. A versão a
 - Renda fixa permite perfil prefixado, pós-fixado ou híbrido, indexador opcional e liquidez diária sem data de vencimento obrigatória.
 - Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto dentro da interface do Farol, com opção de cancelar e erro preservado no mesmo contexto.
 - No modal de compra, ETFs consultam o catálogo BRAPI e ativos sem preço no resultado disparam uma cotação para sugerir o preço unitário sem bloquear edição manual. Cripto mantém quantidade fracionária e preço em BRL com precisão de até oito casas, em cache por cinco minutos.
+- Negociações de ações, FIIs, FIAGROs, BDRs e ETFs no mercado brasileiro exigem quantidades inteiras. Cripto e mercado internacional aceitam frações com até oito casas; compras retroativas usam exclusivamente o preço unitário informado como custo histórico, sem preenchimento pela cotação atual.
 - Eventos fiscais de proventos, vendas e resgates podem ser marcados como isentos ou ter a retenção corrigida com base no comprovante. Isso não substitui a apuração de regimes ainda pendentes.
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
 - O simulador combina métricas, tabela completa mês a mês e gráfico de linha com início, quartis e vencimento.
@@ -74,8 +75,8 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Testes de integracao: compra/venda e custos, inserção retroativa com recálculo de preço médio e venda posterior, proteção de vínculos, gastos de consumo, abertura sem caixa, resgate e pagamento único de DARF.
 - Agenda automática: snapshot após a Data Com mesmo com venda posterior, JCP com 15% de IRRF, confirmação de recebimento e criação de receita `INVESTIMENTO`.
 - Regressoes adicionais: repeticao idempotente de compra, rejeicao de payload alterado, cambio historico no caixa e no resumo, vinculo direto na conciliacao e pagamento divergente.
-- Validação local em 05/09/2026: suite Maven e build TypeScript/Vite executados. A suite usa H2; isso não substitui uma validação específica de migração em PostgreSQL.
-- Validação manual em produção confirmada pelo responsável do produto em 05/09/2026, incluindo liquidez diária e correção controlada de movimentações.
+- Validação local em 12/09/2026: suíte Maven, lint e build TypeScript/Vite executados. A suíte usa H2; isso não substitui uma validação específica de migração em PostgreSQL.
+- Homologação da `1.4.5` confirmada pelo mantenedor em 12/09/2026: 32 proventos confirmados em lote, previsões futuras mantidas como provisionadas, nenhuma ambiguidade indevida de ticker, reset administrativo e cotações de ETF/cripto aprovados.
 
 ## Limites conhecidos e próximos incrementos
 
@@ -87,7 +88,7 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 - Edição detalhada de aplicações e resgates, incluindo resgate parcial por lote. Nesta release, compras e vendas têm correção direta; aplicações e resgates podem ser removidos de forma controlada e re-registrados pelo fluxo específico.
 - Importação de PDF B3 e notas de corretagem; a prévia SINACOR nativa existe, mas novos layouts exigem mapeamento e validação humana.
 
-## Roadmap 1.4.0 a 1.4.5-beta.1
+## Roadmap 1.4.0 a 1.4.5
 
 | Item | Status | Observação |
 | --- | --- | --- |
@@ -95,18 +96,18 @@ Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica re
 | Renda fixa com IR/IOF e liquidez diária | Entregue | Estimativa por aporte e perfil do título; produto complexo continua exigindo conferência. |
 | Correção de compra/venda e evento fiscal | Entregue | Recalcula carteira e caixa; edição detalhada de aplicação/resgate segue pendente. |
 | Fechamento mensal guiado | Parcial | Ações B3 e FIIs em BRL têm estimativa; day trade, cripto, exterior, ETFs/BDRs seguem em revisão. |
-| Proventos B3 em piloto | Parcial | Prévia B3 e publicação manual disponíveis apenas para e-mails piloto e ADMIN; não cria receita sem confirmação. |
+| Proventos B3 em operação controlada | Entregue | Prévia e publicação manual homologadas com 32 confirmações em lote; não cria receita sem confirmação. |
 | FIAGRO | Parcial | Tipo visual separado; classificação deve ser confirmada pelo usuário ou catálogo validado. |
 | Estabilidade de sessão | Entregue | Sem access cookie, `/auth/me` responde 401 e o frontend chama o refresh persistido; `JWT_SECRET` permanece de ambiente e o token vale 30 dias por padrão. |
 | Importação de investimentos CSV/Excel/OFX | Entregue | Staging, revisão editável, alerta de duplicidade e confirmação explícita antes de criar compra/venda. |
 | Importação PDF SINACOR nativo | Parcial | Prévia com operações, custos e IRRF no staging; requer revisão humana e não cobre documento escaneado ou todas as corretoras. |
-| Eventos B3 experimentais | Parcial | Integração manual e configurável preserva Data Com/pagamento; endpoint público não possui SLA e precisa de validação por emissor. |
+| Eventos B3 experimentais | Entregue com limite | Integração manual e configurável homologada para a release; o endpoint público continua sem SLA e exige monitoramento. |
 
 ### Viabilidade de PDF B3 e notas de corretagem
 
 PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quantidade, preço, taxas e liquidação. A primeira leitura SINACOR nativa já cria upload e prévia revisável; como não há layout único e alguns documentos são imagens digitalizadas, a confirmação humana continua obrigatória e OCR não foi iniciado.
 
-## 1.4.1 a 1.4.5-beta.1
+## 1.4.1 a 1.4.5
 
 1.4.1: agenda automática entregue com CNPJ pagador, Data Com, data de pagamento, quantidade elegível congelada, ajuste/cancelamento e confirmação. A fonte atual é mock, portanto os eventos servem ao fluxo e aos testes, não como informação de mercado para decisão financeira.
 
@@ -116,14 +117,14 @@ PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quanti
 
 1.4.4: o fluxo de compra/venda atualiza somente os dados afetados, evitando recargas globais duplicadas depois de uma venda. A elegibilidade da Agenda possui regressão para compra retroativa de BBAS3 antes da Data Com; o modo MOCK continua explícito e não substitui uma fonte real de proventos.
 
-1.4.5-beta.1: a B3 passa a alimentar uma prévia auditável para o piloto autorizado por ambiente. Eventos de classes não possuídas são descartados e respostas sem classe identificável ficam separadas para conferência; previsões exigem publicação explícita e somente a confirmação do recebimento cria receita `INVESTIMENTO`. O cron continua desligado e a fonte pública não possui SLA.
+1.4.5: após a beta controlada, a Agenda B3 foi homologada em ambiente real com 32 recebimentos confirmados em lote, previsões futuras preservadas e nenhuma ambiguidade indevida de ticker. Eventos de classes não possuídas são descartados, previsões exigem publicação explícita e somente a confirmação cria receita `INVESTIMENTO`; o cron continua desligado e a fonte pública permanece sem SLA.
 
 ## Referencias fiscais verificadas
 
 - IR/IOF sobre rendimentos: https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=67494
 - Compensacoes: https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda/pagamento/renda-variavel/bolsa-de-valores-1/compensacoes
 - ReVar, saldo inicial e minimo de DARF: https://www.gov.br/receitafederal/pt-br/assuntos/meu-imposto-de-renda/pagamento/renda-variavel/manual
-- JCP nesta implementação mock: IRRF de 15% conforme regra de produto desta entrega; a vigência legal deve ser validada antes de conectar uma fonte real.
+- JCP nesta implementação: IRRF de 15% conforme regra de produto desta entrega; a vigência legal deve continuar sendo acompanhada.
 - Aplicacoes financeiras no exterior: https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/lei/l14754.htm
 
 Cripto global, ETF de renda fixa e fontes externas de proventos não devem ser tratados como regras definitivas nesta versão. A integração real deve guardar vigência, origem e enquadramento do produto.

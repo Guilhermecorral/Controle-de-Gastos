@@ -2,10 +2,14 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
-## [1.4.5-beta.1] - 2026-09-06
+## [1.4.5] - 2026-09-12
 
-### Entrega inicial
+### Release estável
 
+- Homologação concluída em ambiente real pelo mantenedor: 32 proventos foram confirmados em lote, eventos futuros permaneceram provisionados e nenhuma ambiguidade indevida de ticker foi observada.
+- A prévia B3 fica limitada a 420px com rolagem interna, separa pendências reais e descarta eventos de classes de ativo ausentes da carteira.
+- Ativos B3 (`ACAO`, `FII`, `FIAGRO`, `BDR` e `ETF`) passam a exigir quantidades inteiras; cripto e mercados internacionais preservam frações com até oito casas decimais.
+- Compras retroativas preservam o preço unitário informado como custo histórico e não recebem a cotação atual como preenchimento automático.
 - A Agenda de Proventos B3 virou um piloto controlado: somente administradores e e-mails autorizados por ambiente podem consultar a prévia e publicar previsões revisáveis.
 - A consulta B3 não cria receita, transação ou saldo; somente a confirmação explícita de recebimento gera a receita `INVESTIMENTO` vinculada.
 - Eventos de uma classe explicitamente diferente da posição, como uma PN retornada para uma carteira que possui apenas BBDC3, são descartados antes da prévia; `AMBIGUO` fica reservado para respostas em que a B3 realmente não identifica a classe.

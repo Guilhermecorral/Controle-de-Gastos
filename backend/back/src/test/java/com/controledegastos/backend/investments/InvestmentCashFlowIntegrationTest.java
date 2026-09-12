@@ -85,6 +85,79 @@ class InvestmentCashFlowIntegrationTest {
             assertThat(transaction.getAmount()).isEqualByComparingTo("7.95");
         });
     }
+
+    @Test void b3TradesRequireWholeUnitQuantities() {
+        for (InvestmentPosition.AssetType type : List.of(
+                InvestmentPosition.AssetType.ACAO,
+                InvestmentPosition.AssetType.FII,
+                InvestmentPosition.AssetType.FIAGRO,
+                InvestmentPosition.AssetType.BDR,
+                InvestmentPosition.AssetType.ETF)) {
+            var request = new TradeRequest(null, InvestmentMovement.MovementType.COMPRA, type,
+                    "TEST11", "TEST11.SA", "Ativo B3", "BR", "B3", "BRL",
+                    n("1.5"), n("10"), BigDecimal.ZERO, LocalDate.now(), null, null);
+
+            assertThatThrownBy(() -> investments.recordTrade(request))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Ativos negociados na B3 exigem quantidade inteira");
+        }
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user)).isEmpty();
+    }
+
+    @Test void cryptoAndInternationalTradesAcceptUpToEightFractionalDigits() {
+        investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.COMPRA,
+                InvestmentPosition.AssetType.CRIPTO, "BTC", "bitcoin", "Bitcoin", "GLOBAL", "CRYPTO", "BRL",
+                n("0.12345678"), n("100"), BigDecimal.ZERO, LocalDate.now(), null, null));
+        investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.COMPRA,
+                InvestmentPosition.AssetType.ACAO, "AAPL", "AAPL", "Apple", "US", "NASDAQ", "USD",
+                n("0.50000000"), n("100"), BigDecimal.ZERO, LocalDate.now(), null, n("5")));
+
+        var excessivePrecision = new TradeRequest(null, InvestmentMovement.MovementType.COMPRA,
+                InvestmentPosition.AssetType.CRIPTO, "ETH", "ethereum", "Ethereum", "GLOBAL", "CRYPTO", "BRL",
+                n("0.123456789"), n("100"), BigDecimal.ZERO, LocalDate.now(), null, null);
+        assertThatThrownBy(() -> investments.recordTrade(excessivePrecision))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Quantidades fracionárias aceitam no máximo 8 casas decimais");
+
+        assertThat(investments.portfolio().positions()).hasSize(2).anySatisfy(position -> {
+            assertThat(position.assetType()).isEqualTo(InvestmentPosition.AssetType.CRIPTO);
+            assertThat(position.quantity()).isEqualByComparingTo("0.12345678");
+        }).anySatisfy(position -> {
+            assertThat(position.market()).isEqualTo("US");
+            assertThat(position.quantity()).isEqualByComparingTo("0.5");
+        });
+    }
+
+    @Test void retroactivePurchaseKeepsTheInformedPriceAsHistoricalCost() {
+        LocalDate purchaseDate = LocalDate.now().minusMonths(2);
+        var movement = investments.recordTrade(new TradeRequest(null, InvestmentMovement.MovementType.COMPRA,
+                InvestmentPosition.AssetType.ACAO, "BBAS3", "BBAS3.SA", "Banco do Brasil", "BR", "B3", "BRL",
+                n("2"), n("7.25"), BigDecimal.ZERO, purchaseDate, null, null));
+
+        var portfolio = investments.portfolio();
+
+        assertThat(movement.unitPrice()).isEqualByComparingTo("7.25");
+        assertThat(portfolio.positions()).singleElement().satisfies(position -> {
+            assertThat(position.averagePrice()).isEqualByComparingTo("7.25");
+            assertThat(position.investedAmount()).isEqualByComparingTo("14.50");
+            assertThat(position.currentValue()).isEqualByComparingTo("40.00");
+        });
+        assertThat(portfolio.evolution()).filteredOn(point -> point.date().equals(LocalDate.now()))
+                .singleElement().satisfies(point -> {
+                    assertThat(point.investedAmount()).isEqualByComparingTo("14.50");
+                    assertThat(point.currentValue()).isEqualByComparingTo("40.00");
+                });
+    }
+
+    @Test void movementCorrectionCannotIntroduceFractionalB3Quantity() {
+        var movement = investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", LocalDate.now()));
+
+        assertThatThrownBy(() -> investments.updateMovement(movement.id(), new MovementUpdateRequest(
+                n("1.5"), n("20"), BigDecimal.ZERO, LocalDate.now(), null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Ativos negociados na B3 exigem quantidade inteira");
+    }
+
     @Test void openingBalanceDoesNotSpendCashAndRedemptionDoes() {
         var position = investments.create(new PositionRequest(InvestmentPosition.AssetType.RENDA_FIXA, null, null, "CDB antigo", null, null, n("1000"), n("12"),
                 LocalDate.of(2025,1,1), LocalDate.of(2027,1,1), "BR", "B3", "BRL", FixedIncomeTax.Regime.REGRESSIVO, null, true, LocalDate.of(2026,1,1)));

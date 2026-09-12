@@ -4,17 +4,18 @@ Atualizado em 12/09/2026. Este documento e a referencia de continuidade para as 
 
 ## Onde estamos agora
 
-- Versao em validacao controlada: `1.4.5-beta.1`.
+- Versao estavel atual: `1.4.5`.
+- Proxima versao em preparacao: `1.4.6` - Central de Tributos da Pessoa Fisica.
 
 | Frente | Estado | Situacao atual |
 | --- | --- | --- |
-| Proventos/B3 | Pronto para piloto | Piloto manual, restrito por ambiente e com pre-visualizacao esta pronto para ativacao. A promocao para `1.4.5` depende da validacao contra documentos do emissor. |
+| Proventos/B3 | Homologado | Operacao manual controlada validada em ambiente real: 32 confirmacoes em lote, eventos futuros provisionados e nenhuma ambiguidade indevida de ticker. |
 | Debito tecnico | Em andamento | Workflow de seguranca para Gitleaks e OpenGrep foi preparado; lint sem configuracao e formulario de renda fixa duplicado continuam pendentes. |
 | Sessao | Em andamento | Refresh persistido e rotacionado; a evidencia final de cookie/proxy deve continuar sendo observada em producao. |
 | Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
 | COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
 | Homologacao | Entregue | Admin pode zerar o dominio financeiro de uma conta com confirmacao reforcada, preservando usuario, acesso e 2FA. |
-| Refinamentos 1.4.5 | Pronto para validacao | Compra sugere cotacao para cripto/ETF sem impedir correcao manual; Agenda confirma em lote somente proventos conciliaveis e exige confirmacao do impacto financeiro. |
+| Refinamentos 1.4.5 | Entregue | Compra sugere cotacao para cripto/ETF, preserva preco retroativo e restringe quantidades B3 a inteiros; Agenda confirma em lote somente proventos conciliaveis. |
 
 Documentos relacionados:
 
@@ -78,11 +79,11 @@ Substituir a agenda de proventos de demonstracao por uma rotina rastreavel que c
 | --- | --- | --- |
 | Atualizacao apos compra/venda | Entregue | A invalidacao e limitada a Carteira, Transacoes, Painel e Analise Mensal; o fechamento do modal nao volta a invalidar todas as consultas. |
 | Compra retroativa | Entregue | Regressao cobre BBAS3: operacao anterior a Data Com persiste, cria fluxo financeiro e entra no snapshot elegivel. |
-| Agenda em modo MOCK | Superado | O piloto B3 controlado entrou na `1.4.5-beta.1`; a fonte demonstrativa nao representa mais o fluxo em validacao. |
+| Agenda em modo MOCK | Superado | A operacao B3 controlada foi homologada na `1.4.5`; a fonte demonstrativa nao representa o fluxo estavel. |
 
 ### Registro de pesquisa de eventos corporativos
 
-O estado vigente está consolidado na seção da `v1.4.5-beta.1`: código entregue e testado aparece em "Preparação técnica concluída", enquanto somente lacunas reais permanecem em "Próximas entregas de proventos". Este registro preserva o contexto que levou ao piloto; ele não é a especificação atual de cobertura.
+O estado vigente está consolidado na seção da `v1.4.5`: código entregue, testado e homologado aparece em "Entrega concluída", enquanto somente lacunas reais permanecem em "Próximas entregas de proventos". Este registro preserva o contexto que levou à operação controlada; ele não é a especificação atual de cobertura.
 
 **Direcao aprovada para validacao:** usar a metodologia observada no projeto aberto [b3-pipeline-data-and-backtest-framework](https://github.com/nickmaglowsch/b3-pipeline-data-and-backtest-framework) como referencia tecnica, mas implementar um coletor proprio e reduzido no Farol. O projeto nao deve ser copiado integralmente: ele foi projetado para pesquisa e backtests em Python/Rust/SQLite, enquanto o Farol usa Java/Spring/PostgreSQL.
 
@@ -126,7 +127,9 @@ flowchart LR
 4. Falha da fonte nao apaga eventos ja persistidos; ela apenas marca a agenda como desatualizada.
 5. A primeira versao deve sincronizar somente ativos presentes nas carteiras e com limite serial conservador. Nao executar varredura de toda a B3 nem reproduzir alta concorrencia do projeto de referencia.
 
-**Plano de validacao antes da implementacao produtiva:**
+**Plano de validacao de referencia:**
+
+A homologacao funcional exigida para a `1.4.5` foi concluida. Os itens de governanca da fonte que ainda dependem de terceiros continuam registrados abaixo e nao bloqueiam a operacao manual e confirmada pelo usuario.
 
 1. Obter retorno do autor do projeto sobre licenca, cobertura e cuidados operacionais.
 2. Conferir tres eventos conhecidos de acoes em documentos de RI para provar que `lastDatePrior` representa a Data Com antes de usar esse nome no Farol.
@@ -177,13 +180,13 @@ O cache de cotacoes deve ser evoluido de memoria local para armazenamento compar
 - Day trade completo, cripto/exterior e classificacao fiscal avancada.
 - Creditar proventos sem conciliacao humana.
 
-## v1.4.5-beta.1 - Agenda B3 em piloto controlado
+## v1.4.5 - Agenda B3 homologada em operacao controlada
 
 ### Objetivo
 
-Permitir que administradores e contas liberadas por ambiente validem previsões reais de proventos, sem criar saldo automaticamente e sem expor a fonte experimental a usuários comuns.
+Disponibilizar previsões reais de proventos para contas autorizadas, sem criar saldo automaticamente e sem expor a fonte experimental sem controle operacional.
 
-### Regras do piloto
+### Regras da operacao controlada
 
 - Acesso apenas com `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_ENABLED=true` e e-mail em `APP_INVESTMENTS_CORPORATE_EVENTS_PILOT_EMAILS`, ou papel `ADMIN`.
 - `APP_INVESTMENTS_CORPORATE_EVENTS_SYNC_CRON` permanece `-`; a atualização é manual e passa por prévia.
@@ -194,25 +197,26 @@ Permitir que administradores e contas liberadas por ambiente validem previsões 
 - Eventos economicos identicos retornados repetidamente pela B3 sao deduplicados antes da previa e da persistencia.
 - Receita só nasce em `Confirmar recebimento`; previsões podem ser corrigidas ou canceladas.
 
-### Critério para promover a 1.4.5
+### Homologacao concluida
 
-Validar ações, FIIs e FIAGROs contra documentos do emissor por ciclos suficientes, sem associação incorreta de classe de ação, duplicidade ou crédito financeiro automático.
+Em 12/09/2026, o mantenedor confirmou a validacao em ambiente real: 32 proventos foram confirmados em lote, eventos futuros permaneceram provisionados e nao houve ticker ambiguo indevido. O reset administrativo e as cotacoes de ETF/cripto tambem foram aprovados. Esses resultados encerram a beta e promovem a versao para `1.4.5` estavel.
 
-Antes de iniciar essa validacao, habilitar no ambiente controlado somente o provedor `b3`, a conta piloto e a atualizacao manual. O procedimento e os valores seguros de configuracao estao no [runbook de producao](PRODUCTION_DEPLOY_RUNBOOK.md). O cron permanece desabilitado durante toda a beta.
+O procedimento e os valores seguros de configuracao continuam no [runbook de producao](PRODUCTION_DEPLOY_RUNBOOK.md). O cron permanece desabilitado; a atualizacao da fonte B3 continua manual e observavel.
 
-### Preparação técnica concluída
+### Entrega concluida
 
 - A prévia da Agenda diferencia evento novo, já provisionado, pendente de confirmação, confirmado, cancelado, inelegível na Data Com e ambíguo. Cancelamentos podem ser restaurados individualmente ou em lote, sem recriar o evento econômico.
 - `InstrumentCatalog` e `AssetResolver` separam ticker, ISIN, emissor, classe e capacidades. BDRs e ETFs são cadastráveis e cotáveis, mas declaram explicitamente que não suportam Agenda automática.
 - O histórico de ações usa `GetInitialCompanies` para resolver o identificador B3 e `GetListedCashDividends` em páginas de no máximo 120 itens. Respostas brutas, hash, origem e validade ficam em cache auditável; histórico sem Data de Pagamento não é previsão.
 - A prova de conceito CVM de `MXRF11` e `RURA11` está em [CVM-FUND-INCOME-POC.md](CVM-FUND-INCOME-POC.md). Ela documenta cobertura e limitações, mas não habilita histórico automático de fundos.
 - O modal de compra consulta cotacao quando o catalogo nao possui preco, incluindo cripto e ETF; cripto usa BRL com ate oito casas e cache de cinco minutos. A Agenda permite confirmar em lote somente previsoes que ja chegaram a `PENDENTE_CONCILIACAO`, sempre com confirmacao explicita antes de criar receitas.
+
 ### Proximas entregas de proventos
 
 1. Implementar o parser real dos informes CVM de FII e FIAGRO, começando por `MXRF11` e `RURA11`, com arquivo-origem, hash, competência, reapresentação e testes automatizados. A tabela de fontes atual é somente prova de conceito.
 2. Habilitar Agenda automática para BDR e ETF somente depois de validar fonte, depositário, moeda, classe do evento e regras de distribuição. Hoje esses ativos são apenas cadastráveis e cotáveis.
 3. Consolidar o histórico B3 de ações com o suplemento recente/futuro por chave econômica e criar revisão explícita quando uma resposta já armazenada mudar; nenhum histórico sem `paymentDate` deve virar previsão.
-4. Validar Data Com e pagamentos contra documentos de RI em ciclos suficientes para decidir se o piloto pode ser promovido à `1.4.5` estável.
+4. Monitorar Data Com, pagamentos, alteracoes da resposta B3 e cobertura por emissor sem remover a confirmacao humana ou habilitar o cron automaticamente.
 5. Cobrir com testes os contratos de câmbio, cripto, juros e inflação antes de classificá-los como camada concluída; derivativos e commodities permanecem fora desta fase.
 6. Automatizar o ciclo anual do `COTAHIST` somente após testar ZIP, layout, hash, data máxima e armazenamento da versão anterior. O inventário atual permanece em [COTAHIST-MANIFEST.csv](COTAHIST-MANIFEST.csv).
 
@@ -306,15 +310,13 @@ Somente iniciar esta frente depois de concluir a Central de Tributos PF e escolh
 3. Validar regras com fonte oficial e revisao contabil antes de codificar qualquer calculo.
 4. Projetar isolamento de dados empresariais, membros, permissoes e auditoria antes de importar notas ou folha.
 
-**Classificacao atual:** nao e recomendada como `v1.4.5` completa. Um organizador de obrigacoes pode ser iniciado apos a v1.4.3; calculo tributario empresarial completo pertence a `v1.6.0` ou posterior.
+**Classificacao atual:** tributacao empresarial nao faz parte da `v1.4.5`. Um organizador de obrigacoes pessoais inicia na `v1.4.6`; calculo tributario empresarial completo pertence a `v1.6.0` ou posterior.
 
 ## Decisoes pendentes
 
 | Assunto | Decisao necessaria | Impacto |
 | --- | --- | --- |
 | Fonte B3/CVM | Confirmar termos, permissao do autor e comportamento dos endpoints | Define se o provedor experimental pode deixar o modo de observacao. |
-| Data Com | Validar semanticamente `lastDatePrior` em documentos de RI | Evita congelar quantidade na data errada. |
-| Fiagros | Escolher ativos de teste e comprovar cobertura | Define a promessa de cobertura inicial. |
 | PDF | Escolher primeira corretora e obter notas anonimizadas | Define o primeiro layout suportado. |
 | Sessao | Registrar evidencia do `F5` em producao sem expor tokens | Define a causa real do logout. |
 | Grupos | Definir caso de uso e modelo de permissao | Evita construir colaboracao sem regra de privacidade. |
@@ -323,7 +325,7 @@ Somente iniciar esta frente depois de concluir a Central de Tributos PF e escolh
 ## Como retomar este roadmap
 
 1. Registrar a resposta do autor do pipeline e atualizar a secao de fonte B3/CVM.
-2. Executar os casos de validacao de acoes, FIIs e Fiagros antes de habilitar eventos reais.
+2. Monitorar os casos homologados de acoes, FIIs e Fiagros e registrar qualquer divergencia da fonte antes de ampliar a automacao.
 3. Validar em producao os atributos do cookie e o fluxo de refresh sem expor tokens.
-4. Transformar o proximo bloco validado em escopo fechado, com testes e criterio de aceite antes de mudar telas.
+4. Iniciar a `1.4.6` pela modelagem da Central de Tributos PF, com estados, origem, vencimento, comprovante e confirmacao de pagamento definidos antes das telas.
 5. Ao fechar uma versao, sincronizar README, CHANGELOG, `package.json`, `pom.xml`, runtime e documentos tecnicos conforme a regra permanente de versao.

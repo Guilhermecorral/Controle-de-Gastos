@@ -1,6 +1,7 @@
 package com.controledegastos.backend.investments;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -69,7 +70,7 @@ public final class InvestmentDtos {
             @NotBlank @Size(max = 10) String market,
             @Size(max = 30) String exchange,
             @NotBlank @Size(max = 3) String currency,
-            @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
+            @NotNull @DecimalMin(value = "0.00000001") @Digits(integer = 16, fraction = 8) BigDecimal quantity,
             @NotNull @DecimalMin(value = "0.000001") BigDecimal unitPrice,
             @DecimalMin(value = "0.00") BigDecimal fees,
             @NotNull LocalDate eventDate,
@@ -396,7 +397,7 @@ public final class InvestmentDtos {
     ) {}
 
     public record MovementUpdateRequest(
-            @NotNull @DecimalMin(value = "0.00000001") BigDecimal quantity,
+            @NotNull @DecimalMin(value = "0.00000001") @Digits(integer = 16, fraction = 8) BigDecimal quantity,
             @NotNull @DecimalMin(value = "0.000001") BigDecimal unitPrice,
             @DecimalMin(value = "0.00") BigDecimal fees,
             @NotNull LocalDate eventDate,

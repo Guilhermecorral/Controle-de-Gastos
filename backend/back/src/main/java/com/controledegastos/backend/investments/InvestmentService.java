@@ -28,6 +28,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InvestmentService {
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    private static final int MAX_FRACTIONAL_QUANTITY_SCALE = 8;
+    private static final Set<InvestmentPosition.AssetType> B3_WHOLE_UNIT_ASSET_TYPES = Set.of(
+            InvestmentPosition.AssetType.ACAO,
+            InvestmentPosition.AssetType.FII,
+            InvestmentPosition.AssetType.FIAGRO,
+            InvestmentPosition.AssetType.BDR,
+            InvestmentPosition.AssetType.ETF
+    );
 
     private final InvestmentPositionRepository repository;
     private final AuthenticatedUserService authenticatedUserService;
@@ -154,6 +162,7 @@ public class InvestmentService {
         String symbol = normalizeUpper(request.symbol(), null);
         String externalId = blank(request.externalId()) ? null : request.externalId().trim();
         validateTradeIdentity(request.assetType(), symbol, externalId, market);
+        validateTradeQuantity(request.assetType(), market, request.quantity());
         if (request.requestId() != null) {
             var previous = movementRepository.findAllByUserOrderByEventDateDescCreatedAtDesc(user).stream()
                     .filter(m -> ("trade:" + request.requestId()).equals(m.getExternalReference())).findFirst();
@@ -267,6 +276,7 @@ public class InvestmentService {
         }
         if (request.eventDate().isAfter(LocalDate.now())) throw new IllegalArgumentException("A operação não pode estar no futuro");
         InvestmentPosition position = movement.getPosition();
+        validateTradeQuantity(position.getAssetType(), position.getMarket(), request.quantity());
         BigDecimal fx = "BRL".equalsIgnoreCase(position.getCurrency()) ? BigDecimal.ONE : request.exchangeRate();
         if (fx == null || fx.signum() <= 0) throw new IllegalArgumentException("Informe o câmbio usado nesta operação");
         OperationCosts costs = request.costs() == null ? new OperationCosts(BigDecimal.ZERO, BigDecimal.ZERO,
@@ -910,6 +920,16 @@ public class InvestmentService {
         if (type == InvestmentPosition.AssetType.CRIPTO && blank(externalId)) throw new IllegalArgumentException("Criptoativo sem identificador de catálogo");
         if (type != InvestmentPosition.AssetType.CRIPTO && blank(symbol)) throw new IllegalArgumentException("Ativo sem ticker de catálogo");
         if (!blank(symbol) && !symbol.matches("[-A-Z0-9.]{1,30}")) throw new IllegalArgumentException("Ticker do ativo é inválido");
+    }
+
+    private void validateTradeQuantity(InvestmentPosition.AssetType type, String market, BigDecimal quantity) {
+        int normalizedScale = Math.max(0, quantity.stripTrailingZeros().scale());
+        if (normalizedScale > MAX_FRACTIONAL_QUANTITY_SCALE) {
+            throw new IllegalArgumentException("Quantidades fracionárias aceitam no máximo 8 casas decimais");
+        }
+        if ("BR".equalsIgnoreCase(market) && B3_WHOLE_UNIT_ASSET_TYPES.contains(type) && normalizedScale > 0) {
+            throw new IllegalArgumentException("Ativos negociados na B3 exigem quantidade inteira");
+        }
     }
 
     private String normalizeUpper(String value, String fallback) {

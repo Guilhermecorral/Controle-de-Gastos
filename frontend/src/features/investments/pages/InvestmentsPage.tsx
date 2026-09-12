@@ -284,6 +284,7 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
   const [positionId, setPositionId] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState(0);
+  const [priceWasSuggested, setPriceWasSuggested] = useState(false);
   const [fees, setFees] = useState(0);
   const [brokerageFee, setBrokerageFee] = useState(0);
   const [b3Fee, setB3Fee] = useState(0);
@@ -299,14 +300,15 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
     taxRegime: 'REGRESSIVO', iofApplicable: true, fixedIncomeYieldType: 'PREFIXADO', fixedIncomeIndexer: null, dailyLiquidity: false,
   });
   const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && !selected);
-  const selectedNeedsQuote = mode === 'COMPRA' && selected != null && (selected.currentPrice == null || selected.currentPrice <= 0);
+  const selectedNeedsQuote = mode === 'COMPRA' && eventDate === today && selected != null && (selected.currentPrice == null || selected.currentPrice <= 0);
   const quoteQuery = useInvestmentQuoteQuery(selected, open && selectedNeedsQuote);
   useEffect(() => {
     const quotedPrice = quoteQuery.data?.available ? quoteQuery.data.price : null;
-    if (quotedPrice != null && quotedPrice > 0) {
-      setUnitPrice((current) => current > 0 ? current : quotedPrice);
+    if (eventDate === today && quotedPrice != null && quotedPrice > 0 && unitPrice <= 0) {
+      setUnitPrice(quotedPrice);
+      setPriceWasSuggested(true);
     }
-  }, [quoteQuery.data]);
+  }, [eventDate, quoteQuery.data, unitPrice]);
   if (!open || dismissed) return null;
 
   const closeDialog = () => {
@@ -315,14 +317,15 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
   };
 
   const chooseAsset = (asset: InvestmentAssetSearchResponse, id: number | null = null, price?: number | null) => {
-    setSelected(asset); setPositionId(id); setUnitPrice(price ?? asset.currentPrice ?? 0); setError(''); setRequestId(crypto.randomUUID());
+    const suggestedPrice = mode === 'COMPRA' && eventDate < today ? 0 : price ?? asset.currentPrice ?? 0;
+    setSelected(asset); setPositionId(id); setUnitPrice(suggestedPrice); setPriceWasSuggested(suggestedPrice > 0); setError(''); setRequestId(crypto.randomUUID());
   };
   const choosePosition = (position: InvestmentPositionResponse) => chooseAsset({
     assetType: position.assetType as TradableType, symbol: position.symbol ?? '', externalId: position.externalId ?? '',
     name: position.name, market: (position.market ?? 'BR') as 'BR' | 'US' | 'GLOBAL', exchange: position.exchange ?? '',
     currency: position.currency ?? position.quote.currency, currentPrice: position.quote.price, source: position.quote.source,
   }, position.id, position.quote.price);
-  const resetSelection = () => { setSelected(null); setPositionId(null); setQuery(''); setUnitPrice(0); setError(''); };
+  const resetSelection = () => { setSelected(null); setPositionId(null); setQuery(''); setUnitPrice(0); setPriceWasSuggested(false); setError(''); };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (mode === 'RENDA_FIXA') {
@@ -393,7 +396,8 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
 
           {selected && <>
             <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={resetSelection}>Trocar</button></div>
-            <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '0.000001'} /><NumberField label={mode === 'SALDO_INICIAL' ? 'Custo médio' : 'Preço unitário'} value={unitPrice} onChange={setUnitPrice} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '0.000001'} /><DateField label={mode === 'SALDO_INICIAL' ? 'Data de início do acompanhamento' : 'Data da operação'} value={eventDate} onChange={setEventDate} max={today} /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '1'} /><NumberField label={mode === 'SALDO_INICIAL' ? 'Custo médio' : 'Preço unitário'} value={unitPrice} onChange={(value) => { setUnitPrice(value); setPriceWasSuggested(false); }} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '0.000001'} /><DateField label={mode === 'SALDO_INICIAL' ? 'Data de início do acompanhamento' : 'Data da operação'} value={eventDate} onChange={(value) => { setEventDate(value); if (mode === 'COMPRA' && value < today && priceWasSuggested) { setUnitPrice(0); setPriceWasSuggested(false); } }} max={today} /></div>
+            {mode === 'COMPRA' && eventDate < today && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Compra retroativa: informe o preço unitário efetivamente pago na data da operação. A cotação de hoje não será usada como custo histórico.</p>}
             {selectedNeedsQuote && quoteQuery.isFetching && <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-700">Consultando a cotação mais recente para preencher o preço unitário...</p>}
             {selectedNeedsQuote && !quoteQuery.isFetching && quoteQuery.data?.available && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs text-emerald-800">Preço preenchido pela fonte {quoteQuery.data.source}, atualizado em {new Date(quoteQuery.data.updatedAt).toLocaleString('pt-BR')}. Você pode corrigi-lo antes de registrar a compra.</p>}
             {selectedNeedsQuote && !quoteQuery.isFetching && (quoteQuery.isError || quoteQuery.data?.available === false) && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">A cotação não está disponível agora. Informe o preço unitário exibido na sua corretora para continuar.</p>}

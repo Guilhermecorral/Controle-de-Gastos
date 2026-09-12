@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão 1.4.5-beta.1. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST da versão estável 1.4.5. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -155,6 +155,8 @@ Consulta de cotação:
 - `market`: mercado, com padrão `BR`.
 
 Cotações de cripto são devolvidas em BRL com até oito casas decimais e cache de cinco minutos. O frontend usa a cotação para sugerir o preço unitário quando o catálogo não possui um valor, mas o usuário pode corrigi-lo antes de registrar a operação.
+
+No registro ou na correção de movimentações, `ACAO`, `FII`, `FIAGRO`, `BDR` e `ETF` negociados na B3 exigem quantidade inteira. Criptoativos e ativos de mercados internacionais aceitam frações com até oito casas decimais. Em compras retroativas, `unitPrice` deve representar o preço efetivamente pago na data da operação e é preservado como custo histórico.
 
 Simulação de renda fixa:
 
