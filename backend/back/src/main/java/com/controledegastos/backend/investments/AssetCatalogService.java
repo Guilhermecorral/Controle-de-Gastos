@@ -70,7 +70,7 @@ public class AssetCatalogService {
         Map<String, AssetSearchResponse> results = new LinkedHashMap<>();
         if (type == InvestmentPosition.AssetType.CRIPTO) {
             safelySearch(() -> searchCrypto(query), results, "CoinGecko");
-        } else if (type != InvestmentPosition.AssetType.BDR && type != InvestmentPosition.AssetType.ETF) {
+        } else if (type != InvestmentPosition.AssetType.BDR) {
             safelySearch(() -> searchBrazilianAssets(query, type), results, "Brapi");
             if (type == InvestmentPosition.AssetType.ACAO) {
                 safelySearch(() -> searchExchangeAssets(query, type), results, "Yahoo Finance");
@@ -107,6 +107,7 @@ public class AssetCatalogService {
         return switch (type) {
             case FII -> "fii";
             case FIAGRO -> "fi-agro";
+            case ETF -> "etf";
             default -> null;
         };
     }

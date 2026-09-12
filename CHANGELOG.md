@@ -22,6 +22,8 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
 - Confirmações de exclusão, ajustes fiscais e ações administrativas passam a usar diálogos internos do Farol, com impacto, cancelamento, validação e erro visíveis, sem depender de alertas ou prompts nativos do navegador.
 - O painel administrativo permite zerar dados de homologação de uma conta: transações, comprovantes, wishlist, investimentos, proventos, metas, saldos fiscais e staging são removidos em lote, enquanto usuário, senha, papel, status, sessão e 2FA permanecem preservados.
+- ETFs passam a consultar o catálogo BRAPI e, quando a busca não traz preço, o modal de compra consulta a cotação do ativo sem sobrescrever uma correção manual. Criptoativos preservam quantidades fracionárias e preço em BRL com até oito casas decimais, em cache por cinco minutos.
+- A Agenda permite selecionar proventos com pagamento já conciliável e confirmar os recebimentos em lote mediante confirmação explícita; cada item cria sua receita vinculada e continua reversível pelo histórico.
 
 ### Continuação auditada por commit
 

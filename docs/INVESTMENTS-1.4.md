@@ -22,12 +22,14 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 12/09/2026. A versão a
 - Fluxo de carteira separado em renda variável e renda fixa. O saldo inicial sai do lançamento recorrente e passa a ser uma ação de importação de posição existente.
 - Renda fixa permite perfil prefixado, pós-fixado ou híbrido, indexador opcional e liquidez diária sem data de vencimento obrigatória.
 - Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto dentro da interface do Farol, com opção de cancelar e erro preservado no mesmo contexto.
+- No modal de compra, ETFs consultam o catálogo BRAPI e ativos sem preço no resultado disparam uma cotação para sugerir o preço unitário sem bloquear edição manual. Cripto mantém quantidade fracionária e preço em BRL com precisão de até oito casas, em cache por cinco minutos.
 - Eventos fiscais de proventos, vendas e resgates podem ser marcados como isentos ou ter a retenção corrigida com base no comprovante. Isso não substitui a apuração de regimes ainda pendentes.
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
 - O simulador combina métricas, tabela completa mês a mês e gráfico de linha com início, quartis e vencimento.
 - Eventos corporativos e proventos do usuário são separados: `CorporateEvent` guarda o anúncio global e `WalletEarning` congela quantidade, bruto, IRRF e líquido pela Data Com.
 - A Agenda de Proventos usa `MarketDataProvider`. O provedor `B3CorporateEventProvider` é experimental e só entra em operação com `APP_INVESTMENTS_CORPORATE_EVENTS_PROVIDER=b3`, piloto habilitado e acesso autorizado. Ele consulta serialmente os ativos da carteira, descarta classes explicitamente diferentes das posições, preserva Data Com e pagamento e produz apenas uma prévia revisável. A prévia reconhece itens existentes por referência ou por ticker, Data Com e pagamento; não cria saldo, receita ou lançamento sem confirmação.
 - Proventos ficam provisionados até a data de pagamento e só criam uma receita `INVESTIMENTO` após a confirmação do usuário. JCP exibe IRRF de 15% no fluxo desta versão.
+- Proventos com estado `PENDENTE_CONCILIACAO` podem ser confirmados em lote após uma confirmação visual do impacto. O lote é atômico, cria uma receita vinculada por item e cada recebimento permanece reversível pelo histórico.
 - Importação de investimentos recebe CSV, XLS, XLSX e OFX de investimentos em um lote de staging. Ticker, data, operação, quantidade, preço, custos e IRRF são editáveis; possíveis duplicidades são avisadas e só a confirmação cria movimentações e fluxo financeiro.
 - PDFs SINACOR nativos podem gerar uma prévia de importação sob `APP_INVESTMENTS_IMPORTS_PDF_ENABLED`. O parser extrai operações, custos e IRRF para o staging; PDF escaneado/OCR e layouts não validados não são suportados, e nenhuma operação é efetivada sem confirmação.
 
@@ -53,6 +55,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 12/09/2026. A versão a
 | POST | /api/investments/wallet-earnings/preview | Gera a prévia B3 auditável, incluindo candidatos, início de elegibilidade pela primeira compra e cobertura de Data Com devolvida pela fonte; retorna 403 fora do piloto |
 | POST | /api/investments/wallet-earnings/publish | Publica previsões selecionadas na Agenda; retorna 403 fora do piloto |
 | POST | /api/investments/wallet-earnings/{id}/confirm | Efetiva o provento e cria receita vinculada |
+| POST | /api/investments/wallet-earnings/batch | Cancela, confirma, desfaz ou restaura até 100 proventos distintos em uma única transação |
 | PUT | /api/investments/wallet-earnings/{id} | Corrige bruto/retenção ou cancela previsão não efetivada |
 
 Os regimes usados pelo simulador sao modelos de estimativa para pessoa fisica residente no Brasil. Produtos com cupons, come-cotas, tributacao estrangeira ou condicoes especiais exigem calculo especifico. O resgate informa o valor bruto real; a taxa projetada nao determina a cotacao de venda de um titulo.

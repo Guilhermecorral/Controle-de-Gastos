@@ -229,6 +229,24 @@ class InvestmentCashFlowIntegrationTest {
                 .singleElement().satisfies(item -> assertThat(item.status()).isEqualTo(WalletEarning.Status.PENDENTE_CONCILIACAO));
     }
 
+    @Test void pendingAutomaticEarningCanBeConfirmedByBatchAction() {
+        LocalDate today = LocalDate.now();
+        investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", today.minusDays(3)));
+        var earning = corporateEvents.synchronizeCurrentUser().stream()
+                .filter(item -> item.eventType() == CorporateEvent.EventType.JCP)
+                .findFirst()
+                .orElseThrow();
+
+        var confirmed = corporateEvents.applyBatchHistoryAction(new WalletEarningBatchActionRequest(
+                List.of(earning.id()), WalletEarningBatchAction.CONFIRM)).getFirst();
+
+        assertThat(confirmed.status()).isEqualTo(WalletEarning.Status.EFETIVADO);
+        assertThat(transactions.findAllByUserOrderByTransactionDateDesc(user))
+                .filteredOn(transaction -> transaction.getDescription().startsWith("JCP -"))
+                .singleElement()
+                .satisfies(transaction -> assertThat(transaction.getAmount()).isEqualByComparingTo("0.34"));
+    }
+
     @Test void cancelledAutomaticEarningCanBeRestoredForReview() {
         LocalDate today = LocalDate.now();
         investments.recordTrade(trade(InvestmentMovement.MovementType.COMPRA, "20.00", today.minusDays(3)));

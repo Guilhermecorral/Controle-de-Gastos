@@ -284,7 +284,7 @@ public final class InvestmentDtos {
             Boolean reopened
     ) {}
 
-    public enum WalletEarningBatchAction { CANCEL, REVERT, RESTORE }
+    public enum WalletEarningBatchAction { CANCEL, CONFIRM, REVERT, RESTORE }
 
     public record WalletEarningBatchActionRequest(
             @NotEmpty @Size(max = 100) List<@NotNull Long> earningIds,

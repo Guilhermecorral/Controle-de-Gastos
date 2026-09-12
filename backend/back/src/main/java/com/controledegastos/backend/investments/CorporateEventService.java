@@ -166,6 +166,7 @@ public class CorporateEventService {
         }
         return earningIds.stream().map(id -> switch (request.action()) {
             case CANCEL -> adjust(id, new WalletEarningAdjustmentRequest(null, null, true, null));
+            case CONFIRM -> confirm(id);
             case REVERT -> revert(id);
             case RESTORE -> adjust(id, new WalletEarningAdjustmentRequest(null, null, null, true));
         }).toList();

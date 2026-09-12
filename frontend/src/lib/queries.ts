@@ -19,6 +19,7 @@ import {
   InvestmentPortfolioResponse,
   InvestmentPositionRequest,
   InvestmentPositionResponse,
+  InvestmentQuoteResponse,
   InvestmentProjectionResponse,
   InvestmentProjectionRequest,
   InvestmentMovementResponse,
@@ -86,6 +87,22 @@ export function useInvestmentAssetSearchQuery(query: string, type: Exclude<Inves
       params: { query, type },
     })).data,
     enabled: enabled && query.trim().length >= 2,
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useInvestmentQuoteQuery(asset: InvestmentAssetSearchResponse | null, enabled = true) {
+  return useQuery({
+    queryKey: ['investments', 'quote', asset?.assetType, asset?.symbol, asset?.externalId, asset?.market],
+    queryFn: async () => (await api.get<InvestmentQuoteResponse>('/investments/quotes', {
+      params: {
+        type: asset!.assetType,
+        symbol: asset!.symbol,
+        externalId: asset!.externalId,
+        market: asset!.market,
+      },
+    })).data,
+    enabled: enabled && asset != null,
     staleTime: 5 * 60_000,
   })
 }

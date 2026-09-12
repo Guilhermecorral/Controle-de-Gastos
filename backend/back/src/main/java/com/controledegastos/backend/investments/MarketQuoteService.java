@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -24,6 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class MarketQuoteService implements MarketReferenceData.ExchangeRates, MarketReferenceData.CryptoPrices {
     private static final Logger log = LoggerFactory.getLogger(MarketQuoteService.class);
+    private static final Duration CRYPTO_QUOTE_CACHE_DURATION = Duration.ofMinutes(5);
+    private static final int CRYPTO_PRICE_MAX_SCALE = 8;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
@@ -52,7 +55,10 @@ public class MarketQuoteService implements MarketReferenceData.ExchangeRates, Ma
             QuoteResponse quote = type == InvestmentPosition.AssetType.CRIPTO
                     ? fetchCrypto(externalId)
                     : fetchExchangeAssetWithFallback(symbol, externalId, market);
-            cache.put(key, new CachedQuote(quote, Instant.now().plusSeconds(cacheSeconds)));
+            Duration cacheDuration = type == InvestmentPosition.AssetType.CRIPTO
+                    ? CRYPTO_QUOTE_CACHE_DURATION
+                    : Duration.ofSeconds(cacheSeconds);
+            cache.put(key, new CachedQuote(quote, Instant.now().plus(cacheDuration)));
             return quote;
         } catch (Exception exception) {
             log.warn("Cotacao indisponivel para {}: {}", key, exception.getMessage());
@@ -144,7 +150,7 @@ public class MarketQuoteService implements MarketReferenceData.ExchangeRates, Ma
         String id = required(rawExternalId, "Informe o identificador CoinGecko, como bitcoin").toLowerCase(Locale.ROOT);
         String uri = coinGeckoBaseUrl + "/simple/price?ids=" + encode(id) + "&vs_currencies=brl&include_24hr_change=true";
         JsonNode item = send(uri, coinGeckoApiKey).path(id);
-        BigDecimal price = item.path("brl").isNumber() ? item.path("brl").decimalValue() : null;
+        BigDecimal price = item.path("brl").isNumber() ? limitCryptoPriceScale(item.path("brl").decimalValue()) : null;
         if (price == null) throw new IllegalStateException("Criptoativo não encontrado");
         return new QuoteResponse(id.toUpperCase(Locale.ROOT), price,
                 item.path("brl_24h_change").isNumber() ? item.path("brl_24h_change").decimalValue() : null,
@@ -175,6 +181,12 @@ public class MarketQuoteService implements MarketReferenceData.ExchangeRates, Ma
         HttpResponse<String> response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("HTTP " + response.statusCode());
         return objectMapper.readTree(response.body());
+    }
+
+    private BigDecimal limitCryptoPriceScale(BigDecimal price) {
+        return price.scale() > CRYPTO_PRICE_MAX_SCALE
+                ? price.setScale(CRYPTO_PRICE_MAX_SCALE, RoundingMode.HALF_UP)
+                : price;
     }
 
     private BigDecimal decimal(JsonNode item, String... fields) {

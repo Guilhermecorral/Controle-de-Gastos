@@ -128,6 +128,7 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `POST` | `/api/investments/wallet-earnings/preview` | Consulta a B3 sem gravar previsões ou transações; retorna candidatos, data da primeira compra usada na elegibilidade e a faixa de Data Com efetivamente devolvida pela fonte; 403 fora do piloto e 503 se o provedor B3 não estiver configurado |
 | `POST` | `/api/investments/wallet-earnings/publish` | Publica na Agenda apenas previsões selecionadas e válidas; 403 fora do piloto e 503 se o provedor B3 não estiver configurado |
 | `POST` | `/api/investments/wallet-earnings/{id}/confirm` | Confirma o valor recebido e cria a receita `INVESTIMENTO` vinculada |
+| `POST` | `/api/investments/wallet-earnings/batch` | Aplica `CANCEL`, `CONFIRM`, `REVERT` ou `RESTORE` a até 100 proventos distintos; a operação é atômica |
 | `PUT` | `/api/investments/wallet-earnings/{id}` | Ajusta bruto/retenção ou cancela uma previsão ainda não efetivada |
 | `GET` | `/api/investments/goals` | Lista metas de patrimônio e seus saldos próprios |
 | `POST` | `/api/investments/goals` | Cria uma meta de patrimônio |
@@ -144,7 +145,7 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 Pesquisa de ativos:
 
 - `query`: código ou parte do nome.
-- `type`: `ACAO`, `FII`, `FIAGRO`, `CRIPTO` ou `RENDA_FIXA`.
+- `type`: `ACAO`, `FII`, `FIAGRO`, `BDR`, `ETF`, `CRIPTO` ou `RENDA_FIXA`.
 
 Consulta de cotação:
 
@@ -152,6 +153,8 @@ Consulta de cotação:
 - `symbol`: símbolo do ativo quando aplicável.
 - `externalId`: identificador do provedor quando aplicável.
 - `market`: mercado, com padrão `BR`.
+
+Cotações de cripto são devolvidas em BRL com até oito casas decimais e cache de cinco minutos. O frontend usa a cotação para sugerir o preço unitário quando o catálogo não possui um valor, mas o usuário pode corrigi-lo antes de registrar a operação.
 
 Simulação de renda fixa:
 

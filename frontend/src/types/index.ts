@@ -662,7 +662,7 @@ export interface WalletEarningAdjustmentRequest {
 
 export interface WalletEarningBatchActionRequest {
   earningIds: number[];
-  action: 'CANCEL' | 'REVERT' | 'RESTORE';
+  action: 'CANCEL' | 'CONFIRM' | 'REVERT' | 'RESTORE';
 }
 
 export interface InvestmentGoalRequest {

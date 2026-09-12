@@ -14,6 +14,7 @@ Atualizado em 12/09/2026. Este documento e a referencia de continuidade para as 
 | Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
 | COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
 | Homologacao | Entregue | Admin pode zerar o dominio financeiro de uma conta com confirmacao reforcada, preservando usuario, acesso e 2FA. |
+| Refinamentos 1.4.5 | Pronto para validacao | Compra sugere cotacao para cripto/ETF sem impedir correcao manual; Agenda confirma em lote somente proventos conciliaveis e exige confirmacao do impacto financeiro. |
 
 Documentos relacionados:
 
@@ -205,6 +206,7 @@ Antes de iniciar essa validacao, habilitar no ambiente controlado somente o prov
 - `InstrumentCatalog` e `AssetResolver` separam ticker, ISIN, emissor, classe e capacidades. BDRs e ETFs são cadastráveis e cotáveis, mas declaram explicitamente que não suportam Agenda automática.
 - O histórico de ações usa `GetInitialCompanies` para resolver o identificador B3 e `GetListedCashDividends` em páginas de no máximo 120 itens. Respostas brutas, hash, origem e validade ficam em cache auditável; histórico sem Data de Pagamento não é previsão.
 - A prova de conceito CVM de `MXRF11` e `RURA11` está em [CVM-FUND-INCOME-POC.md](CVM-FUND-INCOME-POC.md). Ela documenta cobertura e limitações, mas não habilita histórico automático de fundos.
+- O modal de compra consulta cotacao quando o catalogo nao possui preco, incluindo cripto e ETF; cripto usa BRL com ate oito casas e cache de cinco minutos. A Agenda permite confirmar em lote somente previsoes que ja chegaram a `PENDENTE_CONCILIACAO`, sempre com confirmacao explicita antes de criar receitas.
 ### Proximas entregas de proventos
 
 1. Implementar o parser real dos informes CVM de FII e FIAGRO, começando por `MXRF11` e `RURA11`, com arquivo-origem, hash, competência, reapresentação e testes automatizados. A tabela de fontes atual é somente prova de conceito.
