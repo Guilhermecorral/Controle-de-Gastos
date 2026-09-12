@@ -300,15 +300,21 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
     taxRegime: 'REGRESSIVO', iofApplicable: true, fixedIncomeYieldType: 'PREFIXADO', fixedIncomeIndexer: null, dailyLiquidity: false,
   });
   const search = useInvestmentAssetSearchQuery(deferredQuery, assetType, open && (mode === 'COMPRA' || mode === 'SALDO_INICIAL') && !selected);
-  const selectedNeedsQuote = mode === 'COMPRA' && eventDate === today && selected != null && (selected.currentPrice == null || selected.currentPrice <= 0);
-  const quoteQuery = useInvestmentQuoteQuery(selected, open && selectedNeedsQuote);
+  const isHistoricalCryptoQuote = mode === 'COMPRA' && eventDate < today && selected?.assetType === 'CRIPTO';
+  const selectedNeedsCurrentQuote = mode === 'COMPRA' && eventDate === today && selected != null
+    && (selected.currentPrice == null || selected.currentPrice <= 0);
+  const shouldFetchQuote = isHistoricalCryptoQuote || selectedNeedsCurrentQuote;
+  const quoteQuery = useInvestmentQuoteQuery(selected, {
+    date: isHistoricalCryptoQuote ? eventDate : undefined,
+    enabled: open && shouldFetchQuote,
+  });
   useEffect(() => {
     const quotedPrice = quoteQuery.data?.available ? quoteQuery.data.price : null;
-    if (eventDate === today && quotedPrice != null && quotedPrice > 0 && unitPrice <= 0) {
+    if (shouldFetchQuote && quotedPrice != null && quotedPrice > 0 && (unitPrice <= 0 || priceWasSuggested)) {
       setUnitPrice(quotedPrice);
       setPriceWasSuggested(true);
     }
-  }, [eventDate, quoteQuery.data, unitPrice]);
+  }, [priceWasSuggested, quoteQuery.data, shouldFetchQuote, unitPrice]);
   if (!open || dismissed) return null;
 
   const closeDialog = () => {
@@ -326,6 +332,13 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
     currency: position.currency ?? position.quote.currency, currentPrice: position.quote.price, source: position.quote.source,
   }, position.id, position.quote.price);
   const resetSelection = () => { setSelected(null); setPositionId(null); setQuery(''); setUnitPrice(0); setPriceWasSuggested(false); setError(''); };
+  const changeEventDate = (value: string) => {
+    setEventDate(value);
+    if (mode !== 'COMPRA' || !priceWasSuggested) return;
+    const currentPrice = value === today ? selected?.currentPrice ?? 0 : 0;
+    setUnitPrice(currentPrice);
+    setPriceWasSuggested(currentPrice > 0);
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (mode === 'RENDA_FIXA') {
@@ -396,11 +409,13 @@ function TradeDialog({ open, positions, initialMode, onClose }: { open: boolean;
 
           {selected && <>
             <div className="flex items-center justify-between rounded-[22px] border border-emerald-100 bg-emerald-50/60 p-4"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-emerald-700">Ativo verificado</p><p className="mt-1 text-lg font-semibold text-slate-950">{selected.symbol} · {selected.name}</p><p className="mt-1 text-xs text-slate-500">{selected.market} · {selected.exchange} · preço em {selected.currency}</p></div><button className="text-sm font-semibold text-slate-600" type="button" onClick={resetSelection}>Trocar</button></div>
-            <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '1'} /><NumberField label={mode === 'SALDO_INICIAL' ? 'Custo médio' : 'Preço unitário'} value={unitPrice} onChange={(value) => { setUnitPrice(value); setPriceWasSuggested(false); }} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '0.000001'} /><DateField label={mode === 'SALDO_INICIAL' ? 'Data de início do acompanhamento' : 'Data da operação'} value={eventDate} onChange={(value) => { setEventDate(value); if (mode === 'COMPRA' && value < today && priceWasSuggested) { setUnitPrice(0); setPriceWasSuggested(false); } }} max={today} /></div>
-            {mode === 'COMPRA' && eventDate < today && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Compra retroativa: informe o preço unitário efetivamente pago na data da operação. A cotação de hoje não será usada como custo histórico.</p>}
-            {selectedNeedsQuote && quoteQuery.isFetching && <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-700">Consultando a cotação mais recente para preencher o preço unitário...</p>}
-            {selectedNeedsQuote && !quoteQuery.isFetching && quoteQuery.data?.available && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs text-emerald-800">Preço preenchido pela fonte {quoteQuery.data.source}, atualizado em {new Date(quoteQuery.data.updatedAt).toLocaleString('pt-BR')}. Você pode corrigi-lo antes de registrar a compra.</p>}
-            {selectedNeedsQuote && !quoteQuery.isFetching && (quoteQuery.isError || quoteQuery.data?.available === false) && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">A cotação não está disponível agora. Informe o preço unitário exibido na sua corretora para continuar.</p>}
+            <div className="grid gap-4 sm:grid-cols-2"><NumberField label="Quantidade" value={quantity} onChange={setQuantity} step={selected.assetType === 'CRIPTO' ? '0.00000001' : '1'} /><NumberField label={mode === 'SALDO_INICIAL' ? 'Custo médio' : 'Preço unitário'} value={unitPrice} onChange={(value) => { setUnitPrice(value); setPriceWasSuggested(false); }} step="any" /><DateField label={mode === 'SALDO_INICIAL' ? 'Data de início do acompanhamento' : 'Data da operação'} value={eventDate} onChange={changeEventDate} max={today} /></div>
+            {mode === 'COMPRA' && eventDate < today && selected.assetType !== 'CRIPTO' && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Compra retroativa: informe o preço unitário efetivamente pago na data da operação. A cotação de hoje não será usada como custo histórico.</p>}
+            {shouldFetchQuote && quoteQuery.isFetching && <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-700">{isHistoricalCryptoQuote ? 'Consultando a cotação da data selecionada...' : 'Consultando a cotação mais recente para preencher o preço unitário...'}</p>}
+            {isHistoricalCryptoQuote && priceWasSuggested && !quoteQuery.isFetching && quoteQuery.data?.available && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Preço sugerido da data selecionada pela CoinGecko. Você pode ajustar caso tenha pago outro valor.</p>}
+            {isHistoricalCryptoQuote && !priceWasSuggested && !quoteQuery.isFetching && quoteQuery.data?.available && <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">Cotação histórica disponível. O preço informado manualmente foi preservado.</p>}
+            {selectedNeedsCurrentQuote && !quoteQuery.isFetching && quoteQuery.data?.available && <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-xs text-emerald-800">Preço preenchido pela fonte {quoteQuery.data.source}, atualizado em {new Date(quoteQuery.data.updatedAt).toLocaleString('pt-BR')}. Você pode corrigi-lo antes de registrar a compra.</p>}
+            {shouldFetchQuote && !quoteQuery.isFetching && (quoteQuery.isError || quoteQuery.data?.available === false) && <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{isHistoricalCryptoQuote ? 'A CoinGecko não devolveu uma cotação para esta data. Informe o preço efetivamente pago para continuar.' : 'A cotação não está disponível agora. Informe o preço unitário exibido na sua corretora para continuar.'}</p>}
             {mode !== 'SALDO_INICIAL' && <details className="rounded-2xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Custos da operação / Nota de corretagem (opcional)</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><NumberField label="Corretagem" value={brokerageFee} onChange={setBrokerageFee} /><NumberField label="Taxas B3" value={b3Fee} onChange={setB3Fee} /><NumberField label="Outros custos" value={fees} onChange={setFees} />{mode === 'VENDA' && <NumberField label="IRRF antecipado" value={withheldTax} onChange={setWithheldTax} />}</div><p className="mt-3 text-xs text-slate-500">Valores da operação, na moeda do ativo. IRRF é crédito tributário e não compõe os custos.</p></details>}
             {selected.currency !== 'BRL' && mode !== 'SALDO_INICIAL' && <NumberField label={`Câmbio da operação (R$ por ${selected.currency})`} value={exchangeRate} onChange={setExchangeRate} step="0.000001" />}
             <div className="flex items-center justify-between rounded-2xl bg-slate-100 px-4 py-3"><span className="text-sm font-semibold text-slate-600">Valor {mode === 'VENDA' ? 'líquido' : 'investido'}</span><strong className="text-slate-950">{numberCurrency(Math.max(0, quantity * unitPrice + (mode === 'SALDO_INICIAL' ? 0 : mode === 'COMPRA' ? fees + brokerageFee + b3Fee : -fees - brokerageFee - b3Fee - withheldTax)), selected.currency)}</strong></div>
@@ -1062,7 +1077,7 @@ function AnalysisMetric({ label, value }: { label: string; value: string }) { re
 function PriceBar({ label, value, maximum, currencyCode, tone }: { label: string; value: number; maximum: number; currencyCode: string; tone: string }) { return <div className="mb-4 last:mb-0"><div className="mb-2 flex justify-between text-sm"><span className="text-slate-500">{label}</span><strong>{numberCurrency(value, currencyCode)}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${tone}`} style={{ width: `${Math.max(2, (value / maximum) * 100)}%` }} /></div></div>; }
 
 const inputClass = 'h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white';
-function NumberField({ label, value, onChange, step = '0.01' }: { label: string; value: number; onChange: (value: number) => void; step?: string }) { return <Field label={label}><input className={inputClass} min="0" step={step} type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} /></Field>; }
+function NumberField({ label, value, onChange, step = '0.01' }: { label: string; value: number; onChange: (value: number) => void; step?: string }) { return <Field label={label}><input className={inputClass} inputMode="decimal" min="0" step={step} type="number" value={plainDecimal(value)} onChange={(e) => onChange(Number(e.target.value))} /></Field>; }
 function DateField({ label, value, onChange, max }: { label: string; value: string; onChange: (value: string) => void; max?: string }) { return <Field label={label}><input className={inputClass} required type="date" max={max} value={value} onChange={(e) => onChange(e.target.value)} /></Field>; }
 function PositionDatum({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">{label}</p><p className="mt-1 font-semibold text-slate-800">{value}</p></div>; }
 function ProjectionMetric({ label, value }: { label: string; value: string }) { return <div><p className="text-xs uppercase tracking-[.16em] text-emerald-300">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div>; }
@@ -1076,6 +1091,21 @@ function parseDecimalInput(value: string) { const normalized = value.includes(',
 function signedCurrency(value: number) { return `${value >= 0 ? '+' : '-'} ${currency(Math.abs(value))}`; }
 function signedPercent(value: number) { return `${value >= 0 ? '+' : '-'} ${Math.abs(value).toFixed(2).replace('.', ',')}%`; }
 function formatQuantity(value: number | null) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 8 }).format(value ?? 0); }
+function plainDecimal(value: number) {
+  if (!Number.isFinite(value)) return '';
+  const raw = String(value);
+  if (!/e/i.test(raw)) return raw;
+  const [coefficient, exponentText] = raw.toLowerCase().split('e');
+  const exponent = Number(exponentText);
+  const sign = coefficient.startsWith('-') ? '-' : '';
+  const unsigned = coefficient.replace('-', '');
+  const [whole, fraction = ''] = unsigned.split('.');
+  const digits = whole + fraction;
+  const decimalIndex = whole.length + exponent;
+  if (decimalIndex <= 0) return `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`;
+  if (decimalIndex >= digits.length) return `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`;
+  return `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+}
 function formatDate(value: string) { return new Intl.DateTimeFormat('pt-BR').format(new Date(`${value}T12:00:00`)); }
 function monthYear(value: string) { return new Intl.DateTimeFormat('pt-BR', { month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00`)); }
 function shortDate(value: string) { return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(`${value}T12:00:00`)).replace('.', ''); }

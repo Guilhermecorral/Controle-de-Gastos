@@ -202,8 +202,21 @@ public class InvestmentController {
     public QuoteResponse quote(@RequestParam InvestmentPosition.AssetType type,
                                @RequestParam(required = false) String symbol,
                                @RequestParam(required = false) String externalId,
-                               @RequestParam(required = false, defaultValue = "BR") String market) {
-        return investmentService.quote(type, symbol, externalId, market);
+                               @RequestParam(required = false, defaultValue = "BR") String market,
+                               @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return investmentService.quote(type, symbol, externalId, market, date);
+    }
+
+    @GetMapping("/quotes/{symbol}")
+    public QuoteResponse quoteBySymbol(@PathVariable String symbol,
+                                       @RequestParam InvestmentPosition.AssetType type,
+                                       @RequestParam(required = false) String externalId,
+                                       @RequestParam(required = false, defaultValue = "BR") String market,
+                                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        String providerId = type == InvestmentPosition.AssetType.CRIPTO && (externalId == null || externalId.isBlank())
+                ? symbol
+                : externalId;
+        return investmentService.quote(type, symbol, providerId, market, date);
     }
 
     @GetMapping("/projections")

@@ -110,6 +110,8 @@ A identificação do ativo é orientada por catálogo. O usuário pesquisa por c
 
 A camada de mercado tenta obter dados em provedores externos e mantém um catálogo local como fallback. A resposta de cotação informa a fonte e o horário de atualização para que a interface não apresente um valor como se fosse tempo real quando ele não é.
 
+Criptoativos usam a CoinGecko: a cotação do dia consulta o preço em tempo real e expira em cinco minutos; uma data passada consulta o histórico diário em BRL e usa chave de cache por ativo/data com validade longa. A cotação histórica é somente uma sugestão para o formulário, e o preço confirmado pelo usuário permanece como custo da operação.
+
 A rentabilidade da posição compara o custo médio das compras com a cotação atual. Proventos permanecem separados do ganho de capital, permitindo analisar valorização e renda recebida sem misturar os conceitos.
 
 O piloto de proventos B3 usa uma fonte pública sem SLA. O backend autoriza a prévia e a publicação apenas para administradores ou e-mails configurados no ambiente; dados ambíguos por ticker/ISIN são devolvidos para revisão e nunca viram receita antes da confirmação manual.

@@ -139,7 +139,8 @@ Uploads usam `multipart/form-data`. O campo do extrato é `file`, o campo do ane
 | `GET` | `/api/investments/tax-summary?year=2026` | Resume impostos retidos e eventos fiscais para conferência |
 | `GET` | `/api/investments/reconciliation?year=2026` | Concilia movimentações de investimentos com o extrato importado |
 | `GET` | `/api/investments/assets/search?query=BBAS&type=ACAO` | Pesquisa o catálogo |
-| `GET` | `/api/investments/quotes` | Consulta uma cotação |
+| `GET` | `/api/investments/quotes` | Consulta uma cotação; aceita `date` opcional e mantém o contrato anterior |
+| `GET` | `/api/investments/quotes/{symbol}` | Consulta uma cotação por símbolo; para cripto aceita `date=AAAA-MM-DD` |
 | `GET` | `/api/investments/projections` | Calcula uma projeção de renda fixa |
 
 Pesquisa de ativos:
@@ -155,6 +156,8 @@ Consulta de cotação:
 - `market`: mercado, com padrão `BR`.
 
 Cotações de cripto são devolvidas em BRL com até oito casas decimais e cache de cinco minutos. O frontend usa a cotação para sugerir o preço unitário quando o catálogo não possui um valor, mas o usuário pode corrigi-lo antes de registrar a operação.
+
+Quando `type=CRIPTO` e `date` é anterior ao dia atual, a consulta usa o histórico diário da CoinGecko e mantém cache de longa duração por ativo e data. Sem `date`, ou quando a data é hoje, permanece a cotação em tempo real. Datas futuras são rejeitadas com `400`; ausência de preço histórico devolve a cotação como indisponível para permitir preenchimento manual.
 
 No registro ou na correção de movimentações, `ACAO`, `FII`, `FIAGRO`, `BDR` e `ETF` negociados na B3 exigem quantidade inteira. Criptoativos e ativos de mercados internacionais aceitam frações com até oito casas decimais. Em compras retroativas, `unitPrice` deve representar o preço efetivamente pago na data da operação e é preservado como custo histórico.
 

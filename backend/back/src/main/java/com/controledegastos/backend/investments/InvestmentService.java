@@ -135,6 +135,11 @@ public class InvestmentService {
         return marketQuoteService.quote(type, symbol, externalId, market);
     }
 
+    public QuoteResponse quote(InvestmentPosition.AssetType type, String symbol, String externalId, String market,
+                               LocalDate date) {
+        return marketQuoteService.quote(type, symbol, externalId, market, date);
+    }
+
     public List<AssetSearchResponse> searchAssets(String query, InvestmentPosition.AssetType type) {
         return assetCatalogService.search(query, type);
     }

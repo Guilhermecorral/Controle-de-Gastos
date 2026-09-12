@@ -91,19 +91,22 @@ export function useInvestmentAssetSearchQuery(query: string, type: Exclude<Inves
   })
 }
 
-export function useInvestmentQuoteQuery(asset: InvestmentAssetSearchResponse | null, enabled = true) {
+export function useInvestmentQuoteQuery(
+  asset: InvestmentAssetSearchResponse | null,
+  options: { date?: string; enabled?: boolean } = {},
+) {
   return useQuery({
-    queryKey: ['investments', 'quote', asset?.assetType, asset?.symbol, asset?.externalId, asset?.market],
-    queryFn: async () => (await api.get<InvestmentQuoteResponse>('/investments/quotes', {
+    queryKey: ['investments', 'quote', asset?.assetType, asset?.symbol, asset?.externalId, asset?.market, options.date],
+    queryFn: async () => (await api.get<InvestmentQuoteResponse>(`/investments/quotes/${encodeURIComponent(asset!.symbol)}`, {
       params: {
         type: asset!.assetType,
-        symbol: asset!.symbol,
         externalId: asset!.externalId,
         market: asset!.market,
+        date: options.date,
       },
     })).data,
-    enabled: enabled && asset != null,
-    staleTime: 5 * 60_000,
+    enabled: options.enabled !== false && asset != null,
+    staleTime: options.date ? Infinity : 5 * 60_000,
   })
 }
 

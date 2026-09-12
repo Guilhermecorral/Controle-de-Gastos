@@ -15,7 +15,7 @@ Atualizado em 12/09/2026. Este documento e a referencia de continuidade para as 
 | Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
 | COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
 | Homologacao | Entregue | Admin pode zerar o dominio financeiro de uma conta com confirmacao reforcada, preservando usuario, acesso e 2FA. |
-| Refinamentos 1.4.5 | Entregue | Compra sugere cotacao para cripto/ETF, preserva preco retroativo e restringe quantidades B3 a inteiros; Agenda confirma em lote somente proventos conciliaveis. |
+| Refinamentos 1.4.5 | Entregue | Compra sugere cotacao atual para cripto/ETF e historica para cripto retroativa, preserva ajustes manuais e restringe quantidades B3 a inteiros; Agenda confirma em lote somente proventos conciliaveis. |
 
 Documentos relacionados:
 

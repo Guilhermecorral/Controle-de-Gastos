@@ -23,7 +23,7 @@ Status: `1.4.5` estável, atualizada em 12/09/2026. A versão amplia a base de i
 - Renda fixa permite perfil prefixado, pós-fixado ou híbrido, indexador opcional e liquidez diária sem data de vencimento obrigatória.
 - Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto dentro da interface do Farol, com opção de cancelar e erro preservado no mesmo contexto.
 - No modal de compra, ETFs consultam o catálogo BRAPI e ativos sem preço no resultado disparam uma cotação para sugerir o preço unitário sem bloquear edição manual. Cripto mantém quantidade fracionária e preço em BRL com precisão de até oito casas, em cache por cinco minutos.
-- Negociações de ações, FIIs, FIAGROs, BDRs e ETFs no mercado brasileiro exigem quantidades inteiras. Cripto e mercado internacional aceitam frações com até oito casas; compras retroativas usam exclusivamente o preço unitário informado como custo histórico, sem preenchimento pela cotação atual.
+- Negociações de ações, FIIs, FIAGROs, BDRs e ETFs no mercado brasileiro exigem quantidades inteiras. Cripto e mercado internacional aceitam frações com até oito casas. Compras retroativas de cripto podem receber a cotação histórica em BRL da CoinGecko para a data selecionada, mas o preço confirmado ou ajustado pelo usuário continua sendo preservado como custo histórico.
 - Eventos fiscais de proventos, vendas e resgates podem ser marcados como isentos ou ter a retenção corrigida com base no comprovante. Isso não substitui a apuração de regimes ainda pendentes.
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
 - O simulador combina métricas, tabela completa mês a mês e gráfico de linha com início, quartis e vencimento.
@@ -47,6 +47,7 @@ Status: `1.4.5` estável, atualizada em 12/09/2026. A versão amplia a base de i
 | POST | /api/investments/positions/{id}/redemption-preview | Previa de resgate total |
 | POST | /api/investments/positions/{id}/redeem | Confirma resgate e entrada liquida |
 | GET | /api/investments/projections | Aceita taxRegime, manualTaxRate e iofApplicable |
+| GET | /api/investments/quotes/{symbol}?date=AAAA-MM-DD | Sugere cotação histórica de cripto em BRL; data é opcional e preço permanece editável |
 | PUT | /api/investments/tax/opening | Saldo fiscal anterior ao primeiro mes completo |
 | GET | /api/investments/tax | Recalcula competencias a partir do saldo inicial |
 | POST | /api/investments/tax/payments | Registra pagamento realizado e despesa vinculada |

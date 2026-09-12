@@ -18,6 +18,8 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MarketQuoteService implements MarketReferenceData.ExchangeRates, MarketReferenceData.CryptoPrices {
     private static final Logger log = LoggerFactory.getLogger(MarketQuoteService.class);
     private static final Duration CRYPTO_QUOTE_CACHE_DURATION = Duration.ofMinutes(5);
+    private static final Duration HISTORICAL_CRYPTO_QUOTE_CACHE_DURATION = Duration.ofDays(3650);
+    private static final DateTimeFormatter COINGECKO_HISTORY_DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-uuuu");
     private static final int CRYPTO_PRICE_MAX_SCALE = 8;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -47,17 +51,29 @@ public class MarketQuoteService implements MarketReferenceData.ExchangeRates, Ma
     private long cacheSeconds;
 
     public QuoteResponse quote(InvestmentPosition.AssetType type, String symbol, String externalId, String market) {
+        return quote(type, symbol, externalId, market, null);
+    }
+
+    public QuoteResponse quote(InvestmentPosition.AssetType type, String symbol, String externalId, String market,
+                               LocalDate requestedDate) {
         if (type == InvestmentPosition.AssetType.RENDA_FIXA) return unavailable(symbol, "PROJECAO_INTERNA");
-        String key = type + ":" + market + ":" + (externalId == null ? symbol : externalId);
+        LocalDate today = LocalDate.now();
+        LocalDate quoteDate = requestedDate == null ? today : requestedDate;
+        if (quoteDate.isAfter(today)) throw new IllegalArgumentException("A data da cotação não pode estar no futuro");
+        boolean historicalCrypto = type == InvestmentPosition.AssetType.CRIPTO && quoteDate.isBefore(today);
+        String key = type + ":" + market + ":" + (externalId == null ? symbol : externalId)
+                + (historicalCrypto ? ":" + quoteDate : "");
         CachedQuote cached = cache.get(key);
         if (cached != null && cached.expiresAt().isAfter(Instant.now())) return cached.quote();
         try {
             QuoteResponse quote = type == InvestmentPosition.AssetType.CRIPTO
-                    ? fetchCrypto(externalId)
+                    ? fetchCryptoAtDate(externalId, quoteDate)
                     : fetchExchangeAssetWithFallback(symbol, externalId, market);
-            Duration cacheDuration = type == InvestmentPosition.AssetType.CRIPTO
-                    ? CRYPTO_QUOTE_CACHE_DURATION
-                    : Duration.ofSeconds(cacheSeconds);
+            Duration cacheDuration = historicalCrypto
+                    ? HISTORICAL_CRYPTO_QUOTE_CACHE_DURATION
+                    : type == InvestmentPosition.AssetType.CRIPTO
+                            ? CRYPTO_QUOTE_CACHE_DURATION
+                            : Duration.ofSeconds(cacheSeconds);
             cache.put(key, new CachedQuote(quote, Instant.now().plus(cacheDuration)));
             return quote;
         } catch (Exception exception) {
@@ -155,6 +171,24 @@ public class MarketQuoteService implements MarketReferenceData.ExchangeRates, Ma
         return new QuoteResponse(id.toUpperCase(Locale.ROOT), price,
                 item.path("brl_24h_change").isNumber() ? item.path("brl_24h_change").decimalValue() : null,
                 null, "BRL", "COINGECKO", Instant.now(), true);
+    }
+
+    public QuoteResponse fetchCryptoAtDate(String rawExternalId, LocalDate date) throws Exception {
+        LocalDate today = LocalDate.now();
+        if (date == null || date.equals(today)) return fetchCrypto(rawExternalId);
+        if (date.isAfter(today)) throw new IllegalArgumentException("A data da cotação não pode estar no futuro");
+
+        String id = required(rawExternalId, "Informe o identificador CoinGecko, como bitcoin").toLowerCase(Locale.ROOT);
+        String formattedDate = date.format(COINGECKO_HISTORY_DATE_FORMAT);
+        String uri = coinGeckoBaseUrl + "/coins/" + encode(id) + "/history?date=" + encode(formattedDate)
+                + "&localization=false";
+        JsonNode priceNode = send(uri, coinGeckoApiKey).path("market_data").path("current_price").path("brl");
+        BigDecimal price = priceNode.isNumber() ? limitCryptoPriceScale(priceNode.decimalValue()) : null;
+        if (price == null || price.signum() <= 0) {
+            throw new IllegalStateException("Cotação histórica não encontrada para " + id + " em " + formattedDate);
+        }
+        return new QuoteResponse(id.toUpperCase(Locale.ROOT), price, null, null,
+                "BRL", "COINGECKO", Instant.now(), true);
     }
 
     private QuoteResponse fetchYahooAsset(String rawSymbol, String rawProviderSymbol) throws Exception {
