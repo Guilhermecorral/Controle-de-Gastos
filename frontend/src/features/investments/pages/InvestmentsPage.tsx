@@ -48,7 +48,7 @@ import {
   useWalletEarningsQuery,
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
-import { ConfirmationDialog, Field, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
+import { ConfirmationDialog, Field, InputConfirmationDialog, LoadingCard, MetricCard, SectionCard, UnavailableCard } from '../../shared/ui';
 import OFXUploader from '../../ofx-upload/components/OFXUploader';
 import { FixedIncomeRedemption, TaxRegimeFields } from '../components/FixedIncomeTools';
 import TaxClosingPanel from '../components/TaxClosingPanel';
@@ -79,6 +79,8 @@ export default function InvestmentsPage() {
   const [editingGoal, setEditingGoal] = useState<InvestmentGoalResponse | null>(null);
   const [contributionGoal, setContributionGoal] = useState<InvestmentGoalResponse | null>(null);
   const [editingMovement, setEditingMovement] = useState<InvestmentMovementResponse | null>(null);
+  const [movementPendingDeletion, setMovementPendingDeletion] = useState<InvestmentMovementResponse | null>(null);
+  const [movementDeletionError, setMovementDeletionError] = useState('');
   const deleteMovementMutation = useDeleteInvestmentMovementMutation();
   const closeInvestmentDialogs = () => {
     setTradeOpen(false);
@@ -92,6 +94,8 @@ export default function InvestmentsPage() {
     setEditingGoal(null);
     setContributionGoal(null);
     setEditingMovement(null);
+    setMovementPendingDeletion(null);
+    setMovementDeletionError('');
   };
   const openTradeDialog = (openingBalance = false) => {
     closeInvestmentDialogs();
@@ -206,7 +210,7 @@ export default function InvestmentsPage() {
                     <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${movement.movementType === 'VENDA' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-700'}`}>{movement.movementType === 'VENDA' ? <ArrowUpRight size={17} /> : <ArrowDownLeft size={17} />}</span>
                     <div><p className="text-sm font-semibold text-slate-900">{movement.assetName}</p><p className="text-xs text-slate-500">{movementLabel(movement.movementType)} · {formatDate(movement.eventDate)}</p>{movement.realizedGain != null && <p className={`text-xs ${movement.realizedGain >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>Resultado: {numberCurrency(movement.realizedGain, movement.currency)}</p>}</div>
                   </div>
-                  <div className="text-right"><span className="text-sm font-semibold text-slate-700">{numberCurrency(movement.amount, movement.currency)}</span>{!movement.automatic && <div className="mt-1 flex justify-end gap-2"><button className="text-xs font-semibold text-slate-600 hover:text-emerald-700" type="button" onClick={() => setEditingMovement(movement)} disabled={movement.movementType !== 'COMPRA' && movement.movementType !== 'VENDA'}>Editar</button><button className="text-xs font-semibold text-rose-600 hover:text-rose-800" type="button" disabled={deleteMovementMutation.isPending} onClick={() => { if (window.confirm(`Excluir ${movementLabel(movement.movementType).toLowerCase()}? A carteira, o fluxo financeiro e a apuração relacionada serão recalculados.`)) deleteMovementMutation.mutate(movement.id); }}>Excluir</button></div>}</div>
+                  <div className="text-right"><span className="text-sm font-semibold text-slate-700">{numberCurrency(movement.amount, movement.currency)}</span>{!movement.automatic && <div className="mt-1 flex justify-end gap-2"><button className="text-xs font-semibold text-slate-600 hover:text-emerald-700" type="button" onClick={() => setEditingMovement(movement)} disabled={movement.movementType !== 'COMPRA' && movement.movementType !== 'VENDA'}>Editar</button><button className="text-xs font-semibold text-rose-600 hover:text-rose-800" type="button" disabled={deleteMovementMutation.isPending} onClick={() => { setMovementDeletionError(''); setMovementPendingDeletion(movement); }}>Excluir</button></div>}</div>
                 </div>
               ))}
               {(movementsQuery.data ?? []).length === 0 && <p className="rounded-[20px] border border-dashed border-slate-200 p-5 text-center text-sm text-slate-500">As compras e vendas aparecerão aqui.</p>}
@@ -248,6 +252,22 @@ export default function InvestmentsPage() {
       <GoalContributionDialog goal={contributionGoal} onClose={() => setContributionGoal(null)} />
       <AssetAnalysisDialog position={selectedPosition} movements={(movementsQuery.data ?? []).filter((movement) => movement.positionId === selectedPosition?.id)} onClose={() => setSelectedPosition(null)} />
       <MovementCorrectionDialog movement={editingMovement} onClose={() => setEditingMovement(null)} />
+      <ConfirmationDialog
+        open={movementPendingDeletion != null}
+        title={`Excluir ${movementPendingDeletion ? movementLabel(movementPendingDeletion.movementType).toLowerCase() : 'movimentação'}?`}
+        description={`${movementPendingDeletion?.assetName ?? 'Esta movimentação'} será removida. A carteira, o fluxo financeiro e a apuração relacionada serão recalculados.`}
+        confirmLabel="Excluir movimentação"
+        busy={deleteMovementMutation.isPending}
+        error={movementDeletionError}
+        onClose={() => { setMovementPendingDeletion(null); setMovementDeletionError(''); }}
+        onConfirm={() => {
+          if (!movementPendingDeletion) return;
+          deleteMovementMutation.mutate(movementPendingDeletion.id, {
+            onSuccess: () => { setMovementPendingDeletion(null); setMovementDeletionError(''); },
+            onError: (reason) => setMovementDeletionError(getApiErrorMessage(reason, 'Não foi possível excluir a movimentação.')),
+          });
+        }}
+      />
     </div>
   );
 }
@@ -554,19 +574,61 @@ function TaxAndReconciliationPanel() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [importOpen, setImportOpen] = useState(false);
+  const [retentionAdjustment, setRetentionAdjustment] = useState<{ movementId: number; symbol: string } | null>(null);
+  const [retentionValue, setRetentionValue] = useState('');
+  const [retentionError, setRetentionError] = useState('');
   const taxQuery = useInvestmentTaxSummaryQuery(year);
   const reconciliationQuery = useInvestmentReconciliationQuery(year);
   const taxEventMutation = useUpdateInvestmentTaxEventMutation();
   const tax = taxQuery.data;
   const reconciliation = reconciliationQuery.data;
   const refresh = () => { taxQuery.refetch(); reconciliationQuery.refetch(); };
-  return <SectionCard title="Tributação e conciliação">
+  const saveRetentionAdjustment = () => {
+    if (!retentionAdjustment) return;
+    const normalizedValue = retentionValue.includes(',')
+      ? retentionValue.replace(/\./g, '').replace(',', '.')
+      : retentionValue;
+    const withheldAmount = Number(normalizedValue);
+    if (!Number.isFinite(withheldAmount) || withheldAmount < 0) {
+      setRetentionError('Informe um valor válido, igual ou maior que zero.');
+      return;
+    }
+    setRetentionError('');
+    taxEventMutation.mutate(
+      { movementId: retentionAdjustment.movementId, status: withheldAmount > 0 ? 'RETIDO_INTEGRAL' : 'A_RECOLHER', withheldAmount, note: 'Retenção ajustada pelo usuário.' },
+      {
+        onSuccess: () => { setRetentionAdjustment(null); setRetentionValue(''); },
+        onError: (reason) => setRetentionError(getApiErrorMessage(reason, 'Não foi possível ajustar a retenção.')),
+      },
+    );
+  };
+  return <>
+  <SectionCard title="Tributação e conciliação">
     <div className="mb-5 flex flex-wrap items-start justify-between gap-4"><div><p className="max-w-2xl text-sm leading-6 text-slate-500">Confira impostos retidos em proventos e compare as movimentações da carteira com seu extrato importado. Vendas ficam sinalizadas para apuração, porque as regras dependem do ativo e do resultado do período.</p></div><div className="flex gap-2"><select aria-label="Ano da apuração" className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700" value={year} onChange={(event) => setYear(Number(event.target.value))}>{[currentYear, currentYear - 1, currentYear - 2].map((option) => <option key={option} value={option}>{option}</option>)}</select><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700" type="button" onClick={() => setImportOpen((open) => !open)}>{importOpen ? 'Fechar importação' : 'Importar extrato'}</button></div></div>
     {importOpen && <div className="mb-6 rounded-[24px] border border-emerald-100 bg-emerald-50/40 p-4 sm:p-5"><p className="mb-4 text-sm leading-6 text-slate-600">Envie OFX, CSV, TSV ou Excel. Revise as linhas antes de salvar; depois, a conciliação será atualizada. O importador registra lançamentos financeiros e não cria compras ou vendas de ativos automaticamente.</p><OFXUploader compact onImported={() => { setImportOpen(false); refresh(); }} /></div>}
     <div className="grid gap-4 md:grid-cols-3"><FiscalMetric label="Imposto retido (BRL)" value={taxQuery.isLoading ? '...' : currency(tax?.totalWithheld ?? 0)} helper="Eventos em reais ou convertidos pelo câmbio informado" tone="positive" /><FiscalMetric label="Eventos para revisar" value={taxQuery.isLoading ? '...' : String(tax?.reviewCount ?? 0)} helper="Sem cálculo automático" tone={(tax?.reviewCount ?? 0) > 0 ? 'warning' : 'neutral'} /><FiscalMetric label="Extrato conciliado" value={reconciliationQuery.isLoading ? '...' : `${reconciliation?.reconciledCount ?? 0}/${(reconciliation?.items ?? []).length}`} helper={`${reconciliation?.pendingCount ?? 0} pendente(s)`} tone={(reconciliation?.pendingCount ?? 0) > 0 ? 'warning' : 'positive'} /></div>
-    <div className="mt-6 grid gap-6 md:grid-cols-2"><div className="min-w-0"><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Eventos fiscais</h4><span className="text-xs text-slate-400">{year}</span></div>{(tax?.events ?? []).length === 0 ? <EmptyFiscal label="Nenhum provento recebido ou venda registrada neste ano." /> : <div className="max-h-[360px] space-y-2 overflow-y-auto overflow-x-hidden pr-2">{tax?.events.map((event, index) => <div key={`${event.date}-${event.symbol}-${index}`} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{event.symbol || event.assetName} · {event.eventType.toLowerCase()}</p><p className="mt-1 text-xs text-slate-500">{formatDate(event.date)} · {event.note}</p></div><TaxBadge status={event.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Bruto <b className="text-slate-700">{numberCurrency(event.grossAmount, event.currency ?? 'BRL')}</b></span><span className="text-slate-500">Retido <b className="text-emerald-700">{numberCurrency(event.withheldAmount, event.currency ?? 'BRL')}</b></span><span className="text-slate-500">Líquido <b className="text-slate-700">{numberCurrency(event.netAmount, event.currency ?? 'BRL')}</b></span></div>{event.movementId != null && <div className="mt-3 flex flex-wrap gap-2"><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" disabled={taxEventMutation.isPending} onClick={() => taxEventMutation.mutate({ movementId: event.movementId!, status: 'ISENTO', withheldAmount: 0, note: 'Evento marcado como isento pelo usuário.' })}>Marcar como isento</button><button className="text-xs font-semibold text-slate-600 hover:text-slate-950" type="button" disabled={taxEventMutation.isPending} onClick={() => { const value = window.prompt('Informe o imposto retido no comprovante (R$).', String(event.withheldAmount)); if (value == null) return; const withheldAmount = Number(value.replace(',', '.')); if (Number.isFinite(withheldAmount) && withheldAmount >= 0) taxEventMutation.mutate({ movementId: event.movementId!, status: withheldAmount > 0 ? 'RETIDO_INTEGRAL' : 'A_RECOLHER', withheldAmount, note: 'Retenção ajustada pelo usuário.' }); }}>Editar retenção</button></div>}</div>)}</div>}</div><div className="min-w-0"><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Conciliação do extrato</h4><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={refresh}>Atualizar</button></div>{(reconciliation?.items ?? []).length === 0 ? <EmptyFiscal label="Ainda não há movimentações de investimento no período." /> : <div className="max-h-[360px] space-y-2 overflow-y-auto overflow-x-hidden pr-2">{reconciliation?.items.map((item) => <div key={item.movementId} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{item.symbol || item.assetName} · {movementLabel(item.movementType)}</p><p className="mt-1 text-xs text-slate-500">{formatDate(item.eventDate)} · {item.note}</p></div><ReconciliationBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Carteira <b className="text-slate-700">{numberCurrency(item.expectedAmount, item.currency)}</b></span>{item.transactionAmount != null && <span className="text-slate-500">Extrato <b className="text-slate-700">{currency(item.transactionAmount)}</b></span>}</div></div>)}</div>}</div></div>
+    <div className="mt-6 grid gap-6 md:grid-cols-2"><div className="min-w-0"><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Eventos fiscais</h4><span className="text-xs text-slate-400">{year}</span></div>{(tax?.events ?? []).length === 0 ? <EmptyFiscal label="Nenhum provento recebido ou venda registrada neste ano." /> : <div className="max-h-[360px] space-y-2 overflow-y-auto overflow-x-hidden pr-2">{tax?.events.map((event, index) => <div key={`${event.date}-${event.symbol}-${index}`} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{event.symbol || event.assetName} · {event.eventType.toLowerCase()}</p><p className="mt-1 text-xs text-slate-500">{formatDate(event.date)} · {event.note}</p></div><TaxBadge status={event.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Bruto <b className="text-slate-700">{numberCurrency(event.grossAmount, event.currency ?? 'BRL')}</b></span><span className="text-slate-500">Retido <b className="text-emerald-700">{numberCurrency(event.withheldAmount, event.currency ?? 'BRL')}</b></span><span className="text-slate-500">Líquido <b className="text-slate-700">{numberCurrency(event.netAmount, event.currency ?? 'BRL')}</b></span></div>{event.movementId != null && <div className="mt-3 flex flex-wrap gap-2"><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" disabled={taxEventMutation.isPending} onClick={() => taxEventMutation.mutate({ movementId: event.movementId!, status: 'ISENTO', withheldAmount: 0, note: 'Evento marcado como isento pelo usuário.' })}>Marcar como isento</button><button className="text-xs font-semibold text-slate-600 hover:text-slate-950" type="button" disabled={taxEventMutation.isPending} onClick={() => { setRetentionError(''); setRetentionValue(String(event.withheldAmount)); setRetentionAdjustment({ movementId: event.movementId!, symbol: event.symbol || event.assetName }); }}>Editar retenção</button></div>}</div>)}</div>}</div><div className="min-w-0"><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-slate-900">Conciliação do extrato</h4><button className="text-xs font-semibold text-emerald-700 hover:text-emerald-900" type="button" onClick={refresh}>Atualizar</button></div>{(reconciliation?.items ?? []).length === 0 ? <EmptyFiscal label="Ainda não há movimentações de investimento no período." /> : <div className="max-h-[360px] space-y-2 overflow-y-auto overflow-x-hidden pr-2">{reconciliation?.items.map((item) => <div key={item.movementId} className="rounded-2xl bg-slate-50 p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold text-slate-800">{item.symbol || item.assetName} · {movementLabel(item.movementType)}</p><p className="mt-1 text-xs text-slate-500">{formatDate(item.eventDate)} · {item.note}</p></div><ReconciliationBadge status={item.status} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"><span className="text-slate-500">Carteira <b className="text-slate-700">{numberCurrency(item.expectedAmount, item.currency)}</b></span>{item.transactionAmount != null && <span className="text-slate-500">Extrato <b className="text-slate-700">{currency(item.transactionAmount)}</b></span>}</div></div>)}</div>}</div></div>
     <p className="mt-5 text-xs leading-6 text-slate-400">Este painel organiza valores já registrados. Para DARF, compensações, isenções ou operações complexas, use-o como conferência e valide a apuração com sua documentação fiscal.</p>
-  </SectionCard>;
+  </SectionCard>
+  <InputConfirmationDialog
+    open={retentionAdjustment != null}
+    title={`Editar retenção de ${retentionAdjustment?.symbol ?? 'provento'}`}
+    description="Informe o imposto retido que aparece no comprovante. O Farol atualizará somente a classificação fiscal deste evento."
+    label="Imposto retido (R$)"
+    value={retentionValue}
+    confirmLabel="Salvar retenção"
+    inputMode="decimal"
+    placeholder="0,00"
+    helper="Use zero quando não houver valor retido no comprovante."
+    tone="primary"
+    busy={taxEventMutation.isPending}
+    error={retentionError}
+    confirmDisabled={!retentionValue.trim()}
+    onValueChange={(value) => { setRetentionValue(value.replace(/[^0-9,.]/g, '')); setRetentionError(''); }}
+    onClose={() => { setRetentionAdjustment(null); setRetentionValue(''); setRetentionError(''); }}
+    onConfirm={saveRetentionAdjustment}
+  />
+  </>;
 }
 
 function FiscalMetric({ label, value, helper, tone }: { label: string; value: string; helper: string; tone: 'neutral' | 'positive' | 'warning' }) { const color = tone === 'positive' ? 'text-emerald-700' : tone === 'warning' ? 'text-amber-700' : 'text-slate-800'; return <div className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-[.12em] text-slate-400">{label}</p><p className={`mt-2 text-xl font-semibold ${color}`}>{value}</p><p className="mt-1 text-xs text-slate-500">{helper}</p></div>; }
@@ -848,6 +910,7 @@ function GoalDialog({ goal, open, onClose }: { goal: InvestmentGoalResponse | nu
   const [monthlyContribution, setMonthlyContribution] = useState(goal?.monthlyContribution ?? 500);
   const [annualGrowthRate, setAnnualGrowthRate] = useState(goal?.annualGrowthRate ?? 0);
   const [error, setError] = useState('');
+  const [contributionPendingDeletion, setContributionPendingDeletion] = useState<number | null>(null);
   if (!open) return null;
   const pending = createMutation.isPending || updateMutation.isPending;
   const submit = (event: FormEvent) => {
@@ -858,11 +921,29 @@ function GoalDialog({ goal, open, onClose }: { goal: InvestmentGoalResponse | nu
     if (goal) updateMutation.mutate({ id: goal.id, data }, options); else createMutation.mutate(data, options);
   };
   const removeContribution = (contributionId: number) => {
-    if (!goal || !window.confirm('Remover este aporte da meta?')) return;
+    if (!goal) return;
     setError('');
-    deleteContributionMutation.mutate({ goalId: goal.id, contributionId }, { onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover o aporte.')) });
+    deleteContributionMutation.mutate(
+      { goalId: goal.id, contributionId },
+      {
+        onSuccess: () => setContributionPendingDeletion(null),
+        onError: (reason) => setError(getApiErrorMessage(reason, 'Não foi possível remover o aporte.')),
+      },
+    );
   };
-  return <ModalShell eyebrow="Planejamento" title={goal ? 'Editar meta de patrimônio' : 'Criar meta de patrimônio'} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="text-sm leading-6 text-slate-500">O saldo desta meta é separado da carteira: informe o valor que você decidiu destinar a ela. A taxa anual pode ser revisada a qualquer momento.</p><Field label="Nome da meta"><input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Objetivo (R$)" value={targetAmount} onChange={setTargetAmount} /><NumberField label="Valor inicial destinado (R$)" value={initialAmount} onChange={setInitialAmount} /></div><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Aporte mensal previsto (R$)" value={monthlyContribution} onChange={setMonthlyContribution} /><NumberField label="Variação anual estimada (%)" value={annualGrowthRate} onChange={setAnnualGrowthRate} step="0.0001" /></div>{goal && <div className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="mb-3 flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-800">Aportes registrados</p><p className="text-xs text-slate-500">Remova somente lançamentos inseridos por engano.</p></div><span className="text-sm font-semibold text-emerald-700">{currency(goal.contributionsAmount)}</span></div>{contributionsQuery.isLoading ? <p className="py-2 text-sm text-slate-500">Carregando aportes...</p> : (contributionsQuery.data ?? []).length === 0 ? <p className="py-2 text-sm text-slate-500">Nenhum aporte avulso registrado.</p> : <div className="space-y-2">{contributionsQuery.data?.map((contribution) => <div key={contribution.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"><span><b className="text-sm text-slate-800">{currency(contribution.amount)}</b><small className="ml-2 text-xs text-slate-500">{formatDate(contribution.eventDate)}</small></span><button className="text-xs font-semibold text-rose-600 disabled:text-slate-300" disabled={deleteContributionMutation.isPending} type="button" onClick={() => removeContribution(contribution.id)}>Remover</button></div>)}</div>}</div>}{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={targetAmount <= 0 || pending} type="submit">{pending ? 'Salvando...' : goal ? 'Salvar alterações' : 'Criar meta'}</button></div></form></ModalShell>;
+  return <>
+    <ModalShell eyebrow="Planejamento" title={goal ? 'Editar meta de patrimônio' : 'Criar meta de patrimônio'} onClose={onClose}><form className="space-y-5" onSubmit={submit}><p className="text-sm leading-6 text-slate-500">O saldo desta meta é separado da carteira: informe o valor que você decidiu destinar a ela. A taxa anual pode ser revisada a qualquer momento.</p><Field label="Nome da meta"><input className={inputClass} required value={name} onChange={(event) => setName(event.target.value)} /></Field><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Objetivo (R$)" value={targetAmount} onChange={setTargetAmount} /><NumberField label="Valor inicial destinado (R$)" value={initialAmount} onChange={setInitialAmount} /></div><div className="grid gap-4 sm:grid-cols-2"><NumberField label="Aporte mensal previsto (R$)" value={monthlyContribution} onChange={setMonthlyContribution} /><NumberField label="Variação anual estimada (%)" value={annualGrowthRate} onChange={setAnnualGrowthRate} step="0.0001" /></div>{goal && <div className="rounded-[20px] border border-slate-100 bg-slate-50 p-4"><div className="mb-3 flex items-center justify-between"><div><p className="text-sm font-semibold text-slate-800">Aportes registrados</p><p className="text-xs text-slate-500">Remova somente lançamentos inseridos por engano.</p></div><span className="text-sm font-semibold text-emerald-700">{currency(goal.contributionsAmount)}</span></div>{contributionsQuery.isLoading ? <p className="py-2 text-sm text-slate-500">Carregando aportes...</p> : (contributionsQuery.data ?? []).length === 0 ? <p className="py-2 text-sm text-slate-500">Nenhum aporte avulso registrado.</p> : <div className="space-y-2">{contributionsQuery.data?.map((contribution) => <div key={contribution.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5"><span><b className="text-sm text-slate-800">{currency(contribution.amount)}</b><small className="ml-2 text-xs text-slate-500">{formatDate(contribution.eventDate)}</small></span><button className="text-xs font-semibold text-rose-600 disabled:text-slate-300" disabled={deleteContributionMutation.isPending} type="button" onClick={() => { setError(''); setContributionPendingDeletion(contribution.id); }}>Remover</button></div>)}</div>}</div>}{error && <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}<div className="flex justify-end gap-3"><button className="rounded-full px-5 py-3 font-semibold text-slate-600" type="button" onClick={onClose}>Cancelar</button><button className="rounded-full bg-slate-950 px-5 py-3 font-semibold text-white disabled:bg-slate-300" disabled={targetAmount <= 0 || pending} type="submit">{pending ? 'Salvando...' : goal ? 'Salvar alterações' : 'Criar meta'}</button></div></form></ModalShell>
+    <ConfirmationDialog
+      open={contributionPendingDeletion != null}
+      title="Remover aporte da meta?"
+      description="O aporte será retirado somente desta meta e o progresso será recalculado. A carteira e as demais metas não serão alteradas."
+      confirmLabel="Remover aporte"
+      busy={deleteContributionMutation.isPending}
+      error={error}
+      onClose={() => { setContributionPendingDeletion(null); setError(''); }}
+      onConfirm={() => { if (contributionPendingDeletion != null) removeContribution(contributionPendingDeletion); }}
+    />
+  </>;
 }
 
 function GoalContributionDialog({ goal, onClose }: { goal: InvestmentGoalResponse | null; onClose: () => void }) {

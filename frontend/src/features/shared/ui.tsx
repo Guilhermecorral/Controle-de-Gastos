@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { FormEvent, ReactNode, useId } from 'react';
 import { MonthlyAnalysisResponse, TransactionResponse } from '../../types';
 import { categoryLabels, formatCurrency, formatIsoDate } from '../../lib/mockFinance';
 import { ToastMessage } from '../workspace/types';
@@ -262,6 +262,7 @@ export function ConfirmationDialog({
   confirmLabel,
   tone = 'danger',
   busy = false,
+  error = '',
   onClose,
   onConfirm,
 }: {
@@ -271,9 +272,12 @@ export function ConfirmationDialog({
   confirmLabel: string;
   tone?: 'danger' | 'primary';
   busy?: boolean;
+  error?: string;
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const titleId = useId();
+  const descriptionId = useId();
   if (!open) return null;
 
   const confirmClasses = tone === 'danger'
@@ -281,16 +285,95 @@ export function ConfirmationDialog({
     : 'bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300';
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmation-dialog-title">
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
       <div className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Confirmação necessária</p>
-        <h3 id="confirmation-dialog-title" className="mt-2 text-xl font-semibold text-slate-900">{title}</h3>
-        <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+        <h3 id={titleId} className="mt-2 text-xl font-semibold text-slate-900">{title}</h3>
+        <p id={descriptionId} className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+        {error && <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700" role="alert">{error}</p>}
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <button className="rounded-full px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100" type="button" disabled={busy} onClick={onClose}>Cancelar</button>
           <button className={`rounded-full px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed ${confirmClasses}`} type="button" disabled={busy} onClick={onConfirm}>{busy ? 'Processando...' : confirmLabel}</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export function InputConfirmationDialog({
+  open,
+  title,
+  description,
+  label,
+  value,
+  confirmLabel,
+  placeholder,
+  helper,
+  error = '',
+  tone = 'danger',
+  busy = false,
+  confirmDisabled = false,
+  inputMode = 'text',
+  autoComplete = 'off',
+  onValueChange,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  label: string;
+  value: string;
+  confirmLabel: string;
+  placeholder?: string;
+  helper?: string;
+  error?: string;
+  tone?: 'danger' | 'primary';
+  busy?: boolean;
+  confirmDisabled?: boolean;
+  inputMode?: 'text' | 'decimal' | 'numeric' | 'email';
+  autoComplete?: string;
+  onValueChange: (value: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const titleId = useId();
+  const descriptionId = useId();
+  if (!open) return null;
+
+  const confirmClasses = tone === 'danger'
+    ? 'bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300'
+    : 'bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300';
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!busy && !confirmDisabled) onConfirm();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId}>
+      <form className="w-full max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]" onSubmit={submit}>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Confirmação necessária</p>
+        <h3 id={titleId} className="mt-2 text-xl font-semibold text-slate-900">{title}</h3>
+        <p id={descriptionId} className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
+        <label className="mt-5 block">
+          <span className="mb-2 block text-sm font-semibold text-slate-700">{label}</span>
+          <input
+            autoComplete={autoComplete}
+            autoFocus
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 outline-none transition focus:border-emerald-400 focus:bg-white"
+            inputMode={inputMode}
+            placeholder={placeholder}
+            value={value}
+            onChange={(event) => onValueChange(event.target.value)}
+          />
+        </label>
+        {helper && <p className="mt-2 text-xs leading-5 text-slate-500">{helper}</p>}
+        {error && <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-700" role="alert">{error}</p>}
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+          <button className="rounded-full px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100" type="button" disabled={busy} onClick={onClose}>Cancelar</button>
+          <button className={`rounded-full px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed ${confirmClasses}`} type="submit" disabled={busy || confirmDisabled}>{busy ? 'Processando...' : confirmLabel}</button>
+        </div>
+      </form>
     </div>
   );
 }

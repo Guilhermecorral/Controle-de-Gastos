@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 11/09/2026. A versão amplia a base estável da 1.4.0 com agenda B3 em piloto controlado, importação assistida e fontes experimentais revisáveis.
+Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 12/09/2026. A versão amplia a base estável da 1.4.0 com agenda B3 em piloto controlado, importação assistida e fontes experimentais revisáveis.
 
 ## Entregue nesta etapa
 
@@ -21,7 +21,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 11/09/2026. A versão a
 - Dashboard e Analise Mensal alertam sobre competencias para revisar/pagar. Aportes saem dos graficos e alertas de consumo, permanecendo nos totais do fluxo de caixa.
 - Fluxo de carteira separado em renda variável e renda fixa. O saldo inicial sai do lançamento recorrente e passa a ser uma ação de importação de posição existente.
 - Renda fixa permite perfil prefixado, pós-fixado ou híbrido, indexador opcional e liquidez diária sem data de vencimento obrigatória.
-- Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto.
+- Compras e vendas podem ser corrigidas ou removidas pela carteira. A correção recalcula posição, custo médio, ganho realizado e lançamento financeiro vinculado; excluir exige confirmação visual de impacto dentro da interface do Farol, com opção de cancelar e erro preservado no mesmo contexto.
 - Eventos fiscais de proventos, vendas e resgates podem ser marcados como isentos ou ter a retenção corrigida com base no comprovante. Isso não substitui a apuração de regimes ainda pendentes.
 - Fechamento mensal possui ajuda em linguagem simples sobre imposto retido integralmente, IRRF antecipado e imposto possivelmente a recolher por DARF.
 - O simulador combina métricas, tabela completa mês a mês e gráfico de linha com início, quartis e vencimento.

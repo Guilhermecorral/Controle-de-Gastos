@@ -32,7 +32,7 @@ import InvestmentsPage from '../../investments/pages/InvestmentsPage';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
 import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
 import SettingsPage from '../../settings/pages/SettingsPage';
-import { ToastStack } from '../../shared/ui';
+import { ConfirmationDialog, ToastStack } from '../../shared/ui';
 import ReceiptUploadModal from '../../transactions/components/ReceiptUploadModal';
 import TransactionsPage from '../../transactions/pages/TransactionsPage';
 import WishlistPage from '../../wishlist/pages/WishlistPage';
@@ -85,6 +85,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   const [wishlistCategoryTouched, setWishlistCategoryTouched] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [transactionPendingDeletion, setTransactionPendingDeletion] = useState<TransactionResponse | null>(null);
+  const [transactionDeletionError, setTransactionDeletionError] = useState('');
   const [transactionDraft, setTransactionDraft] = useState<TransactionDraft>(buildTransactionDraft('DESPESA'));
   const [wishlistDraft, setWishlistDraft] = useState<WishlistDraft>({
     description: '',
@@ -401,19 +403,16 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   };
 
   const handleDeleteTransaction = (transaction: TransactionResponse) => {
+    setTransactionDeletionError('');
+    setTransactionPendingDeletion(transaction);
+  };
+
+  const confirmDeleteTransaction = () => {
+    if (!transactionPendingDeletion) return;
+    const transaction = transactionPendingDeletion;
     const isInstallmentGroup =
       transaction.paymentMethod === 'CARTAO_CREDITO_PARCELADO' &&
       (transaction.installments ?? 1) > 1;
-
-    const confirmed = window.confirm(
-      isInstallmentGroup
-        ? `Essa compra parcelada possui ${transaction.installments} parcelas. Apagar esta transação removerá o grupo inteiro. Deseja continuar?`
-        : `Deseja apagar a transação "${transaction.description}"?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
 
     deleteTransactionMutation.mutate(transaction.id, {
       onSuccess: () => {
@@ -428,9 +427,11 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
             : 'Transação removida do histórico.',
           'info',
         );
+        setTransactionPendingDeletion(null);
+        setTransactionDeletionError('');
       },
       onError: (error) => {
-        pushToast(getApiErrorMessage(error, 'Não foi possível apagar a transação agora.'), 'info');
+        setTransactionDeletionError(getApiErrorMessage(error, 'Não foi possível apagar a transação agora.'));
       },
     });
   };
@@ -905,6 +906,19 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
           setPurchaseReceiptFile(null);
           setPurchaseModalItemId(null);
         }}
+      />
+
+      <ConfirmationDialog
+        open={transactionPendingDeletion != null}
+        title="Excluir transação?"
+        description={transactionPendingDeletion?.paymentMethod === 'CARTAO_CREDITO_PARCELADO' && (transactionPendingDeletion.installments ?? 1) > 1
+          ? `A compra parcelada \"${transactionPendingDeletion.description}\" possui ${transactionPendingDeletion.installments} parcelas. Todo o grupo será removido do histórico.`
+          : `A transação \"${transactionPendingDeletion?.description ?? ''}\" será removida do histórico financeiro.`}
+        confirmLabel="Excluir transação"
+        busy={deleteTransactionMutation.isPending}
+        error={transactionDeletionError}
+        onClose={() => { setTransactionPendingDeletion(null); setTransactionDeletionError(''); }}
+        onConfirm={confirmDeleteTransaction}
       />
 
       <ToastStack toasts={toasts} />

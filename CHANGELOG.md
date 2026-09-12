@@ -20,6 +20,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - A Agenda agora mostra somente proventos que ainda exigem ação; recebidos, efetivados e cancelados ficam no Histórico Financeiro e podem ser consultados por um histórico opcional na própria Agenda.
 - A prévia B3 tolera até dois minutos de inicialização e consulta, evitando que o despertar do Render seja mostrado como falha da Agenda.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
+- Confirmações de exclusão, ajustes fiscais e ações administrativas passam a usar diálogos internos do Farol, com impacto, cancelamento, validação e erro visíveis, sem depender de alertas ou prompts nativos do navegador.
 
 ### Continuação auditada por commit
 

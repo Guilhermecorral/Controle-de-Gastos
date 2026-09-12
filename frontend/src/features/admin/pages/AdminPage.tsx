@@ -9,9 +9,14 @@ import {
 } from '../../../lib/queries';
 import { getApiErrorMessage } from '../../../lib/httpErrors';
 import { AdminUserResponse, Role } from '../../../types';
-import { Field, SectionCard } from '../../shared/ui';
+import { Field, InputConfirmationDialog, SectionCard } from '../../shared/ui';
 
 type UserFilter = 'TODOS' | 'ATIVOS' | 'SUSPENSOS' | 'ADMINS' | 'DOIS_FATORES';
+type PendingAdminAction =
+  | { type: 'STATUS'; user: AdminUserResponse; active: boolean }
+  | { type: 'ROLE'; user: AdminUserResponse; role: Role }
+  | { type: 'PASSWORD'; user: AdminUserResponse; newPassword: string }
+  | { type: 'TWO_FACTOR'; user: AdminUserResponse };
 
 export default function AdminPage() {
   const overviewQuery = useAdminOverviewQuery(true);
@@ -27,6 +32,9 @@ export default function AdminPage() {
   const [userFilter, setUserFilter] = useState<UserFilter>('TODOS');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [feedbackError, setFeedbackError] = useState('');
+  const [pendingAdminAction, setPendingAdminAction] = useState<PendingAdminAction | null>(null);
+  const [adminConfirmationEmail, setAdminConfirmationEmail] = useState('');
+  const [adminConfirmationError, setAdminConfirmationError] = useState('');
 
   const users = usersQuery.data ?? [];
   const overview = overviewQuery.data;
@@ -105,6 +113,83 @@ export default function AdminPage() {
     setFeedbackMessage('');
     setFeedbackError('');
   };
+
+  const openAdminConfirmation = (action: PendingAdminAction) => {
+    setAdminConfirmationEmail('');
+    setAdminConfirmationError('');
+    setPendingAdminAction(action);
+  };
+
+  const closeAdminConfirmation = () => {
+    setPendingAdminAction(null);
+    setAdminConfirmationEmail('');
+    setAdminConfirmationError('');
+  };
+
+  const confirmAdminAction = () => {
+    const action = pendingAdminAction;
+    if (!action || adminConfirmationEmail.trim().toLowerCase() !== action.user.email.toLowerCase()) return;
+    setFeedbackMessage('');
+    setFeedbackError('');
+    setAdminConfirmationError('');
+
+    if (action.type === 'STATUS') {
+      updateStatusMutation.mutate(
+        { id: action.user.id, data: { active: action.active } },
+        {
+          onSuccess: (response) => {
+            syncSelectedUser(response);
+            setFeedbackMessage(action.active ? 'Conta reativada com sucesso.' : 'Conta suspensa com sucesso.');
+            closeAdminConfirmation();
+          },
+          onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível atualizar o status da conta agora.')),
+        },
+      );
+      return;
+    }
+
+    if (action.type === 'ROLE') {
+      updateRoleMutation.mutate(
+        { id: action.user.id, data: { role: action.role } },
+        {
+          onSuccess: (response) => {
+            syncSelectedUser(response);
+            setFeedbackMessage(`Permissão atualizada para ${action.role}.`);
+            closeAdminConfirmation();
+          },
+          onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível atualizar o perfil agora.')),
+        },
+      );
+      return;
+    }
+
+    if (action.type === 'PASSWORD') {
+      resetPasswordMutation.mutate(
+        { id: action.user.id, data: { newPassword: action.newPassword } },
+        {
+          onSuccess: (response) => {
+            syncSelectedUser(response);
+            setNewPassword('');
+            setFeedbackMessage('Senha redefinida com sucesso.');
+            closeAdminConfirmation();
+          },
+          onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível redefinir a senha agora.')),
+        },
+      );
+      return;
+    }
+
+    resetTwoFactorMutation.mutate(action.user.id, {
+      onSuccess: (response) => {
+        syncSelectedUser(response);
+        setFeedbackMessage('Segundo fator removido com sucesso.');
+        closeAdminConfirmation();
+      },
+      onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível resetar o autenticador agora.')),
+    });
+  };
+
+  const adminActionContent = getAdminActionContent(pendingAdminAction);
 
   return (
     <div className="space-y-6">
@@ -404,26 +489,7 @@ export default function AdminPage() {
                   tone={selectedUser.active ? 'danger' : 'default'}
                   disabled={statusActionDisabled || actionPending}
                   onClick={() => {
-                    const actionLabel = selectedUser.active ? 'suspender' : 'reativar';
-                    const confirmation = window.prompt(`Digite o e-mail da conta para confirmar ${actionLabel}:`);
-                    if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
-                      return;
-                    }
-
-                    setFeedbackMessage('');
-                    setFeedbackError('');
-                    updateStatusMutation.mutate(
-                      { id: selectedUser.id, data: { active: !selectedUser.active } },
-                      {
-                        onSuccess: (response) => {
-                          syncSelectedUser(response);
-                          setFeedbackMessage(selectedUser.active ? 'Conta suspensa com sucesso.' : 'Conta reativada com sucesso.');
-                        },
-                        onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível atualizar o status da conta agora.'));
-                        },
-                      },
-                    );
+                    openAdminConfirmation({ type: 'STATUS', user: selectedUser, active: !selectedUser.active });
                   }}
                 />
 
@@ -439,25 +505,7 @@ export default function AdminPage() {
                   disabled={roleActionDisabled || actionPending}
                   onClick={() => {
                     const targetRole: Role = selectedUser.role === 'ADMIN' ? 'USER' : 'ADMIN';
-                    const confirmation = window.prompt(`Digite o e-mail da conta para confirmar a role ${targetRole}:`);
-                    if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
-                      return;
-                    }
-
-                    setFeedbackMessage('');
-                    setFeedbackError('');
-                    updateRoleMutation.mutate(
-                      { id: selectedUser.id, data: { role: targetRole } },
-                      {
-                        onSuccess: (response) => {
-                          syncSelectedUser(response);
-                          setFeedbackMessage(`Permissão atualizada para ${targetRole}.`);
-                        },
-                        onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível atualizar o perfil agora.'));
-                        },
-                      },
-                    );
+                    openAdminConfirmation({ type: 'ROLE', user: selectedUser, role: targetRole });
                   }}
                 />
 
@@ -490,26 +538,7 @@ export default function AdminPage() {
                   className="mt-4 rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                   disabled={resetPasswordMutation.isPending || actionPending || !newPassword.trim()}
                   onClick={() => {
-                    const confirmation = window.prompt('Digite o e-mail da conta para confirmar a redefinição da senha:');
-                    if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
-                      return;
-                    }
-
-                    setFeedbackMessage('');
-                    setFeedbackError('');
-                    resetPasswordMutation.mutate(
-                      { id: selectedUser.id, data: { newPassword: newPassword.trim() } },
-                      {
-                        onSuccess: (response) => {
-                          syncSelectedUser(response);
-                          setNewPassword('');
-                          setFeedbackMessage('Senha redefinida com sucesso.');
-                        },
-                        onError: (error) => {
-                          setFeedbackError(getApiErrorMessage(error, 'Não foi possível redefinir a senha agora.'));
-                        },
-                      },
-                    );
+                    openAdminConfirmation({ type: 'PASSWORD', user: selectedUser, newPassword: newPassword.trim() });
                   }}
                   type="button"
                 >
@@ -522,30 +551,50 @@ export default function AdminPage() {
                 tone="default"
                 disabled={actionPending}
                 onClick={() => {
-                  const confirmation = window.prompt('Digite o e-mail da conta para confirmar o reset do autenticador:');
-                  if (confirmation?.trim().toLowerCase() !== selectedUser.email.toLowerCase()) {
-                    return;
-                  }
-
-                  setFeedbackMessage('');
-                  setFeedbackError('');
-                  resetTwoFactorMutation.mutate(selectedUser.id, {
-                    onSuccess: (response) => {
-                      syncSelectedUser(response);
-                      setFeedbackMessage('Segundo fator removido com sucesso.');
-                    },
-                    onError: (error) => {
-                      setFeedbackError(getApiErrorMessage(error, 'Não foi possível resetar o autenticador agora.'));
-                    },
-                  });
+                  openAdminConfirmation({ type: 'TWO_FACTOR', user: selectedUser });
                 }}
               />
             </div>
           )}
         </SectionCard>
       </div>
+      <InputConfirmationDialog
+        open={pendingAdminAction != null}
+        title={adminActionContent.title}
+        description={adminActionContent.description}
+        label="E-mail da conta"
+        value={adminConfirmationEmail}
+        confirmLabel={adminActionContent.confirmLabel}
+        placeholder={pendingAdminAction?.user.email}
+        helper="Digite exatamente o e-mail exibido para liberar esta ação administrativa."
+        inputMode="email"
+        busy={actionPending}
+        error={adminConfirmationError}
+        confirmDisabled={!pendingAdminAction || adminConfirmationEmail.trim().toLowerCase() !== pendingAdminAction.user.email.toLowerCase()}
+        onValueChange={(value) => { setAdminConfirmationEmail(value); setAdminConfirmationError(''); }}
+        onClose={closeAdminConfirmation}
+        onConfirm={confirmAdminAction}
+      />
     </div>
   );
+}
+
+function getAdminActionContent(action: PendingAdminAction | null) {
+  if (!action) return { title: 'Confirmar ação administrativa', description: '', confirmLabel: 'Confirmar' };
+  if (action.type === 'STATUS') {
+    return action.active
+      ? { title: 'Reativar conta?', description: `A conta de ${action.user.email} voltará a acessar o Farol.`, confirmLabel: 'Reativar conta' }
+      : { title: 'Suspender conta?', description: `A conta de ${action.user.email} perderá o acesso até ser reativada por um administrador.`, confirmLabel: 'Suspender conta' };
+  }
+  if (action.type === 'ROLE') {
+    return action.role === 'ADMIN'
+      ? { title: 'Promover para admin?', description: `${action.user.email} receberá acesso às funções administrativas permitidas pelo backend.`, confirmLabel: 'Promover para admin' }
+      : { title: 'Remover acesso administrativo?', description: `${action.user.email} continuará como usuário comum, sem acesso ao painel administrativo.`, confirmLabel: 'Alterar para usuário' };
+  }
+  if (action.type === 'PASSWORD') {
+    return { title: 'Redefinir senha?', description: `A senha de ${action.user.email} será substituída pela senha temporária informada.`, confirmLabel: 'Redefinir senha' };
+  }
+  return { title: 'Resetar autenticador?', description: `O segundo fator de ${action.user.email} será removido e deverá ser configurado novamente.`, confirmLabel: 'Resetar autenticador' };
 }
 
 function MetricCard({ label, value, helper }: { label: string; value: string; helper: string }) {
