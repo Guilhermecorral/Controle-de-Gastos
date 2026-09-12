@@ -7,9 +7,9 @@
 [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Version](https://img.shields.io/badge/release-1.4.5-22C55E)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/release-1.4.6-22C55E)](CHANGELOG.md)
 
-**Versão estável: v1.4.5.** A Agenda de Proventos B3 foi homologada em ambiente real, mantém previsões revisáveis e nunca cria receita sem confirmação explícita. Toda importação
+**Versão do código: v1.4.6.** A Central de Tributos PF organiza estimativas, guias e pagamentos; só cria despesa após confirmação explícita. A Agenda B3 permanece homologada em operação controlada. Toda importação
 de investimentos passa por uma revisão obrigatória antes de alterar a carteira. Consulte o [escopo, testes e limitações](docs/INVESTMENTS-1.4.md)
 e o [roadmap do produto](docs/ROADMAP.md).
 
@@ -31,6 +31,7 @@ O sistema foi construído como um projeto de produto real, não apenas como demo
 - **Transações:** receitas e despesas, filtros, edição, exclusão e compras parceladas.
 - **Análise mensal:** comparações com períodos anteriores, acumulado anual e insights explicáveis.
 - **Investimentos:** catálogo de ativos, compras e vendas, preço médio, cotações, rentabilidade, proventos e evolução patrimonial.
+- **Central de Tributos PF:** obrigações pessoais com estimativa, guia, status por vencimento e confirmação de pagamento vinculada ao Histórico Financeiro; PJ permanece em desenvolvimento.
 - **Renda fixa:** cadastro de aplicações e simulador de juros compostos com aportes mensais.
 - **Lista de desejos:** múltiplas listas, prioridades, descontos, histórico e conversão da compra em transação.
 - **Importação financeira e de investimentos:** prévia editável de extratos e de compras/vendas em CSV, Excel ou OFX, com confirmação obrigatória.
@@ -167,7 +168,7 @@ Para relatar uma vulnerabilidade, prefira um contato privado com o mantenedor em
 
 ## Estado do Projeto
 
-A versão estável atual é a **1.4.5**. A próxima evolução planejada é a **1.4.6**, com foco inicial na Central de Tributos da Pessoa Física, conforme o [roadmap](docs/ROADMAP.md).
+A versão do código é a **1.4.6**, com a Central de Tributos PF implementada e pendente de homologação em ambiente real. A **1.4.5** foi a última versão homologada em produção. O próximo ciclo de produto está no [roadmap](docs/ROADMAP.md).
 
 ## Autoria
 

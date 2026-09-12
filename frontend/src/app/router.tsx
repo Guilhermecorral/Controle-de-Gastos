@@ -35,6 +35,10 @@ export default function AppRouter() {
           path="/app"
           element={isAuthenticated ? <WorkspacePage onLogout={logout} /> : <Navigate replace to="/login" />}
         />
+        <Route
+          path="/tributos"
+          element={isAuthenticated ? <WorkspacePage onLogout={logout} /> : <Navigate replace to="/login" />}
+        />
         <Route path="/app/ofx-upload" element={<Navigate replace to={isAuthenticated ? '/app' : '/login'} />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

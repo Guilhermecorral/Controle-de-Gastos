@@ -1,6 +1,7 @@
 package com.controledegastos.backend.investments;
 
 import com.controledegastos.backend.security.AuthenticatedUserService;
+import com.controledegastos.backend.tax.TaxObligationService;
 import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.transactions.Repository.TransactionRepository;
 import com.controledegastos.backend.user.User;
@@ -21,6 +22,7 @@ public class InvestmentTaxController {
     private final TaxPaymentRepository payments;
     private final InvestmentMovementRepository movements;
     private final TransactionRepository transactions;
+    private final TaxObligationService taxObligations;
     private final jakarta.persistence.EntityManager entityManager;
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
@@ -126,10 +128,11 @@ public class InvestmentTaxController {
         payment.setUser(user); payment.setPeriod(request.period()); payment.setRevenueCode(request.revenueCode());
         payment.setAmount(money(request.amount())); payment.setPaidAt(request.paidAt()); payment.setDueDate(request.dueDate());
         payment.setAccountLabel(request.accountLabel()); payment.setNote(request.note()); payments.save(payment);
-        transactions.save(Transaction.builder().user(user).type(Transaction.TransactionType.DESPESA)
+        Transaction transaction = transactions.save(Transaction.builder().user(user).type(Transaction.TransactionType.DESPESA)
                 .category(Transaction.TransactionCategory.IMPOSTOS).paymentMethod(Transaction.PaymentMethod.TRANSFERENCIA).installments(1)
                 .description("DARF " + request.revenueCode() + " - " + request.period()).amount(payment.getAmount()).transactionDate(request.paidAt())
                 .managedReference("tax-payment:" + payment.getId()).build());
+        taxObligations.recordPaidInvestmentDarf(user, payment, transaction);
         return response(payment);
     }
     private PaymentResponse response(TaxPayment payment) { return new PaymentResponse(payment.getId(), payment.getPeriod(), payment.getRevenueCode(), payment.getAmount(), payment.getPaidAt()); }

@@ -14,6 +14,7 @@ import {
 } from '../../../lib/queries';
 import { useAuthStore } from '../../../store/auth';
 import { Field, SectionCard } from '../../shared/ui';
+import { useSaveTaxProfile, useTaxProfile } from '../../tax/hooks/useTaxProfile';
 
 type SettingsPageProps = {
   onLogout: () => void;
@@ -39,6 +40,9 @@ export default function SettingsPage({ onLogout, user }: SettingsPageProps) {
   const beginTwoFactorSetupMutation = useBeginTwoFactorSetupMutation();
   const confirmTwoFactorMutation = useConfirmTwoFactorMutation();
   const disableTwoFactorMutation = useDisableTwoFactorMutation();
+  const taxProfileQuery = useTaxProfile();
+  const saveTaxProfile = useSaveTaxProfile();
+  const [taxProfileMessage, setTaxProfileMessage] = useState('');
 
   const [activeTab, setActiveTab] = useState<SettingsTabId>('perfil');
   const [name, setName] = useState(user?.name ?? '');
@@ -456,6 +460,15 @@ export default function SettingsPage({ onLogout, user }: SettingsPageProps) {
 
           {activeTab === 'preferencias' && (
             <SectionCard title="Preferências">
+              <div className="mb-5 rounded-[22px] border border-emerald-100 bg-emerald-50 p-5">
+                <p className="font-semibold text-slate-900">Perfil da Central de Tributos</p>
+                <p className="mt-2 text-sm text-slate-600">A escolha não é definitiva. PJ ainda não possui funcionalidades nesta versão.</p>
+                <p className="mt-2 text-sm font-semibold text-emerald-800">{taxProfileQuery.isLoading ? 'Carregando...' : taxProfileQuery.isError ? 'Não foi possível carregar o perfil.' : taxProfileQuery.data === 'PF' ? 'Pessoa Física (PF)' : taxProfileQuery.data === 'PJ' ? 'Pessoa Jurídica (PJ)' : 'Não selecionado'}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(['PF', 'PJ'] as const).map((type) => <button className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-50" disabled={saveTaxProfile.isPending || taxProfileQuery.isError || taxProfileQuery.data === type} key={type} onClick={() => { setTaxProfileMessage(''); saveTaxProfile.mutate(type, { onSuccess: () => setTaxProfileMessage('Perfil tributário atualizado.'), onError: (error) => setTaxProfileMessage(getApiErrorMessage(error, 'Não foi possível alterar o perfil.')) }); }} type="button">Usar {type}</button>)}
+                </div>
+                {taxProfileMessage && <p className="mt-3 text-sm text-slate-700" role="status">{taxProfileMessage}</p>}
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <PreferenceCard
                   title="Resumo inicial"

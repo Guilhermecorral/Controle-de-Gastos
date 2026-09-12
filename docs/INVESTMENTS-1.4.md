@@ -1,6 +1,6 @@
 # Investimentos 1.4
 
-Status: `1.4.5` estável, atualizada em 12/09/2026. A versão amplia a base de investimentos com Agenda B3 homologada em operação controlada, importação assistida e fontes externas revisáveis.
+Status: investimentos `1.4.5` homologados; documento atualizado para o código `1.4.6` em 12/09/2026. A base de investimentos mantém Agenda B3 em operação controlada, importação assistida e fontes externas revisáveis.
 
 ## Entregue nesta etapa
 
@@ -129,3 +129,5 @@ PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quanti
 - Aplicacoes financeiras no exterior: https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2023/lei/l14754.htm
 
 Cripto global, ETF de renda fixa e fontes externas de proventos não devem ser tratados como regras definitivas nesta versão. A integração real deve guardar vigência, origem e enquadramento do produto.
+
+O DARF de investimentos pode ser vinculado à Central de Tributos PF (`1.4.6`) sem duplicar a obrigação nem a despesa já lançada. Pagamentos históricos são reconciliados pela migração V22; novos pagamentos feitos em Investimentos compartilham a mesma transação financeira com a Central.

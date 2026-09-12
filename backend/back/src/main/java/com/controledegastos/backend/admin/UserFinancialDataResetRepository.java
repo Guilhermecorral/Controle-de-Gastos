@@ -14,6 +14,7 @@ public class UserFinancialDataResetRepository {
     private final JdbcTemplate jdbcTemplate;
 
     public void deleteAllByUserId(Long userId) {
+        jdbcTemplate.update("DELETE FROM tax_obligations WHERE user_id = ?", userId);
         // As transacoes referenciam movimentacoes e itens da wishlist, por isso saem primeiro.
         jdbcTemplate.update("DELETE FROM transactions WHERE user_id = ?", userId);
 

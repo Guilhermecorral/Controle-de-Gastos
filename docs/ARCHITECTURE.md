@@ -1,6 +1,6 @@
 # Arquitetura do Farol Financeiro
 
-Este documento apresenta a arquitetura técnica da versão estável 1.4.5 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
+Este documento apresenta a arquitetura técnica do código 1.4.6 do Farol Financeiro. Ele descreve os componentes, as responsabilidades de cada módulo e os fluxos que exigem mais cuidado ao evoluir o sistema.
 
 ## Visão geral
 
@@ -59,6 +59,7 @@ O backend fica em `backend/back/` e usa Java 21 e Spring Boot. Os pacotes são o
 | `dashboard` | Indicadores consolidados do painel |
 | `monthlyanalysis` | Agregações mensais de receitas, despesas e categorias |
 | `investments` | Catálogo, posições, movimentações, cotações, proventos e projeções |
+| `tax` | Perfil tributário PF/PJ, obrigações pessoais, vencimentos e pagamento vinculado à transação financeira |
 | `wishlist` | Listas de desejos, histórico, importação e conversão em compra |
 | `admin` | Visão operacional e gestão controlada de usuários |
 | `ofxupload` | Leitura e normalização de extratos financeiros |
@@ -94,6 +95,9 @@ erDiagram
     USER ||--o{ REFRESH_TOKEN : possui
     USER ||--o{ INVESTMENT_POSITION : possui
     USER ||--o{ INVESTMENT_MOVEMENT : registra
+    USER ||--o{ TAX_OBLIGATION : organiza
+    TAX_OBLIGATION o|--o| TRANSACTION : pagamento
+    TAX_OBLIGATION o|--o| TAX_PAYMENT : DARF
     USER ||--o{ PORTFOLIO_SNAPSHOT : acompanha
     USER ||--o{ WISHLIST_LIST : organiza
     WISHLIST_LIST ||--o{ WISHLIST_ITEM : contém
@@ -102,7 +106,9 @@ erDiagram
     INVESTMENT_POSITION ||--o{ INVESTMENT_MOVEMENT : consolida
 ```
 
-As posições de investimento representam o estado consolidado. Compras, vendas e proventos são fatos históricos e não devem ser apagados apenas para ajustar o saldo; correções devem preservar rastreabilidade sempre que possível. A única exceção operacional é o reset administrativo explícito de uma conta de homologação: ele apaga todo o domínio financeiro em uma transação, inclusive comprovantes e staging, mas preserva `users`, autenticação, papel, status e 2FA para permitir um novo cenário de teste.
+As posições de investimento representam o estado consolidado. Compras, vendas e proventos são fatos históricos e não devem ser apagados apenas para ajustar o saldo; correções devem preservar rastreabilidade sempre que possível. A única exceção operacional é o reset administrativo explícito de uma conta de homologação: ele apaga todo o domínio financeiro em uma transação, inclusive comprovantes, obrigações tributárias e staging, mas preserva `users`, autenticação, papel, status e 2FA para permitir um novo cenário de teste.
+
+Na Central de Tributos, `tax_obligations` pertence a um usuário. O estágio estimativa/guia e o status de vencimento não geram transação. Apenas a confirmação de pagamento cria uma despesa `IMPOSTOS` vinculada; DARFs de investimentos reutilizam a transação já registrada no fluxo de investimentos. A migração V22 reconcilia DARFs históricos pagos e a restrição única em `linked_darf_id` impede vínculo duplicado.
 
 ## Investimentos e cotações
 

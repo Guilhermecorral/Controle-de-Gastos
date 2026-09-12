@@ -98,7 +98,7 @@ public class B3CorporateEventProvider implements MarketDataProvider {
         HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + SUPPLEMENT_PATH + payload))
                 .timeout(Duration.ofSeconds(15))
                 .header("Accept", "application/json")
-                .header("User-Agent", "FarolFinanceiro/1.4.5 corporate-event-pilot")
+                .header("User-Agent", "FarolFinanceiro/1.4.6 corporate-event-pilot")
                 .GET()
                 .build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

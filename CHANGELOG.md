@@ -2,6 +2,15 @@
 
 As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 
+## [1.4.6] - 2026-09-12
+
+- Central de Tributos PF com escolha de perfil PF/PJ, alteração posterior em Configurações e tela PJ identificada como recurso futuro, sem regras empresariais.
+- Obrigações pessoais cadastradas manualmente com categoria, competência, vencimento, valor estimado, estágio de documento e status recalculado na consulta; estimativa e guia não alteram saldo.
+- Confirmação explícita de pagamento cria uma única despesa `IMPOSTOS` vinculada, registra valor e data reais e impede repetição, edição ou exclusão de obrigação paga.
+- DARFs de investimentos já pagos são vinculados à Central sem nova despesa: a migração V22 reconcilia pagamentos anteriores e novos pagamentos compartilham a transação financeira existente.
+- Rotas autenticadas isolam obrigações pelo usuário; o reset administrativo de dados financeiros também remove obrigações tributárias.
+- Permanecem pendentes para homologação: validação com IPVA/IPTU reais, alerta/calendário, anexo de comprovante e importação assistida de obrigações. PJ fica para `1.6.0` ou posterior.
+
 ## [1.4.5] - 2026-09-12
 
 ### Release estável

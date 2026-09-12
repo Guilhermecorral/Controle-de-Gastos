@@ -57,6 +57,10 @@ public class User implements UserDetails {
     @Builder.Default
     private Role role = Role.USER;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_profile_type", length = 10)
+    private TaxProfileType taxProfileType;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

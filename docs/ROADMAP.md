@@ -4,13 +4,14 @@ Atualizado em 12/09/2026. Este documento e a referencia de continuidade para as 
 
 ## Onde estamos agora
 
-- Versao estavel atual: `1.4.5`.
-- Proxima versao em preparacao: `1.4.6` - Central de Tributos da Pessoa Fisica.
+- Versao do codigo: `1.4.6` - Central de Tributos da Pessoa Fisica implementada; homologacao em ambiente real pendente.
+- Ultima versao homologada em producao: `1.4.5`.
 
 | Frente | Estado | Situacao atual |
 | --- | --- | --- |
 | Proventos/B3 | Homologado | Operacao manual controlada validada em ambiente real: 32 confirmacoes em lote, eventos futuros provisionados e nenhuma ambiguidade indevida de ticker. |
-| Debito tecnico | Em andamento | Workflow de seguranca para Gitleaks e OpenGrep foi preparado; lint sem configuracao e formulario de renda fixa duplicado continuam pendentes. |
+| Debito tecnico | Em andamento | Workflow de seguranca para Gitleaks e OpenGrep e lint estao configurados; formulario de renda fixa duplicado continua pendente. |
+| Central de Tributos PF | Implementada, homologacao pendente | Perfil PF/PJ, obrigacoes manuais, status por vencimento, pagamento confirmado e DARF de investimentos vinculado. |
 | Sessao | Em andamento | Refresh persistido e rotacionado; a evidencia final de cookie/proxy deve continuar sendo observada em producao. |
 | Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
 | COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
@@ -222,6 +223,16 @@ O procedimento e os valores seguros de configuracao continuam no [runbook de pro
 
 ## v1.4.6 - Central de tributos da pessoa fisica
 
+### Entrega implementada em 12/09/2026
+
+- Onboarding PF/PJ com escolha persistida em `users.tax_profile_type`, alteravel em Configuracoes; PJ mostra apenas tela de espera.
+- Cadastro e edicao manual de obrigacoes PF, com estimativa ou guia emitida, competencia, vencimento, valor, categoria e status. Atraso e pagamento sao refletidos na consulta.
+- Confirmacao explicita de pagamento registra uma despesa `IMPOSTOS` vinculada; obrigacoes pagas nao podem ser editadas, removidas ou pagas novamente.
+- DARFs de investimentos pagos aparecem vinculados a mesma transacao, inclusive os historicos reconciliados pela V22; nao se cria outra despesa.
+- API autenticada, isolamento por usuario, reset administrativo contemplando tributos e testes de servico para os fluxos financeiros centrais.
+
+**Ainda nao entregue:** homologacao com IPVA/IPTU reais, anexos de comprovante (ha apenas referencia textual), alertas/calendario, geracao automatica de recorrencias, importacao assistida e calculo fiscal automatico. PJ/CNPJ permanece na `v1.6.0` ou posterior. A release de codigo `1.4.6` nao deve ser confundida com homologacao em producao.
+
 ### Objetivo
 
 Transformar impostos ja conhecidos pelo usuario em obrigacoes financeiras organizadas, com vencimento, estimativa, comprovante e confirmacao de pagamento. A proposta e complementar a Tributacao e Conciliacao de investimentos: investimentos continuam com regras e DARF proprias; a Central apresenta a visao geral das obrigacoes pessoais sem fingir substituir contador, declaracao oficial ou sistema governamental.
@@ -310,7 +321,7 @@ Somente iniciar esta frente depois de concluir a Central de Tributos PF e escolh
 3. Validar regras com fonte oficial e revisao contabil antes de codificar qualquer calculo.
 4. Projetar isolamento de dados empresariais, membros, permissoes e auditoria antes de importar notas ou folha.
 
-**Classificacao atual:** tributacao empresarial nao faz parte da `v1.4.5`. Um organizador de obrigacoes pessoais inicia na `v1.4.6`; calculo tributario empresarial completo pertence a `v1.6.0` ou posterior.
+**Classificacao atual:** tributacao empresarial nao faz parte da `v1.4.6`; a Central de Tributos pessoais foi implementada nesta versao, enquanto calculo tributario empresarial pertence a `v1.6.0` ou posterior.
 
 ## Decisoes pendentes
 
@@ -327,5 +338,5 @@ Somente iniciar esta frente depois de concluir a Central de Tributos PF e escolh
 1. Registrar a resposta do autor do pipeline e atualizar a secao de fonte B3/CVM.
 2. Monitorar os casos homologados de acoes, FIIs e Fiagros e registrar qualquer divergencia da fonte antes de ampliar a automacao.
 3. Validar em producao os atributos do cookie e o fluxo de refresh sem expor tokens.
-4. Iniciar a `1.4.6` pela modelagem da Central de Tributos PF, com estados, origem, vencimento, comprovante e confirmacao de pagamento definidos antes das telas.
+4. Homologar a `1.4.6` com IPVA/IPTU reais e confirmar o fluxo completo de despesa vinculada antes de anunciar a versao como operacional em producao.
 5. Ao fechar uma versao, sincronizar README, CHANGELOG, `package.json`, `pom.xml`, runtime e documentos tecnicos conforme a regra permanente de versao.

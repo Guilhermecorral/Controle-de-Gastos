@@ -5,6 +5,7 @@ export type ViewId =
   | 'transacoes'
   | 'analise'
   | 'investimentos'
+  | 'tributos'
   | 'wishlist'
   | 'notasFiscais'
   | 'importacao'

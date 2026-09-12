@@ -1,6 +1,6 @@
 # Referência da API
 
-Esta referência resume a API REST da versão estável 1.4.5. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
+Esta referência resume a API REST do código 1.4.6. O contrato executável completo pode ser consultado pelo Swagger UI no ambiente de desenvolvimento.
 
 ## Acesso
 
@@ -192,6 +192,24 @@ curl -G -b cookies.txt \
 
 A resposta separa o total investido dos juros ganhos e inclui a evolução por período para montagem da tabela e dos gráficos.
 
+## Tributos PF
+
+Todas as rotas exigem autenticação. O backend usa o usuário da sessão para todas as consultas e escritas; IDs de outra conta não são retornados. `GET` e `PUT /profile` aceitam PF ou PJ; os demais endpoints exigem o perfil PF. PJ não possui endpoints de obrigações nesta versão.
+
+| Método | Rota | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/tax/profile` | Retorna `{ "taxProfileType": null | "PF" | "PJ" }` |
+| `PUT` | `/api/tax/profile` | Salva `{ "taxProfileType": "PF" | "PJ" }` |
+| `GET` | `/api/tax/obligations` | Lista obrigações com status recalculado por pagamento e vencimento |
+| `POST` | `/api/tax/obligations` | Cadastra obrigação manual sem despesa |
+| `PUT` | `/api/tax/obligations/{id}` | Edita obrigação manual não paga |
+| `DELETE` | `/api/tax/obligations/{id}` | Exclui obrigação manual não paga |
+| `POST` | `/api/tax/obligations/{id}/confirm-payment` | Confirma pagamento e cria uma despesa vinculada |
+
+No cadastro/edição, envie `name`, `issuingAuthority`, `category`, `dueDate`, `estimatedAmount`, `recurrence`, `competenceYear`, `competenceMonth`, `notes`, `origin=MANUAL`, `status` e `documentStage`. Categorias: `IRPF`, `IPVA`, `IPTU`, `ISS`, `INSS`, `LICENCIAMENTO`, `DARF`, `PERSONALIZADO`. Estados editáveis: `A_PAGAR`, `ISENTA`, `EM_REVISAO`; `PAGA` e `ATRASADA` são derivados. Estágios: `ESTIMATIVA`, `GUIA_EMITIDA`. Recorrências: `UNICA`, `MENSAL`, `ANUAL`, `PERSONALIZADA`; o campo descreve a obrigação, não cria parcelas ou ocorrências automaticamente.
+
+Na confirmação, envie `paidAmount`, `paidDate`, `accountDescription` e `receiptReference` opcional. `receiptReference` é uma referência textual, não um arquivo anexado. O pagamento é irreversível pela Central nesta versão: a obrigação paga não pode ser editada, excluída ou confirmada outra vez. `linkedTransactionId` e `linkedDarfId` referenciam IDs numéricos de entidades existentes; o `id` da obrigação é UUID. DARFs pagos em Investimentos são exibidos com a mesma despesa, sem criar outra. Estimativas e guias não alteram saldo.
+
 ## Lista de desejos
 
 | Método | Rota | Descrição |
@@ -227,7 +245,7 @@ Todas as rotas exigem permissão administrativa.
 | `POST` | `/api/admin/users/{userId}/reset-two-factor` | Remove a configuração 2FA |
 | `POST` | `/api/admin/users/{userId}/reset-data` | Remove os dados financeiros da conta sem excluir usuário, acesso ou 2FA |
 
-O reset de dados exige confirmação reforçada na interface administrativa. Ele remove transações, comprovantes, wishlist, carteira, movimentações, Agenda de proventos, metas, saldos fiscais e lotes de importação do usuário. `users`, refresh tokens, tokens de recuperação, senha, papel, status e segredos de 2FA não são alterados.
+O reset de dados exige confirmação reforçada na interface administrativa. Ele remove transações, comprovantes, wishlist, carteira, movimentações, Agenda de proventos, obrigações tributárias, metas, saldos fiscais e lotes de importação do usuário. `users`, refresh tokens, tokens de recuperação, senha, papel, status, perfil tributário e segredos de 2FA não são alterados.
 
 ## Endpoints operacionais
 

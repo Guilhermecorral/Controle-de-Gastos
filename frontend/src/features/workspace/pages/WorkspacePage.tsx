@@ -32,6 +32,7 @@ import InvestmentsPage from '../../investments/pages/InvestmentsPage';
 import MonthlyAnalysisPage from '../../monthly-analysis/pages/MonthlyAnalysisPage';
 import ReceiptsPage from '../../receipts/pages/ReceiptsPage';
 import SettingsPage from '../../settings/pages/SettingsPage';
+import TaxPage from '../../tax/pages/TaxPage';
 import { ConfirmationDialog, ToastStack } from '../../shared/ui';
 import ReceiptUploadModal from '../../transactions/components/ReceiptUploadModal';
 import TransactionsPage from '../../transactions/pages/TransactionsPage';
@@ -59,7 +60,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const [currentView, setCurrentView] = useState<ViewId>('painel');
+  const [currentView, setCurrentView] = useState<ViewId>(location.pathname === '/tributos' ? 'tributos' : 'painel');
   const [dashboardYear, setDashboardYear] = useState(currentYear);
   const [dashboardMonth, setDashboardMonth] = useState(currentMonth);
   const [analysisYear, setAnalysisYear] = useState(currentYear);
@@ -133,12 +134,17 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
   const logoutMutation = useLogoutMutation();
 
   useEffect(() => {
-    if (location.pathname === '/app') {
+    if (location.pathname === '/app' || location.pathname === '/tributos') {
       return;
     }
 
     navigate('/app', { replace: true });
   }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    if (location.pathname === '/tributos') setCurrentView('tributos');
+    else if (location.pathname === '/app') setCurrentView((view) => view === 'tributos' ? 'painel' : view);
+  }, [location.pathname]);
 
   useEffect(() => {
     setOnboardingDismissed(localStorage.getItem(onboardingKey) === 'true');
@@ -622,7 +628,10 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
             </button>
             <button
               className="button-pop rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-100"
-              onClick={() => setCurrentView('importacao')}
+              onClick={() => {
+                setCurrentView('importacao');
+                if (location.pathname === '/tributos') navigate('/app');
+              }}
               type="button"
             >
               Histórico financeiro
@@ -649,6 +658,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                         className="rounded-[18px] bg-white px-4 py-3 text-left text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
                         onClick={() => {
                           setCurrentView('admin');
+                          if (location.pathname === '/tributos') navigate('/app');
                           setUserMenuOpen(false);
                         }}
                         type="button"
@@ -660,6 +670,7 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                       className="rounded-[18px] bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                       onClick={() => {
                         setCurrentView('configuracoes');
+                        if (location.pathname === '/tributos') navigate('/app');
                         setUserMenuOpen(false);
                       }}
                       type="button"
@@ -693,7 +704,11 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
                     ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10'
                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                 }`}
-                onClick={() => setCurrentView(item.id)}
+                onClick={() => {
+                  setCurrentView(item.id);
+                  if (item.id === 'tributos') navigate('/tributos');
+                  else if (location.pathname === '/tributos') navigate('/app');
+                }}
                 type="button"
               >
                 <p className="font-semibold">{item.label}</p>
@@ -838,6 +853,8 @@ export default function WorkspacePage({ onLogout }: WorkspacePageProps) {
           )}
 
           {currentView === 'investimentos' && <InvestmentsPage />}
+
+          {currentView === 'tributos' && <TaxPage />}
 
           {currentView === 'importacao' && (
             <FinancialHistoryPage transactions={allTransactions} wishlistLists={wishlistLists} />

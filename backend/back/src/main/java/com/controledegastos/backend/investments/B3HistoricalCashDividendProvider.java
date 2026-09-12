@@ -102,7 +102,7 @@ public class B3HistoricalCashDividendProvider {
             String encoded = Base64.getEncoder().encodeToString(requestJson.getBytes(StandardCharsets.UTF_8));
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl.replaceAll("/+$", "") + endpoint + encoded))
                     .timeout(Duration.ofSeconds(15)).header("Accept", "application/json")
-                    .header("User-Agent", "FarolFinanceiro/1.4.5 corporate-event-history").GET().build();
+                    .header("User-Agent", "FarolFinanceiro/1.4.6 corporate-event-history").GET().build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("HTTP " + response.statusCode() + " da B3");

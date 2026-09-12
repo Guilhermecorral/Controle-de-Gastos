@@ -41,7 +41,7 @@ function processQueue(error?: unknown) {
 function forceLogout() {
   useAuthStore.getState().logout()
 
-  if (window.location.pathname.startsWith('/app')) {
+  if (window.location.pathname.startsWith('/app') || window.location.pathname === '/tributos') {
     window.location.assign('/login')
   }
 }
