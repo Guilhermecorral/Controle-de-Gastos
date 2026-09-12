@@ -110,7 +110,7 @@ PDFs de notas costumam trazer data, corretora, mercado, código do ativo, quanti
 
 ## 1.4.1 a 1.4.5
 
-1.4.1: agenda automática entregue com CNPJ pagador, Data Com, data de pagamento, quantidade elegível congelada, ajuste/cancelamento e confirmação. A fonte atual é mock, portanto os eventos servem ao fluxo e aos testes, não como informação de mercado para decisão financeira.
+1.4.1: agenda automática entregue com CNPJ pagador, Data Com, data de pagamento, quantidade elegível congelada, ajuste/cancelamento e confirmação. Naquela etapa a fonte era mock, portanto os eventos serviam ao fluxo e aos testes, não como informação de mercado para decisão financeira.
 
 1.4.2: importação assistida de investimentos em CSV, Excel e OFX, revisão obrigatória, alerta de duplicidade e estabilidade de sessão por refresh token persistido.
 

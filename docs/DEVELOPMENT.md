@@ -118,7 +118,7 @@ npm run build
 npm run preview
 ```
 
-`npm run lint` existe no projeto, mas depende da inclusão de uma configuração ESLint compatível antes de ser usado como validação obrigatória.
+`npm run lint` usa a configuração ESLint do projeto e deve ser executado junto com o build antes de concluir alterações no frontend.
 
 Ainda não há um comando de testes automatizados do frontend no `package.json`. Até a inclusão de um test runner, `npm run build` é a validação automatizada mínima dessa camada.
 
