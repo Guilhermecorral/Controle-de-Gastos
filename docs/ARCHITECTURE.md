@@ -102,7 +102,7 @@ erDiagram
     INVESTMENT_POSITION ||--o{ INVESTMENT_MOVEMENT : consolida
 ```
 
-As posições de investimento representam o estado consolidado. Compras, vendas e proventos são fatos históricos e não devem ser apagados apenas para ajustar o saldo; correções devem preservar rastreabilidade sempre que possível.
+As posições de investimento representam o estado consolidado. Compras, vendas e proventos são fatos históricos e não devem ser apagados apenas para ajustar o saldo; correções devem preservar rastreabilidade sempre que possível. A única exceção operacional é o reset administrativo explícito de uma conta de homologação: ele apaga todo o domínio financeiro em uma transação, inclusive comprovantes e staging, mas preserva `users`, autenticação, papel, status e 2FA para permitir um novo cenário de teste.
 
 ## Investimentos e cotações
 

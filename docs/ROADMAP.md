@@ -1,6 +1,6 @@
 # Roadmap do Produto
 
-Atualizado em 08/09/2026. Este documento e a referencia de continuidade para as proximas evolucoes do Farol Financeiro. Ele registra o que ja foi decidido, o que precisa ser validado e os criterios para considerar cada entrega pronta.
+Atualizado em 12/09/2026. Este documento e a referencia de continuidade para as proximas evolucoes do Farol Financeiro. Ele registra o que ja foi decidido, o que precisa ser validado e os criterios para considerar cada entrega pronta.
 
 ## Onde estamos agora
 
@@ -13,6 +13,7 @@ Atualizado em 08/09/2026. Este documento e a referencia de continuidade para as 
 | Sessao | Em andamento | Refresh persistido e rotacionado; a evidencia final de cookie/proxy deve continuar sendo observada em producao. |
 | Importacao | Entregue | CSV, Excel e OFX passam por staging e confirmacao; PDF SINACOR nativo permanece parcial e revisavel. |
 | COTAHIST | Bloqueado por decisao | Arquivos locais estao ignorados pelo Git e inventariados por hash. Importacao e atualizacao anual ainda nao foram implementadas. |
+| Homologacao | Entregue | Admin pode zerar o dominio financeiro de uma conta com confirmacao reforcada, preservando usuario, acesso e 2FA. |
 
 Documentos relacionados:
 

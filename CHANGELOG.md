@@ -21,6 +21,7 @@ As mudanças relevantes do Farol Financeiro seguem versionamento semântico.
 - A prévia B3 tolera até dois minutos de inicialização e consulta, evitando que o despertar do Render seja mostrado como falha da Agenda.
 - O simulador de renda fixa mostra a tabela completa mês a mês, usa cinco marcos apenas no gráfico e calcula poder de compra real a partir da inflação anual informada.
 - Confirmações de exclusão, ajustes fiscais e ações administrativas passam a usar diálogos internos do Farol, com impacto, cancelamento, validação e erro visíveis, sem depender de alertas ou prompts nativos do navegador.
+- O painel administrativo permite zerar dados de homologação de uma conta: transações, comprovantes, wishlist, investimentos, proventos, metas, saldos fiscais e staging são removidos em lote, enquanto usuário, senha, papel, status, sessão e 2FA permanecem preservados.
 
 ### Continuação auditada por commit
 

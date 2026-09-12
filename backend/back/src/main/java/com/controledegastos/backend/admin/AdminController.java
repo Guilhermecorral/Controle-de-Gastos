@@ -78,4 +78,12 @@ public class AdminController {
     public ResponseEntity<AdminUserResponseDTO> resetTwoFactor(@PathVariable Long userId) {
         return ResponseEntity.ok(adminService.resetUserTwoFactor(userId));
     }
+
+    /**
+     * Remove os dados financeiros de teste sem alterar identidade, acesso ou segundo fator.
+     */
+    @PostMapping("/users/{userId}/reset-data")
+    public ResponseEntity<AdminUserResponseDTO> resetUserData(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminService.resetUserData(userId));
+    }
 }

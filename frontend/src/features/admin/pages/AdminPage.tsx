@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   useAdminOverviewQuery,
   useAdminResetUserPasswordMutation,
+  useAdminResetUserDataMutation,
   useAdminResetUserTwoFactorMutation,
   useAdminUpdateUserRoleMutation,
   useAdminUpdateUserStatusMutation,
@@ -16,7 +17,8 @@ type PendingAdminAction =
   | { type: 'STATUS'; user: AdminUserResponse; active: boolean }
   | { type: 'ROLE'; user: AdminUserResponse; role: Role }
   | { type: 'PASSWORD'; user: AdminUserResponse; newPassword: string }
-  | { type: 'TWO_FACTOR'; user: AdminUserResponse };
+  | { type: 'TWO_FACTOR'; user: AdminUserResponse }
+  | { type: 'RESET_DATA'; user: AdminUserResponse };
 
 export default function AdminPage() {
   const overviewQuery = useAdminOverviewQuery(true);
@@ -25,6 +27,7 @@ export default function AdminPage() {
   const updateRoleMutation = useAdminUpdateUserRoleMutation();
   const resetPasswordMutation = useAdminResetUserPasswordMutation();
   const resetTwoFactorMutation = useAdminResetUserTwoFactorMutation();
+  const resetUserDataMutation = useAdminResetUserDataMutation();
 
   const [selectedUser, setSelectedUser] = useState<AdminUserResponse | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -103,7 +106,8 @@ export default function AdminPage() {
     updateStatusMutation.isPending
     || updateRoleMutation.isPending
     || resetPasswordMutation.isPending
-    || resetTwoFactorMutation.isPending;
+    || resetTwoFactorMutation.isPending
+    || resetUserDataMutation.isPending;
   const adminQueryPending = overviewQuery.isPending || usersQuery.isPending;
   const adminQueryError = overviewQuery.error ?? usersQuery.error;
 
@@ -179,13 +183,25 @@ export default function AdminPage() {
       return;
     }
 
-    resetTwoFactorMutation.mutate(action.user.id, {
+    if (action.type === 'TWO_FACTOR') {
+      resetTwoFactorMutation.mutate(action.user.id, {
+        onSuccess: (response) => {
+          syncSelectedUser(response);
+          setFeedbackMessage('Segundo fator removido com sucesso.');
+          closeAdminConfirmation();
+        },
+        onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível resetar o autenticador agora.')),
+      });
+      return;
+    }
+
+    resetUserDataMutation.mutate(action.user.id, {
       onSuccess: (response) => {
         syncSelectedUser(response);
-        setFeedbackMessage('Segundo fator removido com sucesso.');
+        setFeedbackMessage('Dados financeiros zerados. A conta, o acesso e o segundo fator foram preservados.');
         closeAdminConfirmation();
       },
-      onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível resetar o autenticador agora.')),
+      onError: (error) => setAdminConfirmationError(getApiErrorMessage(error, 'Não foi possível zerar os dados financeiros agora. Nenhuma nova tentativa foi feita automaticamente.')),
     });
   };
 
@@ -554,6 +570,22 @@ export default function AdminPage() {
                   openAdminConfirmation({ type: 'TWO_FACTOR', user: selectedUser });
                 }}
               />
+
+              <div className="rounded-[22px] border border-rose-200 bg-rose-50/70 p-4">
+                <p className="text-sm font-semibold text-rose-800">Zerar dados financeiros da conta</p>
+                <p className="mt-2 text-sm leading-6 text-rose-700">
+                  Remove histórico, comprovantes, carteira, Agenda, dados fiscais, metas, wishlist e importações. Nome, e-mail,
+                  senha, perfil, status e 2FA permanecem intactos.
+                </p>
+                <button
+                  className="mt-4 rounded-full border border-rose-300 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:text-rose-300"
+                  disabled={actionPending}
+                  onClick={() => openAdminConfirmation({ type: 'RESET_DATA', user: selectedUser })}
+                  type="button"
+                >
+                  Resetar dados financeiros
+                </button>
+              </div>
             </div>
           )}
         </SectionCard>
@@ -594,7 +626,14 @@ function getAdminActionContent(action: PendingAdminAction | null) {
   if (action.type === 'PASSWORD') {
     return { title: 'Redefinir senha?', description: `A senha de ${action.user.email} será substituída pela senha temporária informada.`, confirmLabel: 'Redefinir senha' };
   }
-  return { title: 'Resetar autenticador?', description: `O segundo fator de ${action.user.email} será removido e deverá ser configurado novamente.`, confirmLabel: 'Resetar autenticador' };
+  if (action.type === 'TWO_FACTOR') {
+    return { title: 'Resetar autenticador?', description: `O segundo fator de ${action.user.email} será removido e deverá ser configurado novamente.`, confirmLabel: 'Resetar autenticador' };
+  }
+  return {
+    title: 'Zerar todos os dados financeiros?',
+    description: `Esta ação é irreversível. Serão removidos histórico, comprovantes, carteira, movimentações, Agenda de proventos, dados fiscais, metas, wishlist e importações de ${action.user.email}. A conta, a senha, o perfil, o status e o 2FA serão preservados.`,
+    confirmLabel: 'Zerar dados financeiros',
+  };
 }
 
 function MetricCard({ label, value, helper }: { label: string; value: string; helper: string }) {

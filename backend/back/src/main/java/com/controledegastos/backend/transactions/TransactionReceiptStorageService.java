@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -85,6 +86,24 @@ public class TransactionReceiptStorageService {
             Files.deleteIfExists(path);
         } catch (IOException exception) {
             throw new IllegalStateException("Nao foi possivel limpar o anexo fiscal anterior");
+        }
+    }
+
+    /**
+     * Remove inclusive anexos orfaos da pasta exclusiva da conta durante uma limpeza administrativa.
+     */
+    public void deleteAllReceipts(Long userId) {
+        Path userDirectory = storageRoot.resolve("user-" + userId).normalize();
+        if (!userDirectory.startsWith(storageRoot) || !Files.exists(userDirectory)) {
+            return;
+        }
+
+        try (var paths = Files.walk(userDirectory)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Nao foi possivel limpar os comprovantes da conta");
         }
     }
 

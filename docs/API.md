@@ -217,6 +217,9 @@ Todas as rotas exigem permissão administrativa.
 | `PATCH` | `/api/admin/users/{userId}/role` | Altera o papel de acesso |
 | `POST` | `/api/admin/users/{userId}/reset-password` | Redefine a senha sob política administrativa |
 | `POST` | `/api/admin/users/{userId}/reset-two-factor` | Remove a configuração 2FA |
+| `POST` | `/api/admin/users/{userId}/reset-data` | Remove os dados financeiros da conta sem excluir usuário, acesso ou 2FA |
+
+O reset de dados exige confirmação reforçada na interface administrativa. Ele remove transações, comprovantes, wishlist, carteira, movimentações, Agenda de proventos, metas, saldos fiscais e lotes de importação do usuário. `users`, refresh tokens, tokens de recuperação, senha, papel, status e segredos de 2FA não são alterados.
 
 ## Endpoints operacionais
 

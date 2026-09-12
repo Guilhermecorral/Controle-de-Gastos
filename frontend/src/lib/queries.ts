@@ -461,6 +461,23 @@ export function useAdminResetUserTwoFactorMutation() {
   })
 }
 
+export function useAdminResetUserDataMutation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: number) => (await api.post<AdminUserResponse>(`/admin/users/${id}/reset-data`)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['transaction-receipts'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-analysis'] })
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] })
+    },
+  })
+}
+
 export function useLoginMutation() {
   return useMutation({
     mutationFn: async (data: LoginRequest) =>

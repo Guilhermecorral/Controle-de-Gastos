@@ -39,6 +39,7 @@ Status: `1.4.5-beta.1` em desenvolvimento, atualizada em 12/09/2026. A versão a
 | POST | /api/investments/imports/preview | Cria lote de revisão para CSV, Excel, OFX ou PDF SINACOR nativo, sem movimentação oficial |
 | POST | /api/investments/imports/{batchId}/confirm | Efetiva somente as linhas selecionadas e revisadas do lote |
 | PUT / DELETE | /api/investments/movements/{id} | Corrige ou remove compra/venda e sincroniza o lançamento financeiro vinculado |
+| POST | /api/admin/users/{userId}/reset-data | Limpeza administrativa de homologação; remove carteira, Agenda e demais dados financeiros sem excluir a conta ou o 2FA |
 | POST | /api/investments/positions | Aplicacao de renda fixa ou saldo inicial (openingDate) |
 | POST | /api/investments/positions/{id}/redemption-preview | Previa de resgate total |
 | POST | /api/investments/positions/{id}/redeem | Confirma resgate e entrada liquida |

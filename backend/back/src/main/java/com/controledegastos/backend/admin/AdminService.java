@@ -13,6 +13,8 @@ import com.controledegastos.backend.transactions.Transaction;
 import com.controledegastos.backend.user.Repository.UserRepository;
 import com.controledegastos.backend.user.User;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,11 +32,14 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AdminService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminService.class);
+
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final AuthenticatedUserService authenticatedUserService;
     private final PasswordEncoder passwordEncoder;
     private final AdminAccessPolicy adminAccessPolicy;
+    private final UserFinancialDataResetService financialDataResetService;
 
     private static final String STATUS_HEALTHY = "SAUDAVEL";
 
@@ -157,17 +162,30 @@ public class AdminService {
         return toAdminUserResponse(userRepository.save(targetUser));
     }
 
+    /**
+     * Zera somente o dominio financeiro da conta para permitir novos cenarios de homologacao.
+     */
+    @Transactional
+    public AdminUserResponseDTO resetUserData(Long userId) {
+        User currentAdmin = assertCurrentAdminAllowed();
+        User targetUser = findUser(userId);
+        financialDataResetService.reset(targetUser);
+        log.warn("Reset administrativo de dados financeiros concluido: adminId={} targetUserId={}", currentAdmin.getId(), targetUser.getId());
+        return toAdminUserResponse(targetUser);
+    }
+
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
     }
 
-    private void assertCurrentAdminAllowed() {
+    private User assertCurrentAdminAllowed() {
         User currentAdmin = authenticatedUserService.getAuthenticatedUser();
 
         if (!adminAccessPolicy.canAccess(currentAdmin)) {
             throw new AccessDeniedException("Seu acesso administrativo não está autorizado pela whitelist atual");
         }
+        return currentAdmin;
     }
 
     private AdminUserResponseDTO toAdminUserResponse(User user) {
